@@ -1,4 +1,4 @@
-# tests/integration/test_openai_real.py
+# tests/integration/test_anthropic_real.py
 
 
 import pytest
@@ -28,12 +28,14 @@ class GetWeatherTool(BaseTool):
 
 
 @pytest.mark.integration
-def test_openai_provider_simple_chat_integration():
+def test_anthropic_provider_simple_chat_integration():
     """
     Performs a real API call to test simple chat completion.
     This test is skipped unless --run-integration is provided and OPENAI_API_KEY is set.
     """
-    provider = ProviderRegistry.get_provider("openai", model="gpt-4o")
+    provider = ProviderRegistry.get_provider(
+        "anthropic", model="claude-3-5-haiku-latest"
+    )
     messages = [
         Message(
             role=MessageRole.SYSTEM,
@@ -52,12 +54,14 @@ def test_openai_provider_simple_chat_integration():
 
 
 @pytest.mark.integration
-def test_openai_provider_tool_calling_integration():
+def test_anthropic_provider_tool_calling_integration():
     """
     Performs a real API call to test tool calling.
-    This test is skipped unless --run-integration is provided and OPENAI_API_KEY is set.
+    This test is skipped unless --run-integration is provided and ANTHROPIC_API_KEY is set.
     """
-    provider = ProviderRegistry.get_provider("openai", model="gpt-4o")
+    provider = ProviderRegistry.get_provider(
+        "anthropic", model="claude-3-5-haiku-latest"
+    )
     messages = [
         Message(role=MessageRole.USER, content="What is the weather like in Boston?"),
     ]
@@ -65,9 +69,11 @@ def test_openai_provider_tool_calling_integration():
 
     response = provider.chat(messages, tools=tools)
 
+    # Anthropic models often return both text content (e.g., "thinking...") and a tool call.
+    # The critical part is that a tool call was actually made.
     assert (
-        response.content is None
-    ), "Expected no direct text content when a tool is called"
+        response.content is not None or len(response.tool_calls) > 0
+    ), "Expected either text content or a tool call"
     assert len(response.tool_calls) > 0, "Expected the model to request a tool call"
 
     tool_call = response.tool_calls[0]
