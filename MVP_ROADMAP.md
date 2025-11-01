@@ -1,6 +1,6 @@
 # Allos Agent SDK - MVP Roadmap
 
-> **Goal**: Ship a working, production-ready MVP in 6-8 weeks  
+> **Goal**: Ship a working, production-ready MVP in 6-8 weeks
 > **Target**: Provider-agnostic agentic SDK with OpenAI & Anthropic support
 
 ---
@@ -37,7 +37,7 @@ Build a functional agentic SDK that demonstrates:
 
 ## Phase 0: Foundation ✅ COMPLETE
 
-**Duration**: Week 0 (Already Done)  
+**Duration**: Week 0 (Already Done)
 **Status**: ✅ Complete
 
 ### Completed Tasks
@@ -48,16 +48,16 @@ Build a functional agentic SDK that demonstrates:
 - [x] MVP roadmap created (this document)
 
 ### Deliverables
-✅ GitHub repository with proper structure  
-✅ Comprehensive README showcasing the vision  
-✅ Clear MVP roadmap for execution  
+✅ GitHub repository with proper structure
+✅ Comprehensive README showcasing the vision
+✅ Clear MVP roadmap for execution
 
 ---
 
 ## Phase 1: Core Infrastructure
 
-**Duration**: Week 1 (Days 1-7)  
-**Status**: ⏳ In Progress  
+**Duration**: Week 1 (Days 1-7)
+**Status**: ⏳ In Progress
 **Focus**: Project setup, dependencies, utilities, error handling
 
 ### Goals
@@ -69,64 +69,64 @@ Build a functional agentic SDK that demonstrates:
 ### Tasks
 
 #### Day 1-2: Project Configuration
-- [ ] Create `pyproject.toml` with all dependencies
+- [x] Create `pyproject.toml` with all dependencies
   - Core: `pydantic`, `httpx`, `rich`, `click`, `pyyaml`
   - Dev: `pytest`, `black`, `ruff`, `mypy`, `pre-commit`
   - Optional: `openai`, `anthropic`
-- [ ] Create `requirements.txt` and `requirements-dev.txt`
-- [ ] Create `setup.py` for backward compatibility
-- [ ] Configure `.gitignore`
-- [ ] Set up pre-commit hooks
+- [x] Create `requirements.txt` and `requirements-dev.txt` (uv synced)
+- [x] Create `setup.py` for backward compatibility
+- [x] Configure `.gitignore`
+- [x] Set up pre-commit hooks
   - Black formatting
   - Ruff linting
-  - Type checking
-- [ ] Create `.env.example` with API key templates
+  - Mypy Type checking
+- [x] Create `.env.example` with API key templates
 
 #### Day 3-4: Utility Modules
-- [ ] **`allos/utils/errors.py`**
+- [x] **`allos/utils/errors.py`**
   - Custom exception hierarchy
   - `AllosError`, `ProviderError`, `ToolExecutionError`, etc.
-- [ ] **`allos/utils/logging.py`**
+- [x] **`allos/utils/logging.py`**
   - Colored console logging
   - File logging support
   - Log level configuration
-- [ ] **`allos/utils/file_utils.py`**
+- [x] **`allos/utils/file_utils.py`**
   - Safe path operations
   - File reading with size limits
   - Directory traversal prevention
-- [ ] **`allos/utils/token_counter.py`**
+- [x] **`allos/utils/token_counter.py`**
   - Token estimation utility
   - Text truncation helpers
-- [ ] **`allos/utils/__init__.py`**
+- [x] **`allos/utils/__init__.py`**
   - Export all utilities
 
 #### Day 5-6: Testing Infrastructure
-- [ ] **`tests/conftest.py`**
+- [x] **`tests/conftest.py`**
   - Pytest fixtures
   - Mock providers
   - Mock tools
   - Temp directory fixtures
-- [ ] **`scripts/run_tests.sh`**
+- [x] **`scripts/run_tests.sh`**
   - Test runner script
-- [ ] **`scripts/setup_dev.sh`**
+- [x] **`scripts/setup_dev.sh`**
   - Development environment setup
 - [ ] Create first dummy test to verify setup
 
 #### Day 7: Version & Package
-- [ ] **`allos/__version__.py`**
+- [x] **`allos/__version__.py`**
   - Version information
-- [ ] **`allos/__init__.py`**
+- [x] **`allos/__init__.py`**
   - Main package exports
-- [ ] Test installation with `pip install -e .`
-- [ ] Verify imports work
+- [x] Test installation with `uv pip install -e .`
+- [x] Verify imports work
 
 ### Success Criteria
-✅ `pip install -e ".[dev]"` works  
-✅ `pytest` runs (even if no tests yet)  
-✅ `black allos tests` formats code  
-✅ `ruff check allos tests` passes  
-✅ Pre-commit hooks work  
-✅ Utility modules are tested and functional  
+✅ `uv pip install -e ".[dev]"` works
+✅ `pytest` runs (even if no tests yet)
+✅ `black allos tests` formats code
+✅ `ruff check allos tests` passes
+✅ Pre-commit hooks work
+✅ Utility modules are tested and functional
 
 ### Deliverables
 - Working development environment
@@ -138,8 +138,8 @@ Build a functional agentic SDK that demonstrates:
 
 ## Phase 2: Provider Layer
 
-**Duration**: Week 2 (Days 8-14)  
-**Status**: 🔜 Not Started  
+**Duration**: Week 2 (Days 8-14)
+**Status**: 🔜 Not Started
 **Focus**: LLM provider abstraction and implementations
 
 ### Goals
@@ -206,12 +206,12 @@ Build a functional agentic SDK that demonstrates:
 - [ ] **Integration test**: Test provider switching
 
 ### Success Criteria
-✅ Can initialize both OpenAI and Anthropic providers  
-✅ Can send messages and get responses  
-✅ Tool calling works with both providers  
-✅ Provider switching is seamless  
-✅ Error handling is robust  
-✅ All tests pass  
+✅ Can initialize both OpenAI and Anthropic providers
+✅ Can send messages and get responses
+✅ Tool calling works with both providers
+✅ Provider switching is seamless
+✅ Error handling is robust
+✅ All tests pass
 
 ### Deliverables
 - Working OpenAI provider
@@ -237,8 +237,8 @@ response = anthropic.chat([Message(role=MessageRole.USER, content="Hello")])
 
 ## Phase 3: Tool System
 
-**Duration**: Week 3 (Days 15-21)  
-**Status**: 🔜 Not Started  
+**Duration**: Week 3 (Days 15-21)
+**Status**: 🔜 Not Started
 **Focus**: Tool abstraction and core tool implementations
 
 ### Goals
@@ -315,11 +315,11 @@ response = anthropic.chat([Message(role=MessageRole.USER, content="Hello")])
 - [ ] **Security audit** of all tools
 
 ### Success Criteria
-✅ All 5 core tools implemented and tested  
-✅ Tool registry works  
-✅ Security measures in place  
-✅ All tests pass  
-✅ Tools convert to OpenAI format correctly  
+✅ All 5 core tools implemented and tested
+✅ Tool registry works
+✅ Security measures in place
+✅ All tests pass
+✅ Tools convert to OpenAI format correctly
 
 ### Deliverables
 - 5 working tools: `read_file`, `write_file`, `edit_file`, `list_directory`, `shell_exec`
@@ -347,8 +347,8 @@ print(ToolRegistry.list_tools())
 
 ## Phase 4: Agent Core
 
-**Duration**: Week 4 (Days 22-28)  
-**Status**: 🔜 Not Started  
+**Duration**: Week 4 (Days 22-28)
+**Status**: 🔜 Not Started
 **Focus**: Context management and main agent orchestration
 
 ### Goals
@@ -401,12 +401,12 @@ print(ToolRegistry.list_tools())
   - Test with both providers
 
 ### Success Criteria
-✅ Agent can complete simple tasks (read file, write file)  
-✅ Works with both OpenAI and Anthropic  
-✅ Tool calling loop works correctly  
-✅ Permission system works  
-✅ Sessions save and load correctly  
-✅ All tests pass  
+✅ Agent can complete simple tasks (read file, write file)
+✅ Works with both OpenAI and Anthropic
+✅ Tool calling loop works correctly
+✅ Permission system works
+✅ Sessions save and load correctly
+✅ All tests pass
 
 ### Deliverables
 - Working Agent class
@@ -441,8 +441,8 @@ agent = Agent.load_session("my-session.json", config)
 
 ## Phase 5: CLI & Integration
 
-**Duration**: Week 5 (Days 29-35)  
-**Status**: 🔜 Not Started  
+**Duration**: Week 5 (Days 29-35)
+**Status**: 🔜 Not Started
 **Focus**: Command-line interface and user experience
 
 ### Goals
@@ -509,12 +509,12 @@ agent = Agent.load_session("my-session.json", config)
   - Nice formatting
 
 ### Success Criteria
-✅ `allos "task"` works from command line  
-✅ Can switch providers easily  
-✅ Interactive mode works  
-✅ Session save/load works from CLI  
-✅ Help text is clear and useful  
-✅ Error messages are helpful  
+✅ `allos "task"` works from command line
+✅ Can switch providers easily
+✅ Interactive mode works
+✅ Session save/load works from CLI
+✅ Help text is clear and useful
+✅ Error messages are helpful
 
 ### Deliverables
 - Fully functional CLI
@@ -554,8 +554,8 @@ allos --auto-approve "Read all Python files"
 
 ## Phase 6: Testing & Polish
 
-**Duration**: Week 6 (Days 36-42)  
-**Status**: 🔜 Not Started  
+**Duration**: Week 6 (Days 36-42)
+**Status**: 🔜 Not Started
 **Focus**: Comprehensive testing, bug fixes, edge cases
 
 ### Goals
@@ -626,12 +626,12 @@ allos --auto-approve "Read all Python files"
 - [ ] Document known limitations
 
 ### Success Criteria
-✅ Test coverage >80%  
-✅ All tests pass consistently  
-✅ Real-world tasks work reliably  
-✅ Security audit passed  
-✅ Performance is acceptable  
-✅ Known bugs documented or fixed  
+✅ Test coverage >80%
+✅ All tests pass consistently
+✅ Real-world tasks work reliably
+✅ Security audit passed
+✅ Performance is acceptable
+✅ Known bugs documented or fixed
 
 ### Deliverables
 - Comprehensive test suite
@@ -644,8 +644,8 @@ allos --auto-approve "Read all Python files"
 
 ## Phase 7: Documentation & Launch
 
-**Duration**: Week 7-8 (Days 43-56)  
-**Status**: 🔜 Not Started  
+**Duration**: Week 7-8 (Days 43-56)
+**Status**: 🔜 Not Started
 **Focus**: Documentation, examples, launch preparation
 
 ### Goals
@@ -772,11 +772,11 @@ allos --auto-approve "Read all Python files"
 - [ ] Celebrate! 🎉
 
 ### Success Criteria
-✅ All documentation complete and clear  
-✅ All examples work  
-✅ Package published to PyPI  
-✅ Launch materials ready  
-✅ Community engagement started  
+✅ All documentation complete and clear
+✅ All examples work
+✅ Package published to PyPI
+✅ Launch materials ready
+✅ Community engagement started
 
 ### Deliverables
 - Complete documentation
@@ -797,7 +797,7 @@ allos --auto-approve "Read all Python files"
   - [ ] Anthropic provider
   - [ ] Provider registry
   - [ ] Seamless switching
-  
+
 - [ ] **Tool System**
   - [ ] Tool abstraction
   - [ ] File read tool
@@ -807,27 +807,27 @@ allos --auto-approve "Read all Python files"
   - [ ] Shell execution tool
   - [ ] Tool registry
   - [ ] Permission system
-  
+
 - [ ] **Agent Core**
   - [ ] Context management
   - [ ] Agentic loop
   - [ ] Tool execution
   - [ ] Session save/load
   - [ ] Error handling
-  
+
 - [ ] **CLI**
   - [ ] Basic commands
   - [ ] Provider selection
   - [ ] Tool selection
   - [ ] Interactive mode
   - [ ] Session management
-  
+
 - [ ] **Testing**
   - [ ] Unit tests
   - [ ] Integration tests
   - [ ] E2E tests
   - [ ] >80% coverage
-  
+
 - [ ] **Documentation**
   - [ ] README
   - [ ] Getting started guide

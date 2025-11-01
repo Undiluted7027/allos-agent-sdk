@@ -163,7 +163,7 @@ class DatabaseQueryTool(BaseTool):
             required=True
         )
     ]
-    
+
     def execute(self, query: str):
         # Your implementation
         result = your_db.execute(query)
@@ -350,10 +350,17 @@ All contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guid
 # Clone the repository
 git clone https://github.com/Undiluted7027/allos-agent-sdk.git
 cd allos-agent-sdk
+```
 
+#### Python Environment
+
+##### With `pip`
+
+```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  
+# For: Mac OS/Linux
+source venv/bin/activate
 # On Windows: venv\Scripts\activate
 
 # Install in development mode
@@ -366,6 +373,33 @@ pytest
 black allos tests
 ruff check allos tests --fix
 ```
+
+#### With `uv`
+
+Ensure you have `uv` installed. Check out [UV Installation Instructions](https://docs.astral.sh/uv/getting-started/installation/) for more information.
+
+```bash
+# Create virtual environment
+uv venv
+
+# Activate environment
+# For: MacOS/Linux
+source .venv/bin/activate
+# For: Windows (Powershell)
+# .venv\Scripts\activate
+
+# Install in development mode
+uv pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Format code
+black allos tests
+ruff check allos tests --fix
+```
+
+
 
 ## 🌟 Why "Allos"?
 

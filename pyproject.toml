@@ -1,0 +1,91 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "allos-agent-sdk"
+version = "0.1.0"
+authors = [
+  { name="The Allos Community", email="contact@allos.dev" },
+]
+description = "The LLM-Agnostic Agentic Framework"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file="LICENSE" }
+keywords = ["ai", "agent", "llm", "sdk", "openai", "anthropic", "agnostic", "automation"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+# Core dependencies required for the SDK to function
+dependencies = [
+    "pydantic>=2.12.3",
+    "httpx>=0.28.1",
+    "rich>=14.2.0",
+    "click>=8.1.8",
+    "pyyaml>=6.0.3",
+    "tiktoken>=0.12.0"  # For OpenAI token counting
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Undiluted7027/allos-agent-sdk"
+"Bug Tracker" = "https://github.com/Undiluted7027/allos-agent-sdk/issues"
+"Documentation" = "https://github.com/Undiluted7027/allos-agent-sdk/tree/main/docs"
+
+# Optional dependencies for specific LLM providers and development
+[project.optional-dependencies]
+openai = ["openai>=1.10.0"]
+anthropic = ["anthropic>=0.72.0"]
+all = ["allos-agent-sdk[openai,anthropic]"]
+dev = [
+    "pytest>=8.4.2",
+    "black>=25.9.0",
+    "ruff>=0.14.3",
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "pytest-cov>=7.0.0", # For test coverage
+    "pytest-mock>=3.15.1"
+]
+
+# Defines the 'allos' command-line script
+[project.scripts]
+allos = "allos.cli.main:main"
+
+[tool.setuptools]
+packages = ["allos"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+# Allow unused arguments in function signatures.
+# This is useful for abstract methods that must match a signature.
+dummy-variable-rgx = "^(_|dummy_)"
+select = ["E", "W", "F", "I", "C", "B"] # Standard flake8 set + isort, flake8-bugbear
+ignore = ["E501"] # Ignore line-too-long, handled by black
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "pytest-mock>=3.15.1",
+]
