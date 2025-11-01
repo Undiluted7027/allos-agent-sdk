@@ -29,12 +29,11 @@ def test_is_safe_path_with_invalid_path_component_fails(work_dir: Path):
     Test that is_safe_path returns False when a path contains illegal characters,
     triggering the final generic exception handler.
     """
-    # A NULL byte is an invalid character in a path on most filesystems.
-    # This will cause `pathlib.resolve()` to raise an exception.
-    invalid_path_with_null_byte = Path("some_dir/\0/some_file.txt")
+    # A NULL byte is an invalid character in a path.
+    invalid_path_str = "some_dir/\0/some_file.txt"
 
-    # The function should catch the low-level error and return False.
-    assert is_safe_path(work_dir, invalid_path_with_null_byte) is False
+    # The function should catch the low-level error (ValueError/OSError) and return False.
+    assert is_safe_path(work_dir, invalid_path_str) is False
 
 
 # --- Tests for safe_read_file ---
