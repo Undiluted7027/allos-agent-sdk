@@ -2,6 +2,7 @@
 
 """Secure file system utilities for the Allos Agent SDK."""
 
+import os
 from pathlib import Path
 
 from .errors import FileOperationError
@@ -87,7 +88,9 @@ def safe_read_file(
         raise FileOperationError(f"Failed to read file '{path}': {e}") from e
 
 
-def safe_write_file(path: str, content: str, base_dir: str) -> None:
+def safe_write_file(
+    path: str, content: str, base_dir: str, append_mode: bool = False
+) -> None:
     """
     Writes content to a file after validating the path is safe.
 
@@ -95,6 +98,7 @@ def safe_write_file(path: str, content: str, base_dir: str) -> None:
         path: The relative path to the file.
         content: The content to write.
         base_dir: The working directory of the agent.
+        append_mode: Whether to append to the file instead of overwriting.
 
     Raises:
         FileOperationError: If the path is unsafe or writing fails.
@@ -110,6 +114,60 @@ def safe_write_file(path: str, content: str, base_dir: str) -> None:
     try:
         # Ensure parent directories exist
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        target_path.write_text(content, encoding="utf-8")
+        (
+            target_path.write_text(content, encoding="utf-8", errors="strict")
+            if not append_mode
+            else target_path.write_text(
+                target_path.read_text(encoding="utf-8") + content, encoding="utf-8"
+            )
+        )
     except Exception as e:
         raise FileOperationError(f"Failed to write to file '{path}': {e}") from e
+
+
+def get_target_directory(base_dir: Path, path_str: str) -> Path:
+    """Compute the absolute target directory path."""
+    return (base_dir / path_str).resolve()
+
+
+def validate_directory(base_dir: Path, target_dir: Path) -> None:
+    """Validate that the target directory is safe and exists."""
+    if not is_safe_path(base_dir, target_dir):
+        raise FileOperationError(
+            f"Path '{target_dir}' is outside the safe working directory."
+        )
+    if not target_dir.exists():
+        raise FileOperationError(f"Directory not found: '{target_dir}'")
+    if not target_dir.is_dir():
+        raise FileOperationError(f"Path is not a directory: '{target_dir}'")
+
+
+def list_directory_recursive(
+    base_dir: Path, target_dir: Path, show_hidden: bool
+) -> list[str]:
+    """List all contents recursively."""
+    contents = []
+    for root, dirs, files in os.walk(target_dir):
+        if not show_hidden:
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            files = [f for f in files if not f.startswith(".")]
+
+        current_path = Path(root).relative_to(base_dir)
+        for name in sorted(dirs):
+            contents.append(f"{current_path / name}/")
+        for name in sorted(files):
+            contents.append(str(current_path / name))
+    return contents
+
+
+def list_directory_non_recursive(
+    base_dir: Path, target_dir: Path, show_hidden: bool
+) -> list[str]:
+    """List contents of the directory without recursion."""
+    contents = []
+    for entry in sorted(target_dir.iterdir()):
+        if not show_hidden and entry.name.startswith("."):
+            continue
+        relative_path = entry.relative_to(base_dir)
+        contents.append(f"{relative_path}/" if entry.is_dir() else str(relative_path))
+    return contents

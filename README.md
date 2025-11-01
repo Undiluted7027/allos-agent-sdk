@@ -289,7 +289,7 @@ content_agent.run("Research AI trends and write a blog post")
 - [x] Initial architecture design
 - [x] Directory structure
 - [x] Provider layer (OpenAI, Anthropic)
-- [ ] Tool system (filesystem, shell)
+- [x] Tool system (filesystem, shell) with Limited Permissions Management
 - [ ] Agent core with agentic loop
 - [ ] CLI interface
 - [ ] Basic tests
@@ -324,7 +324,7 @@ See [ROADMAP.md](./ROADMAP.md) for the complete roadmap.
 Allos is currently under active development. The MVP will include:
 - ✅ Initial architecture designed
 - ✅ OpenAI and Anthropic providers
-- ⏳ Essential file and shell tools
+- ✅ Essential file and shell tools
 - ⏳ Basic agentic loop
 - ⏳ CLI interface
 - ⏳ Python API

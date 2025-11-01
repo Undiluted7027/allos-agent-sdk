@@ -25,13 +25,13 @@ Build a functional agentic SDK that demonstrates:
 | **Phase 0: Foundation** | ✅ Complete | 100% |
 | **Phase 1: Core Infrastructure** | ✅ Complete | 100% |
 | **Phase 2: Provider Layer** | ✅ Complete | 100% |
-| **Phase 3: Tool System** | 🔜 Not Started | 0% |
+| **Phase 3: Tool System** | ✅ Complete| 100% |
 | **Phase 4: Agent Core** | 🔜 Not Started | 0% |
 | **Phase 5: CLI & Integration** | 🔜 Not Started | 0% |
 | **Phase 6: Testing & Polish** | 🔜 Not Started | 0% |
 | **Phase 7: Documentation & Launch** | 🔜 Not Started | 0% |
 
-**Overall Progress**: 43% (3/7 phases complete)
+**Overall Progress**: 57% (4/7 phases complete)
 
 ---
 
@@ -50,7 +50,9 @@ Build a functional agentic SDK that demonstrates:
 
 ### Deliverables
 ✅ GitHub repository with proper structure
+
 ✅ Comprehensive README showcasing the vision
+
 ✅ Clear MVP roadmap for execution
 
 ---
@@ -125,10 +127,15 @@ Build a functional agentic SDK that demonstrates:
 
 ### Success Criteria
 ✅ `uv pip install -e ".[dev]"` works
+
 ✅ `pytest` runs (even if no tests yet)
+
 ✅ `black allos tests` formats code
+
 ✅ `ruff check allos tests` passes
+
 ✅ Pre-commit hooks work
+
 ✅ Utility modules are tested and functional
 
 ### Deliverables
@@ -212,10 +219,15 @@ Build a functional agentic SDK that demonstrates:
 
 ### Success Criteria
 ✅ Can initialize both OpenAI and Anthropic providers
+
 ✅ Can send messages and get responses
+
 ✅ Tool calling works with both providers
+
 ✅ Provider switching is seamless
+
 ✅ Error handling is robust
+
 ✅ All tests pass
 
 ### Deliverables
@@ -243,7 +255,7 @@ response = anthropic.chat([Message(role=MessageRole.USER, content="Hello")])
 ## Phase 3: Tool System
 
 **Duration**: Week 3 (Days 15-21)
-**Status**: 🔜 Not Started
+**Status**: ✅ Complete
 **Focus**: Tool abstraction and core tool implementations
 
 ### Goals
@@ -255,69 +267,69 @@ response = anthropic.chat([Message(role=MessageRole.USER, content="Hello")])
 ### Tasks
 
 #### Day 15-16: Tool Base & Registry
-- [ ] **`allos/tools/base.py`**
+- [x] **`allos/tools/base.py`**
   - `ToolPermission` enum
   - `ToolParameter` dataclass
   - `BaseTool` abstract class
   - `to_openai_format()` method
   - `validate_arguments()` method
-- [ ] **`allos/tools/registry.py`**
+- [x] **`allos/tools/registry.py`**
   - `ToolRegistry` class
   - Registration decorator `@tool`
   - Get tool by name
   - List all tools
-- [ ] **`allos/tools/__init__.py`**
+- [x] **`allos/tools/__init__.py`**
   - Export base classes
-- [ ] **Write tests**: `tests/unit/test_tool_base.py`
+- [x] **Write tests**: `tests/unit/test_tool_base.py`
 
 #### Day 17-18: Filesystem Tools (Read & Write)
-- [ ] **`allos/tools/filesystem/read.py`**
+- [x] **`allos/tools/filesystem/read.py`**
   - `FileReadTool` class
   - Safe path validation
   - Line range support
   - Size limits
   - Register with `@tool`
-- [ ] **`allos/tools/filesystem/write.py`**
+- [x] **`allos/tools/filesystem/write.py`**
   - `FileWriteTool` class
   - Safe path validation
   - Directory creation
   - Permission checking
   - Register with `@tool`
-- [ ] **`allos/tools/filesystem/__init__.py`**
-- [ ] **Write tests**: `tests/unit/test_filesystem_tools.py`
+- [x] **`allos/tools/filesystem/__init__.py`**
+- [x] **Write tests**: `tests/unit/test_filesystem_tools.py`
   - Test read operations
   - Test write operations
   - Test security (path traversal prevention)
   - Test error handling
 
 #### Day 19: Filesystem Tools (Edit & Directory)
-- [ ] **`allos/tools/filesystem/edit.py`**
+- [x] **`allos/tools/filesystem/edit.py`**
   - `FileEditTool` class (string replace)
   - Uniqueness validation
   - Atomic operations
   - Register with `@tool`
-- [ ] **`allos/tools/filesystem/directory.py`**
+- [x] **`allos/tools/filesystem/directory.py`**
   - `ListDirectoryTool` class
   - Recursive listing
   - Hidden file handling
   - Register with `@tool`
-- [ ] **Write tests**: `tests/unit/test_filesystem_tools.py` (extend)
+- [x] **Write tests**: `tests/unit/test_filesystem_tools.py` (extend)
 
 #### Day 20-21: Shell Execution Tool
-- [ ] **`allos/tools/execution/shell.py`**
+- [x] **`allos/tools/execution/shell.py`**
   - `ShellExecuteTool` class
   - Command execution with subprocess
   - Timeout handling
   - Dangerous command detection
   - Output capture (stdout/stderr)
   - Register with `@tool`
-- [ ] **`allos/tools/execution/__init__.py`**
-- [ ] **Write tests**: `tests/unit/test_shell_tool.py`
+- [x] **`allos/tools/execution/__init__.py`**
+- [x] **Write tests**: `tests/unit/test_shell_tool.py`
   - Test command execution
   - Test timeout
   - Test dangerous command blocking
   - Test error handling
-- [ ] **Security audit** of all tools
+- [x] **Security audit** of all tools
 
 ### Success Criteria
 ✅ All 5 core tools implemented and tested
@@ -332,7 +344,7 @@ response = anthropic.chat([Message(role=MessageRole.USER, content="Hello")])
 - Comprehensive tests
 - Security validated
 
-### Example Usage After This Phase
+### Example Usage After This Phase (VERIFIED)
 ```python
 from allos.tools.registry import ToolRegistry
 
@@ -803,15 +815,15 @@ allos --auto-approve "Read all Python files"
   - [x] Provider registry
   - [x] Seamless switching
 
-- [ ] **Tool System**
-  - [ ] Tool abstraction
-  - [ ] File read tool
-  - [ ] File write tool
-  - [ ] File edit tool
-  - [ ] Directory list tool
-  - [ ] Shell execution tool
-  - [ ] Tool registry
-  - [ ] Permission system
+- [x] **Tool System**
+  - [x] Tool abstraction
+  - [x] File read tool
+  - [x] File write tool
+  - [x] File edit tool
+  - [x] Directory list tool
+  - [x] Shell execution tool
+  - [x] Tool registry
+
 
 - [ ] **Agent Core**
   - [ ] Context management
@@ -819,6 +831,7 @@ allos --auto-approve "Read all Python files"
   - [ ] Tool execution
   - [ ] Session save/load
   - [ ] Error handling
+  - [ ] Permission system
 
 - [ ] **CLI**
   - [ ] Basic commands
@@ -908,7 +921,7 @@ If you get stuck:
 
 - **Week 1 Complete**: Foundation is solid! 🎯
 - **Week 2 Complete**: Providers working! 🔌
-- **Week 3 Pending**: Tools operational! 🛠️
+- **Week 3 Complete**: Tools operational! 🛠️
 - **Week 4 Pending**: Agent thinking! 🧠
 - **Week 5 Pending**: CLI ready! ⌨️
 - **Week 6 Pending**: Tested & polished! ✨
@@ -938,28 +951,13 @@ Keep a development log to track progress:
 ### Notes
 - Any insights or learnings
 ```
-
----
-
-## 🎯 Next Steps
-
-**YOU ARE HERE**: Phase 1 - Core Infrastructure
-
-**Next Actions**:
-1. Create `pyproject.toml` with all dependencies
-2. Set up development environment
-3. Implement utility modules
-4. Set up testing infrastructure
-
-**Start with**: See Phase 1, Day 1-2 tasks above ⬆️
-
 ---
 
 <div align="center">
 
 **Let's build something amazing! 💪**
 
-Progress: ██████████░░░░░░░░░░░░ 42%
+Progress: ██████████████░░░░░░░░ 57%
 
 [Back to README](./README.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
 
