@@ -25,6 +25,11 @@ def is_safe_path(base_dir: Path, target_path_str: Union[str, Path]) -> bool:
     Returns:
         True if the path is safe, False otherwise.
     """
+    # Explicitly check for null bytes before any path operations.
+    # Some Python/OS versions might truncate the path at the null byte
+    # instead of raising an error, leading to a security vulnerability.
+    if "\0" in str(target_path_str):
+        return False
     try:
         safe_root = base_dir.resolve(strict=True)
 
