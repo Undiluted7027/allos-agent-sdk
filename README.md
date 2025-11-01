@@ -10,6 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: MVP Development](https://img.shields.io/badge/status-MVP%20Development-orange.svg)](./MVP_ROADMAP.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+[![codecov](https://codecov.io/gh/Undiluted7027/allos-agent-sdk/graph/badge.svg?token=NT2N055YTL)](https://codecov.io/gh/Undiluted7027/allos-agent-sdk)
 
 [Documentation](./docs) • [Roadmap](./ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
 
