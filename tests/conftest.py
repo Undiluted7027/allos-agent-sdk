@@ -1,11 +1,13 @@
 # tests/conftest.py
 
+import logging
 import os
 import unittest.mock as mock
 from pathlib import Path
 from typing import Any, Callable, Generator, Union
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 # Import this for better type hinting with the mocker fixture
 from pytest_mock import MockerFixture
@@ -29,6 +31,21 @@ def work_dir(tmp_path: Path) -> Generator[Path, None, None]:
         yield project_dir
     finally:
         os.chdir(original_cwd)
+
+
+@pytest.fixture
+def configured_caplog(
+    caplog: LogCaptureFixture,
+) -> Generator[LogCaptureFixture, None, None]:
+    """
+    Fixture that configures caplog to capture DEBUG messages from the 'allos' logger.
+
+    This allows tests to assert the content of DEBUG, INFO, WARNING, etc.,
+    level logs emitted by the application.
+    """
+    # Use the context manager to temporarily set the log level for the 'allos' logger
+    with caplog.at_level(logging.DEBUG, logger="allos"):
+        yield caplog
 
 
 @pytest.fixture

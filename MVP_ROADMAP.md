@@ -38,6 +38,7 @@ Build a functional agentic SDK that demonstrates:
 ## Phase 0: Foundation ✅ COMPLETE
 
 **Duration**: Week 0 (Already Done)
+
 **Status**: ✅ Complete
 
 ### Completed Tasks
@@ -57,7 +58,9 @@ Build a functional agentic SDK that demonstrates:
 ## Phase 1: Core Infrastructure
 
 **Duration**: Week 1 (Days 1-7)
-**Status**: ⏳ In Progress
+
+**Status**: ✅ Complete
+
 **Focus**: Project setup, dependencies, utilities, error handling
 
 ### Goals
@@ -66,7 +69,7 @@ Build a functional agentic SDK that demonstrates:
 - Implement utility modules
 - Set up testing infrastructure
 
-### Tasks
+### Completed Tasks
 
 #### Day 1-2: Project Configuration
 - [x] Create `pyproject.toml` with all dependencies
@@ -139,7 +142,9 @@ Build a functional agentic SDK that demonstrates:
 ## Phase 2: Provider Layer
 
 **Duration**: Week 2 (Days 8-14)
-**Status**: 🔜 Not Started
+
+**Status**: ⏳ In Progress
+
 **Focus**: LLM provider abstraction and implementations
 
 ### Goals

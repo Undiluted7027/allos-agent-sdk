@@ -54,7 +54,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.8" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.2" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.10.0" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.6.1" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.3.0" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },

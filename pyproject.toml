@@ -45,7 +45,7 @@ dependencies = [
 
 # Optional dependencies for specific LLM providers and development
 [project.optional-dependencies]
-openai = ["openai>=1.10.0"]
+openai = ["openai>=2.6.1"]
 anthropic = ["anthropic>=0.72.0"]
 all = ["allos-agent-sdk[openai,anthropic]"]
 dev = [
