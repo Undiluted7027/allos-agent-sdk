@@ -1,6 +1,6 @@
 # tests/unit/tools/test_shell_tool.py
 
-import platform
+import sys
 
 import pytest
 
@@ -35,10 +35,11 @@ class TestShellExecuteTool:
 
     def test_execute_timeout(self):
         """Test that a long-running command is correctly timed out."""
-        # Use a command that sleeps for longer than the timeout
-        sleep_command = (
-            "sleep 2" if platform.system() != "Windows" else "timeout /t 2 /nobreak"
-        )
+        # Use a reliable cross-platform way to create a long-running process.
+        # This calls the current Python interpreter to run a short script that sleeps.
+        python_executable = sys.executable
+        sleep_command = f'"{python_executable}" -c "import time; time.sleep(2)"'
+
         result = self.tool.execute(command=sleep_command, timeout=1)
 
         assert result["status"] == "error"

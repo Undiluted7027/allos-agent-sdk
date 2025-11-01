@@ -29,7 +29,7 @@ def is_safe_path(base_dir: Path, target_path: Path) -> bool:
         resolved_target = target_path.resolve(strict=True)
         # Check if the resolved target path is a subpath of the resolved base path
         return resolved_target.is_relative_to(resolved_base)
-    except (FileNotFoundError, RuntimeError):
+    except (FileNotFoundError, RuntimeError, OSError):
         # strict=True raises FileNotFoundError if path doesn't exist
         # is_relative_to can raise RuntimeError on Windows with different drives
         # In these cases, we can check the unresolved path as a fallback
@@ -154,9 +154,9 @@ def list_directory_recursive(
 
         current_path = Path(root).relative_to(base_dir)
         for name in sorted(dirs):
-            contents.append(f"{current_path / name}/")
+            contents.append(f"{(current_path / name).as_posix()}/")
         for name in sorted(files):
-            contents.append(str(current_path / name))
+            contents.append(str((current_path / name).as_posix()))
     return contents
 
 
@@ -169,5 +169,8 @@ def list_directory_non_recursive(
         if not show_hidden and entry.name.startswith("."):
             continue
         relative_path = entry.relative_to(base_dir)
-        contents.append(f"{relative_path}/" if entry.is_dir() else str(relative_path))
+        if entry.is_dir():
+            contents.append(f"{relative_path.as_posix()}/")
+        else:
+            contents.append(str(relative_path.as_posix()))
     return contents
