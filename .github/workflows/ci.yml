@@ -24,6 +24,7 @@ jobs:
           # Install a specific version of uv.
           version: 0.9.7
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

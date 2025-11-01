@@ -34,6 +34,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-mock" },
     { name = "ruff" },
 ]
 openai = [
@@ -48,20 +49,21 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "allos-agent-sdk", extras = ["openai", "anthropic"], marker = "extra == 'all'" },
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.20.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0" },
-    { name = "click", specifier = ">=8.0" },
-    { name = "httpx", specifier = ">=0.25" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.6" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.72.0" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=25.9.0" },
+    { name = "click", specifier = ">=8.1.8" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.10.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "rich", specifier = ">=13.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
-    { name = "tiktoken", specifier = ">=0.5" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.3.0" },
+    { name = "pydantic", specifier = ">=2.12.3" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.15.1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "rich", specifier = ">=14.2.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.3" },
+    { name = "tiktoken", specifier = ">=0.12.0" },
 ]
 provides-extras = ["openai", "anthropic", "all", "dev"]
 
