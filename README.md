@@ -184,14 +184,14 @@ agent = Agent(AgentConfig(
 ┌─────────────────────────────────────────────────────────┐
 │                      CLI Layer                          │
 │              (User-friendly interface)                  │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
+└─────────────────────────┬───────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────┐
 │                   Agent Core                            │
 │        (Orchestration & Agentic Loop)                   │
 └─────┬──────────────────┬──────────────────┬────────────-┘
       │                  │                  │
-┌─────▼────────┐  ┌─────▼────────┐  ┌─────▼────────┐
+┌─────▼────────┐  ┌──────▼───────┐  ┌───────▼──────┐
 │  Providers   │  │    Tools     │  │   Context    │
 │              │  │              │  │              │
 │ • OpenAI     │  │ • FileSystem │  │ • History    │
@@ -213,12 +213,12 @@ agent = Agent(AgentConfig(
 
 | Provider | Status | Models | Features |
 |----------|--------|--------|----------|
-| **OpenAI** | ✅ Ready | GPT-4, GPT-3.5-Turbo, GPT-4o | Tool calling, streaming |
+| **OpenAI** | ✅ Ready | GPT-5, GPT-4, GPT-4o | Tool calling, streaming |
 | **Anthropic** | ✅ Ready | Claude 3, Claude 4 (Opus, Sonnet, Haiku) | Tool calling, streaming |
 | **Ollama** | 🚧 Coming Soon | Llama, Mistral, Qwen, etc. | Local models |
 | **Google** | 🚧 Coming Soon | Gemini Pro, Gemini Ultra | Tool calling |
 | **Cohere** | 📋 Planned | Command R, Command R+ | Tool calling |
-| **Custom** | ✅ Ready | Any OpenAI-compatible API | Extensible |
+| **Custom** | 📋 Planned | Any OpenAI-compatible API | Extensible |
 
 ## 🛠️ Built-in Tools
 
@@ -288,7 +288,7 @@ content_agent.run("Research AI trends and write a blog post")
 ### ✅ Phase 1: MVP (Current)
 - [x] Initial architecture design
 - [x] Directory structure
-- [ ] Provider layer (OpenAI, Anthropic)
+- [x] Provider layer (OpenAI, Anthropic)
 - [ ] Tool system (filesystem, shell)
 - [ ] Agent core with agentic loop
 - [ ] CLI interface
@@ -323,7 +323,7 @@ See [ROADMAP.md](./ROADMAP.md) for the complete roadmap.
 
 Allos is currently under active development. The MVP will include:
 - ✅ Initial architecture designed
-- ⏳ OpenAI and Anthropic providers
+- ✅ OpenAI and Anthropic providers
 - ⏳ Essential file and shell tools
 - ⏳ Basic agentic loop
 - ⏳ CLI interface
