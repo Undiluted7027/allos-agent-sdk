@@ -34,7 +34,9 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-dotenv" },
     { name = "pytest-mock" },
+    { name = "python-dotenv" },
     { name = "ruff" },
 ]
 openai = [
@@ -43,6 +45,7 @@ openai = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest-dotenv" },
     { name = "pytest-mock" },
 ]
 
@@ -59,7 +62,9 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-dotenv", marker = "extra == 'dev'", specifier = ">=0.5.2" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.15.1" },
+    { name = "python-dotenv", marker = "extra == 'dev'", specifier = ">=1.2.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.3" },
@@ -68,7 +73,10 @@ requires-dist = [
 provides-extras = ["openai", "anthropic", "all", "dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest-mock", specifier = ">=3.15.1" }]
+dev = [
+    { name = "pytest-dotenv", specifier = ">=0.5.2" },
+    { name = "pytest-mock", specifier = ">=3.15.1" },
+]
 
 [[package]]
 name = "annotated-types"
@@ -1173,6 +1181,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-dotenv"
+version = "0.5.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+    { name = "python-dotenv" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cd/b0/cafee9c627c1bae228eb07c9977f679b3a7cb111b488307ab9594ba9e4da/pytest-dotenv-0.5.2.tar.gz", hash = "sha256:2dc6c3ac6d8764c71c6d2804e902d0ff810fa19692e95fe138aefc9b1aa73732", size = 3782, upload-time = "2020-06-16T12:38:03.4Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/da/9da67c67b3d0963160e3d2cbc7c38b6fae342670cc8e6d5936644b2cf944/pytest_dotenv-0.5.2-py3-none-any.whl", hash = "sha256:40a2cece120a213898afaa5407673f6bd924b1fa7eafce6bda0e8abffe2f710f", size = 3993, upload-time = "2020-06-16T12:38:01.139Z" },
+]
+
+[[package]]
 name = "pytest-mock"
 version = "3.15.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1182,6 +1203,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/68/14/eb014d26be205d38ad5ad20d9a80f7d201472e08167f0bb4361e251084a9/pytest_mock-3.15.1.tar.gz", hash = "sha256:1849a238f6f396da19762269de72cb1814ab44416fa73a8686deac10b0d87a0f", size = 34036, upload-time = "2025-09-16T16:37:27.081Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/cc/06253936f4a7fa2e0f48dfe6d851d9c56df896a9ab09ac019d70b760619c/pytest_mock-3.15.1-py3-none-any.whl", hash = "sha256:0a25e2eb88fe5168d535041d09a4529a188176ae608a6d249ee65abc0949630d", size = 10095, upload-time = "2025-09-16T16:37:25.734Z" },
+]
+
+[[package]]
+name = "python-dotenv"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6", size = 44221, upload-time = "2025-10-26T15:12:10.434Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/1b/a298b06749107c305e1fe0f814c6c74aea7b2f1e10989cb30f544a1b3253/python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61", size = 21230, upload-time = "2025-10-26T15:12:09.109Z" },
 ]
 
 [[package]]

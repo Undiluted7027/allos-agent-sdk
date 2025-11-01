@@ -97,6 +97,7 @@ class OpenAIProvider(BaseProvider):
                 "type": "object",
                 "properties": {},
                 "required": [],
+                "additionalProperties": False,
             }
             for param in tool.parameters:
                 param_schema["properties"][param.name] = {

@@ -17,6 +17,45 @@ from allos.providers.base import BaseProvider, ProviderResponse, ToolCall
 from allos.tools.base import BaseTool
 
 
+def pytest_addoption(parser):
+    """Adds the --run-integration command-line option to pytest."""
+    parser.addoption(
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="Run integration tests (requires OPENAI_API_KEY).",
+    )
+
+
+def run_integration_tests(func):
+    """Decorator to mark tests as integration tests."""
+    return pytest.mark.integration(func)
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "integration: mark test as integration (requires --run-integration and OPENAI_API_KEY)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip integration tests unless explicitly enabled and key provided."""
+    run_integration = config.getoption("--run-integration")
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if run_integration and api_key:
+        return
+
+    skip_marker = pytest.mark.skip(
+        reason="Requires --run-integration flag and OPENAI_API_KEY environment variable"
+    )
+
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_marker)
+
+
 @pytest.fixture
 def work_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """
