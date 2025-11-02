@@ -39,7 +39,7 @@ class FileWriteTool(BaseTool):
         ),
         ToolParameter(
             name="append_mode",
-            type="bool",
+            type="boolean",
             description="Whether to overwite file or append. Overwrites by default.",
             required=False,
         ),

@@ -1,6 +1,7 @@
 # allos/providers/openai.py
 
 import json
+from pprint import pprint
 from typing import Any, Dict, List, Optional, Tuple
 
 import openai
@@ -93,19 +94,22 @@ class OpenAIProvider(BaseProvider):
         """Converts a list of Allos BaseTools into the OpenAI function tool format."""
         openai_tools = []
         for tool in tools:
-            param_schema: Dict[str, Any] = {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False,
-            }
+            properties = {}
+            required_params = []
             for param in tool.parameters:
-                param_schema["properties"][param.name] = {
+                properties[param.name] = {
                     "type": param.type,
                     "description": param.description,
                 }
                 if param.required:
-                    param_schema["required"].append(param.name)
+                    required_params.append(param.name)
+
+            param_schema: Dict[str, Any] = {
+                "type": "object",
+                "properties": properties,
+                "required": required_params,  # <--- Correctly populated list
+                "additionalProperties": False,  # Good practice to keep this
+            }
 
             openai_tools.append(
                 {
@@ -177,6 +181,16 @@ class OpenAIProvider(BaseProvider):
             api_kwargs["instructions"] = instructions
         if tools:
             api_kwargs["tools"] = self._convert_to_openai_tools(tools)
+
+        # --- TEMPORARY DEBUGGING STEP ---
+        print("\n" + "=" * 20 + " DEBUG: API Call Payload " + "=" * 20)
+        try:
+            # Use pprint for better readability of complex structures
+            pprint(api_kwargs)
+        except Exception as e:
+            print(f"Could not print api_kwargs: {e}")
+        print("=" * 64 + "\n")
+        # --- END OF DEBUGGING STEP ---
 
         try:
             response = self.client.responses.create(**api_kwargs)

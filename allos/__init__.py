@@ -8,19 +8,20 @@ It exposes the primary components for building and running AI agents.
 """
 
 from .__version__ import __version__
+from .agent import Agent, AgentConfig
+from .context import ConversationContext
+from .providers import ProviderRegistry
+from .tools import BaseTool, ToolRegistry, tool
 from .utils.errors import AllosError
-
-# The following will be uncommented and added as we build them
-# from .agent.agent import Agent
-# from .agent.config import AgentConfig
-# from .tools.base import BaseTool
-# from .tools.decorator import tool
 
 __all__ = [
     "__version__",
+    "Agent",
+    "AgentConfig",
+    "ConversationContext",
+    "ProviderRegistry",
+    "ToolRegistry",
+    "BaseTool",
+    "tool",
     "AllosError",
-    # "Agent",
-    # "AgentConfig",
-    # "BaseTool",
-    # "tool",
 ]

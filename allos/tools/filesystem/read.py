@@ -44,7 +44,7 @@ class FileReadTool(BaseTool):
         ),
         ToolParameter(
             name="inclusive",
-            type="bool",
+            type="boolean",
             description="Optional. Whether `end_line` is to be included in output or not.",
             required=False,
         ),
