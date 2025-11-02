@@ -30,8 +30,8 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 ### Delivered Features
 - ✅ Core architecture
 - ✅ OpenAI & Anthropic providers
-- ⏳ Essential tools (file, shell)
-- ⏳ Basic agentic loop
+- ✅ Essential tools (file, shell)
+- ✅ Basic agentic loop
 - ⏳ CLI interface
 - ⏳ Session management
 - ⏳ Documentation

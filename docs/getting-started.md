@@ -61,4 +61,48 @@ print(response.content)
 
 The interface is the **same** for every provider, which is the core power of Allos.
 
+## 5. Configure and Create an Agent
+
+Instead of using providers directly, you'll typically configure and create an `Agent` instance.
+
+```python
+from allos import Agent, AgentConfig
+
+# Define the agent's configuration
+config = AgentConfig(
+    provider_name="openai",
+    model="gpt-4o",
+    tool_names=["read_file", "write_file", "shell_exec"]
+)
+
+# Create the agent
+agent = Agent(config)
+```
+The `Agent` automatically initializes the correct provider and tools from the registries based on your configuration.
+
+## 6. Run a Task
+
+Once you have an agent, you can give it a high-level task using the `.run()` method.
+
+```python
+# The agent will use its LLM and tools to accomplish this task
+result = agent.run("Create a python script named 'app.py' that prints 'Hello, Agent!' and then execute it.")
+```
+During the run, the agent will prompt you for permission before executing sensitive tools like `write_file` or `shell_exec`.
+
+## 7. Save and Load Sessions
+
+You can persist an agent's conversation history to a file and load it back later to continue a task.
+
+```python
+# Save the agent's state after the task
+agent.save_session("my_project_session.json")
+
+# Later, in a different script or session...
+loaded_agent = Agent.load_session("my_project_session.json")
+
+# Continue the conversation
+result = loaded_agent.run("Now, modify the script to print 'Hello again!'")
+```
+
 Now, head to the [Quickstart Guide](./guides/quickstart.md) to run this yourself!

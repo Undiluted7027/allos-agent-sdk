@@ -26,12 +26,12 @@ Build a functional agentic SDK that demonstrates:
 | **Phase 1: Core Infrastructure** | ✅ Complete | 100% |
 | **Phase 2: Provider Layer** | ✅ Complete | 100% |
 | **Phase 3: Tool System** | ✅ Complete| 100% |
-| **Phase 4: Agent Core** | 🔜 Not Started | 0% |
+| **Phase 4: Agent Core** | ✅ Complete | 100% |
 | **Phase 5: CLI & Integration** | 🔜 Not Started | 0% |
 | **Phase 6: Testing & Polish** | 🔜 Not Started | 0% |
 | **Phase 7: Documentation & Launch** | 🔜 Not Started | 0% |
 
-**Overall Progress**: 57% (4/7 phases complete)
+**Overall Progress**: 62.5% (5/8 phases complete)
 
 ---
 
@@ -365,7 +365,9 @@ print(ToolRegistry.list_tools())
 ## Phase 4: Agent Core
 
 **Duration**: Week 4 (Days 22-28)
-**Status**: ⏳ In Progress
+
+**Status**: ✅ Complete
+
 **Focus**: Context management and main agent orchestration
 
 ### Goals
@@ -377,17 +379,17 @@ print(ToolRegistry.list_tools())
 ### Tasks
 
 #### Day 22-23: Context Manager
-- [ ] **`allos/context/manager.py`**
+- [x] **`allos/context/manager.py`**
   - `ConversationContext` class
   - Add messages (system, user, assistant, tool)
   - Token counting
   - Context serialization/deserialization
   - Metadata tracking (tokens, cost, turns)
-- [ ] **`allos/context/__init__.py`**
-- [ ] **Write tests**: `tests/unit/test_context.py`
+- [x] **`allos/context/__init__.py`**
+- [x] **Write tests**: `tests/unit/test_context.py`
 
 #### Day 24-26: Agent Core
-- [ ] **`allos/agent/agent.py`**
+- [x] **`allos/agent/agent.py`**
   - `AgentConfig` dataclass
   - `Agent` class
   - Initialize provider and tools
@@ -397,8 +399,8 @@ print(ToolRegistry.list_tools())
   - `_check_tool_permission()` method
   - Max iteration safety
   - Rich console output
-- [ ] **`allos/agent/__init__.py`**
-- [ ] **Write tests**: `tests/unit/test_agent.py`
+- [x] **`allos/agent/__init__.py`**
+- [x] **Write tests**: `tests/unit/test_agent.py`
   - Test initialization
   - Test message flow
   - Test tool execution
@@ -406,12 +408,12 @@ print(ToolRegistry.list_tools())
   - Test max iterations
 
 #### Day 27-28: Session Management
-- [ ] **Add to `Agent` class**:
+- [x] **Add to `Agent` class**:
   - `save_session()` method
   - `load_session()` class method
   - JSON serialization
-- [ ] **Write tests**: `tests/integration/test_session.py`
-- [ ] **Integration test**: End-to-end agent workflow
+- [x] **Write tests**: `tests/integration/test_session.py`
+- [x] **Integration test**: End-to-end agent workflow
   - Create test project
   - Run agent with task
   - Verify results
@@ -432,7 +434,7 @@ print(ToolRegistry.list_tools())
 - Comprehensive tests
 - End-to-end integration test
 
-### Example Usage After This Phase
+### Example Usage After This Phase (VERIFIED)
 ```python
 from allos import Agent, AgentConfig
 
@@ -825,13 +827,13 @@ allos --auto-approve "Read all Python files"
   - [x] Tool registry
 
 
-- [ ] **Agent Core**
-  - [ ] Context management
-  - [ ] Agentic loop
-  - [ ] Tool execution
-  - [ ] Session save/load
-  - [ ] Error handling
-  - [ ] Permission system
+- [x] **Agent Core**
+  - [x] Context management
+  - [x] Agentic loop
+  - [x] Tool execution
+  - [x] Session save/load
+  - [x] Error handling
+  - [x] Permission system
 
 - [ ] **CLI**
   - [ ] Basic commands
@@ -922,7 +924,7 @@ If you get stuck:
 - **Week 1 Complete**: Foundation is solid! 🎯
 - **Week 2 Complete**: Providers working! 🔌
 - **Week 3 Complete**: Tools operational! 🛠️
-- **Week 4 Pending**: Agent thinking! 🧠
+- **Week 4 Complete**: Agent thinking! 🧠
 - **Week 5 Pending**: CLI ready! ⌨️
 - **Week 6 Pending**: Tested & polished! ✨
 - **Week 7-8 Pending**: MVP SHIPPED! 🚀
@@ -957,7 +959,7 @@ Keep a development log to track progress:
 
 **Let's build something amazing! 💪**
 
-Progress: ██████████████░░░░░░░░ 57%
+Progress: ████████████████░░░░░░ 62.5%
 
 [Back to README](./README.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
 

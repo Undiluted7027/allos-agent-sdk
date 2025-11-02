@@ -1,41 +1,99 @@
+# examples/code_review_agent.py
+
 """
-This example is a placeholder for a feature that is currently under development.
+An example of a Code Review Agent that can read files and provide feedback.
 
-Feature: Agent Core (Phase 4)
+This agent uses the `read_file` and `list_directory` tools to inspect a simple
+project and suggest improvements.
 
-This file will be populated with a working example demonstrating how to build a
-code review agent once the `Agent` class and the main agentic loop are implemented.
-
-Please see the project's roadmap for more details on our development timeline:
-- MVP Roadmap: ./../MVP_ROADMAP.md
-- Full Roadmap: ./../ROADMAP.md
-
-Thank you for your interest!
+To run this example:
+1. Install dependencies: `uv pip install "allos-agent-sdk[openai]" python-dotenv`
+2. Create a .env file and add your OPENAI_API_KEY.
+3. Run the script: `python examples/code_review_agent.py`
 """
 
-print("This example requires the 'Agent Core' feature, which is planned for Phase 4.")
-print("Please check back after this feature is released according to our roadmap.")
+import os
+from pathlib import Path
 
-# --- Conceptual Code (will be functional in a future release) ---
-#
-# from allos import Agent, AgentConfig
-#
-# def run_code_review_agent():
-#     """
-#     (Coming in Phase 4: Agent Core)
-#     This function will demonstrate how to create a code review agent
-#     that can read files and provide feedback.
-#     """
-#     print("\n--- Conceptual Example: Code Review Agent ---")
-#     # config = AgentConfig(
-#     #     provider="openai",
-#     #     model="gpt-4o",
-#     #     tools=["read_file", "list_directory"] # Tools from Phase 3
-#     # )
-#     # agent = Agent(config)
-#     # result = agent.run("Review the code in `main.py` for potential bugs and suggest improvements.")
-#     # print("Agent Result:", result)
-#
-# if __name__ == "__main__":
-#     # run_code_review_agent()
-#     pass
+from dotenv import load_dotenv
+from rich.console import Console
+from rich.panel import Panel
+
+from allos import Agent, AgentConfig
+
+# --- Setup a dummy project for the agent to review ---
+DUMMY_PROJECT_DIR = Path("./code_review_workspace")
+DUMMY_FILE_CONTENT = """
+def add(a, b):
+    # A simple function to add two numbers
+    result = a + b
+    return result
+
+def main():
+    x = 5
+    y = 10
+    print(f"The result is: {add(x, y)}")
+
+# No entry point protection
+main()
+"""
+
+
+def setup_workspace():
+    """Create a dummy project for the agent to review."""
+    if DUMMY_PROJECT_DIR.exists():
+        import shutil
+
+        shutil.rmtree(DUMMY_PROJECT_DIR)
+    DUMMY_PROJECT_DIR.mkdir()
+    (DUMMY_PROJECT_DIR / "main.py").write_text(DUMMY_FILE_CONTENT)
+    # The agent will operate inside this directory
+    os.chdir(DUMMY_PROJECT_DIR)
+
+
+def cleanup():
+    """Clean up the dummy project."""
+    os.chdir("..")
+    if DUMMY_PROJECT_DIR.exists():
+        import shutil
+
+        shutil.rmtree(DUMMY_PROJECT_DIR)
+
+
+def main():
+    console = Console()
+    setup_workspace()
+
+    console.print(
+        Panel(
+            "Created a dummy project with `main.py` for the agent to review.",
+            title="Setup",
+        )
+    )
+
+    try:
+        config = AgentConfig(
+            provider_name="openai",
+            model="gpt-4o",
+            tool_names=["list_directory", "read_file"],
+        )
+        agent = Agent(config)
+
+        prompt = (
+            "Please review the code in the current project. "
+            "Start by listing the files, then read `main.py` and provide feedback "
+            "on code quality, style, and potential bugs."
+        )
+
+        final_response = agent.run(prompt)
+
+        console.print("\n--- [bold green]Code Review Complete[/] ---")
+        console.print(final_response)
+
+    finally:
+        cleanup()
+
+
+if __name__ == "__main__":
+    load_dotenv()
+    main()

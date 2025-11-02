@@ -48,7 +48,7 @@ Built-in tools for:
 ### 🚀 **Developer Experience**
 ```bash
 # Create your own Claude Code in 5 minutes
-pip install allos-agent-sdk
+uv pip install allos-agent-sdk
 export OPENAI_API_KEY=your_key
 allos "Create a REST API for a todo app"
 ```
@@ -71,12 +71,12 @@ allos "Create a REST API for a todo app"
 
 ```bash
 # Basic installation
-pip install allos-agent-sdk
+uv pip install allos-agent-sdk
 
 # With specific providers
-pip install "allos-agent-sdk[openai]"
-pip install "allos-agent-sdk[anthropic]"
-pip install "allos-agent-sdk[all]"  # All providers
+uv pip install "allos-agent-sdk[openai]"
+uv pip install "allos-agent-sdk[anthropic]"
+uv pip install "allos-agent-sdk[all]"  # All providers
 ```
 
 ### CLI Usage
@@ -165,10 +165,12 @@ class DatabaseQueryTool(BaseTool):
         )
     ]
 
-    def execute(self, query: str):
+    def execute(self, **kwargs: dict[str, any]) -> dict[str, any]:
+        query = kwargs.get("query")
+        if not query:
+            return {"success": False, "error": "Query parameter is required."}
         # Your implementation
         result = your_db.execute(query)
-        return {"success": True, "result": result}
 
 # Use it
 agent = Agent(AgentConfig(
@@ -218,7 +220,7 @@ agent = Agent(AgentConfig(
 | **Ollama** | 🚧 Coming Soon | Llama, Mistral, Qwen, etc. | Local models |
 | **Google** | 🚧 Coming Soon | Gemini Pro, Gemini Ultra | Tool calling |
 | **Cohere** | 📋 Planned | Command R, Command R+ | Tool calling |
-| **Custom** | 📋 Planned | Any OpenAI-compatible API | Extensible |
+| **Custom** | ✅ Ready | Any OpenAI-compatible API | Extensible |
 
 ## 🛠️ Built-in Tools
 
@@ -289,8 +291,8 @@ content_agent.run("Research AI trends and write a blog post")
 - [x] Initial architecture design
 - [x] Directory structure
 - [x] Provider layer (OpenAI, Anthropic)
-- [x] Tool system (filesystem, shell) with Limited Permissions Management
-- [ ] Agent core with agentic loop
+- [x] Tool system (filesystem, shell) with user-approval permissions
+- [x] Agent core with agentic loop and session management
 - [ ] CLI interface
 - [ ] Basic tests
 - [ ] Documentation
@@ -325,7 +327,8 @@ Allos is currently under active development. The MVP will include:
 - ✅ Initial architecture designed
 - ✅ OpenAI and Anthropic providers
 - ✅ Essential file and shell tools
-- ⏳ Basic agentic loop
+- ✅ Core agentic loop with tool execution and permissions
+- ✅ Session management (save/load)
 - ⏳ CLI interface
 - ⏳ Python API
 
@@ -367,8 +370,11 @@ source venv/bin/activate
 # Install in development mode
 pip install -e ".[dev]"
 
-# Run tests
-pytest
+# Run tests to verify setup (REQUIRES API KEYS)
+./scripts/run_tests.sh --run-integration
+
+# Run tests to verify setup (NO API KEYS REQUIRED)
+./scripts/run_tests.sh
 
 # Format code
 black allos tests
@@ -392,8 +398,11 @@ source .venv/bin/activate
 # Install in development mode
 uv pip install -e ".[dev]"
 
-# Run tests
-pytest
+# Run tests to verify setup (REQUIRES API KEYS)
+./scripts/run_tests.sh --run-integration
+
+# Run tests to verify setup (NO API KEYS REQUIRED)
+./scripts/run_tests.sh
 
 # Format code
 black allos tests

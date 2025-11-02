@@ -50,3 +50,14 @@ An Enum defining the security levels for tool execution.
 - `ALWAYS_ALLOW: "always_allow"`
 - `ALWAYS_DENY: "always_deny"`
 - `ASK_USER: "ask_user"`
+
+### `ToolCall` (from [Provider API](./provider-api.md))
+
+When your agent runs, it will receive `ToolCall` objects when the LLM decides to use a tool. It's important to understand the `id` field.
+
+**`allos.providers.base.ToolCall`**
+- `id: str` - The **correlation ID** for the tool call. This ID is essential for linking the tool request to the tool result. When you add a tool result back to the agent's context, you must use this ID.
+- `name: str` - The name of the tool.
+- `arguments: Dict[str, Any]` - The arguments for the tool.
+
+For more technical details on how this ID maps to different provider-specific IDs (like OpenAI's `call_id`), please see the [Provider API Reference](./provider-api.md).

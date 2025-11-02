@@ -1,46 +1,45 @@
+# examples/sre_debugging.py
 """
-This example is a placeholder for a feature that is currently under development.
+An example of an SRE (Site Reliability Engineering) Agent that can diagnose issues.
 
-Feature: Agent Core & Shell/Web Tools (Phase 3 & 4)
+This agent uses the `shell_exec` tool to inspect the local system.
+**WARNING:** This script executes shell commands. It will ask for your permission
+before running each command. Do not approve commands if you don't understand them.
 
-This file will be populated with a working example demonstrating how to build an
-SRE (Site Reliability Engineering) agent that can diagnose issues using shell
-commands and web search once these features are implemented.
-
-Please see the project's roadmap for more details on our development timeline:
-- MVP Roadmap: ./../MVP_ROADMAP.md
-- Full Roadmap: ./../ROADMAP.md
-
-Thank you for your interest!
+To run this example:
+1. Install dependencies: `uv pip install "allos-agent-sdk[openai]" python-dotenv`
+2. Create a .env file and add your OPENAI_API_KEY.
+3. Run the script: `python examples/sre_debugging.py`
 """
 
-print("This example requires the 'Agent Core', 'Shell Tool', and 'Web Tools' features.")
-print("These are planned for Phases 3 and 4. Please check back later.")
+from dotenv import load_dotenv
+from rich.console import Console
 
-# --- Conceptual Code (will be functional in a future release) ---
-#
-# from allos import Agent, AgentConfig
-#
-# def run_sre_agent():
-#     """
-#     (Coming in Phase 4: Agent Core)
-#     This function will demonstrate an agent that can inspect a system.
-#     """
-#     print("\n--- Conceptual Example: SRE Debugging Agent ---")
-#     # config = AgentConfig(
-#     #     provider="anthropic",
-#     #     model="claude-3-opus-20240229",
-#     #     tools=["shell_exec", "web_search", "read_file"] # Tools from Phase 3
-#     # )
-#     # agent = Agent(config)
-#     #
-#     # # This requires user permission for shell_exec
-#     # result = agent.run(
-#     #     "The web server is slow. Check the current CPU usage on this machine "
-#     #     "and search for common causes of high CPU on nginx servers."
-#     # )
-#     # print("Agent Result:", result)
-#
-# if __name__ == "__main__":
-#     # run_sre_agent()
-#     pass
+from allos import Agent, AgentConfig
+
+
+def main():
+    console = Console()
+    console.print(
+        "[bold yellow]⚠️ WARNING: This agent will request to run shell commands on your system.[/]"
+    )
+
+    config = AgentConfig(
+        provider_name="openai", model="gpt-4o", tool_names=["shell_exec"]
+    )
+    agent = Agent(config)
+
+    prompt = (
+        "I need to know the current date and time on this system, and also list "
+        "the top 5 running processes sorted by CPU usage. Use the available tools to find this information."
+    )
+
+    final_response = agent.run(prompt)
+
+    console.print("\n--- [bold green]SRE Task Complete[/] ---")
+    console.print(final_response)
+
+
+if __name__ == "__main__":
+    load_dotenv()
+    main()

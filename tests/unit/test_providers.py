@@ -62,7 +62,7 @@ class TestProviderBase:
         # To test the `raise` statement itself, we need a partial implementation
         class PartiallyImplementedProvider(BaseProvider):
             def chat(self, messages, **kwargs):
-                return super().chat(
+                return super().chat(  # pyright: ignore[reportAbstractUsage]
                     messages, **kwargs
                 )  # pyright: ignore[reportAbstractUsage] # Call the abstract method
 

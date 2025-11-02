@@ -1,21 +1,25 @@
 # examples/custom_tools.py
 
 """
-An example demonstrating how to quickly create and use a custom tool.
+An example demonstrating how to create a custom tool and have an agent use it.
 
-This script shows the three key steps:
-1. Define a custom tool by inheriting from `BaseTool` and using the `@tool` decorator.
-2. Ensure the tool is discoverable by importing the file it's defined in.
-3. Get the tool from the ToolRegistry and execute it manually.
+This script shows how to:
+1. Define a custom tool by inheriting from `BaseTool`.
+2. Configure an agent to use this custom tool.
+3. Run the agent and watch it intelligently decide to use your tool to solve a problem.
 
 To run this example:
-1. Ensure the core SDK is installed: `uv pip install allos-agent-sdk`
-2. Run the script: `python examples/custom_tools.py`
+1. Install dependencies: `uv pip install "allos-agent-sdk[openai]" python-dotenv`
+2. Create a .env file and add your OPENAI_API_KEY.
+3. Run the script: `python examples/custom_tools.py`
 """
 
 from typing import Any, Dict
 
-from allos.tools import BaseTool, ToolParameter, ToolRegistry, tool
+from dotenv import load_dotenv
+
+from allos import Agent, AgentConfig
+from allos.tools import BaseTool, ToolParameter, tool
 
 # --- Step 1: Define a Custom Tool ---
 #
@@ -62,44 +66,26 @@ class RectangleAreaTool(BaseTool):
 
 
 def main():
-    """Main function to demonstrate using the custom tool."""
+    """Main function to demonstrate an agent using the custom tool."""
+    print("--- Demonstrating Agent with Custom Tool ---")
 
-    print("--- Demonstrating Custom Tool Creation and Usage ---")
-
-    # Verify that our custom tool is now in the registry alongside the built-in ones
-    all_tools = ToolRegistry.list_tools()
-    print(f"\nAll available tools: {all_tools}")
-    assert "calculate_rectangle_area" in all_tools
-
-    # --- Step 3: Use the Custom Tool Manually ---
-    print("\n--- Getting and executing the custom tool ---")
-    try:
-        # Get an instance of our tool from the registry by its name
-        area_tool = ToolRegistry.get_tool("calculate_rectangle_area")
-
-        # Execute it with some arguments
-        arguments = {"length": 10, "width": 5}
-        print(f"Executing tool '{area_tool.name}' with arguments: {arguments}")
-        result = area_tool.execute(**arguments)
-
-        print("Result from tool execution:")
-        print(result)
-        assert result.get("area") == 50
-
-        print("\nCustom tool works as expected!")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-    # This shows how an agent (coming in Phase 4) will eventually use the tool.
-    print("\n--- Future Vision: How an Agent will use this ---")
-    print(
-        "In Phase 4, an agent could be asked: 'What is the area of a rectangle with length 10 and width 5?'"
+    # 2. Configure an agent to use our custom tool by its name.
+    config = AgentConfig(
+        provider_name="openai",
+        model="gpt-4o",
+        tool_names=["calculate_rectangle_area"],  # Add your custom tool here
     )
-    print(
-        "The agent would see our 'calculate_rectangle_area' tool, generate the arguments {'length': 10, 'width': 5}, and call it automatically."
-    )
+    agent = Agent(config)
+
+    # 3. Give the agent a prompt that requires the tool.
+    prompt = "I have a garden plot that is 12.5 meters long and 8 meters wide. What is its total area?"
+
+    final_response = agent.run(prompt)
+
+    print("\n--- Agent's Final Analysis ---")
+    print(final_response)
 
 
 if __name__ == "__main__":
+    load_dotenv()
     main()

@@ -30,7 +30,7 @@ Represents a single turn in a conversation.
 - `role: MessageRole` - The role of the message sender.
 - `content: Optional[str]` - The text content of the message.
 - `tool_calls: List[ToolCall]` - A list of tool calls requested by the assistant in this turn.
-- `tool_call_id: Optional[str]` - For `TOOL` role messages, the ID of the tool call this is a response to.
+- `tool_call_id: Optional[str]` - For `TOOL` role messages, this holds the correlation ID of the tool call this message is a result for. **This should match the `id` of the corresponding `ToolCall` object.**
 
 ### `MessageRole`
 
@@ -47,9 +47,19 @@ An Enum for the different roles in a conversation.
 Represents a tool call requested by an LLM.
 
 **`allos.providers.base.ToolCall`**
-- `id: str` - A unique identifier for this specific tool call.
+- `id: str` - The **correlation ID** for the tool call. This is the primary identifier used to link a tool call request from the assistant to a tool result message from the user. For providers like OpenAI's Responses API, this corresponds to the `call_id` (e.g., `"call_..."`).
 - `name: str` - The name of the tool to be called.
-- `arguments: dict[str, Any]` - A dictionary of the parsed arguments for the tool.
+- `arguments: Dict[str, Any]` - A dictionary of the parsed arguments for the tool.
+
+> [!NOTE] A note on IDs and call_id
+Different providers have different ways of identifying tool calls. The Allos SDK abstracts this into a single `id` field on the `ToolCall` object.
+>
+>   -   **For most providers (like Anthropic):** The `id` is a straightforward unique identifier for the tool use block.
+>    -   **For OpenAI's Responses API:** The API uses two types of IDs:
+        -   An **item ID** (e.g., `"fc_..."`) that uniquely identifies the `function_call` object in the response list.
+        -   A **correlation ID** or `call_id` (e.g., `"call_..."`) that is used to link the call to its eventual result.
+>
+>    **The `ToolCall.id` in the Allos SDK always stores the correlation ID (`call_id`).** Our `OpenAIProvider` handles the translation and management of the item IDs (`fc_...`) internally, so you only need to work with the correlation ID when building custom tools or inspecting the agent's context.
 
 ### `ProviderResponse`
 
