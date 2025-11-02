@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import openai
 import pytest
 
-from allos.providers.base import Message, MessageRole
+from allos.providers.base import Message, MessageRole, ToolCall
 from allos.providers.openai import OpenAIProvider
 from allos.tools.base import BaseTool, ToolParameter
 from allos.utils.errors import ProviderError
@@ -76,6 +76,7 @@ def test_chat_sends_correctly_formatted_messages(MockOpenAI):
         {"role": "user", "content": "Hello"},
         {
             "type": "function_call_output",
+            "id": "fco_call_123",
             "call_id": "call_123",
             "status": "completed",
             "output": '{"status": "ok"}',
@@ -138,7 +139,8 @@ def test_chat_parses_tool_call_response(MockOpenAI):
 
     mock_tool_call_item = MagicMock()
     mock_tool_call_item.type = "function_call"
-    mock_tool_call_item.id = "call_abc"
+    mock_tool_call_item.id = "fc_abc"  # The item's own ID
+    mock_tool_call_item.call_id = "call_abc"  # The correlation ID
     mock_tool_call_item.name = "get_weather"  # This now sets the attribute correctly
     mock_tool_call_item.arguments = '{"location": "Boston"}'
 
@@ -198,7 +200,8 @@ def test_chat_handles_missing_tool_call_arguments(MockOpenAI):
     # Setup the mock with arguments set to None
     mock_tool_call_item = MagicMock()
     mock_tool_call_item.type = "function_call"
-    mock_tool_call_item.id = "call_456"
+    mock_tool_call_item.id = "fc_456"
+    mock_tool_call_item.call_id = "call_456"
     mock_tool_call_item.name = "tool_with_no_args"
     mock_tool_call_item.arguments = None  # Arguments are missing
 
@@ -300,14 +303,16 @@ def test_chat_skips_tool_call_with_missing_id_and_logs_warning(
     # A valid tool call
     valid_tool_call = MagicMock(spec=["type", "id", "name", "arguments"])
     valid_tool_call.type = "function_call"
-    valid_tool_call.id = "call_valid_123"
+    valid_tool_call.id = "fc_valid_123"
+    valid_tool_call.call_id = "call_valid_123"
     valid_tool_call.name = "get_weather"
     valid_tool_call.arguments = '{"location": "Boston"}'
 
     # An invalid tool call
     invalid_tool_call = MagicMock(spec=["type", "id", "name", "arguments"])
     invalid_tool_call.type = "function_call"
-    invalid_tool_call.id = None  # Missing ID
+    invalid_tool_call.id = "fc_invalid_456"
+    invalid_tool_call.call_id = None  # Explicitly missing
     invalid_tool_call.name = "get_forecast"
     invalid_tool_call.arguments = "{}"
 
@@ -321,7 +326,7 @@ def test_chat_skips_tool_call_with_missing_id_and_logs_warning(
     assert len(response.tool_calls) == 1
     processed_call = response.tool_calls[0]
     assert processed_call.id == "call_valid_123"
-    assert "Skipping tool call due to missing ID" in configured_caplog.text
+    assert "Skipping tool call due to missing call_id" in configured_caplog.text
     assert "get_forecast" in configured_caplog.text
 
 
@@ -397,3 +402,49 @@ def test_chat_skips_message_with_no_content(MockOpenAI):
     assert response.metadata["overall"]["total"] == 2
     assert response.metadata["overall"]["processed"] == 1
     assert response.metadata["overall"]["skipped"] == 1
+
+
+@patch("allos.providers.openai.openai.OpenAI")
+def test_assistant_message_with_content_and_tool_call_is_split(MockOpenAI):
+    """
+    Tests that a single assistant message with both text content and a tool call
+    is correctly split into two separate items for the OpenAI `input` array.
+    """
+    mock_client = MockOpenAI.return_value
+    mock_client.responses.create.return_value = MagicMock()
+
+    provider = OpenAIProvider(model="gpt-4o")
+
+    # This is the specific message type we need to test
+    messages = [
+        Message(
+            role=MessageRole.ASSISTANT,
+            content="Thinking about calling a tool...",
+            tool_calls=[
+                ToolCall(id="call_123", name="search", arguments={"query": "allos sdk"})
+            ],
+        )
+    ]
+
+    provider.chat(messages)
+
+    call_kwargs = mock_client.responses.create.call_args.kwargs
+    actual_input = call_kwargs.get("input", [])
+
+    # The single Message should be expanded into two items
+    assert len(actual_input) == 2
+
+    # The first item should be the assistant's text content
+    assert actual_input[0] == {
+        "role": "assistant",
+        "content": "Thinking about calling a tool...",
+    }
+
+    # The second item should be the function_call
+    assert actual_input[1] == {
+        "type": "function_call",
+        "id": "fc_call_123",
+        "call_id": "call_123",
+        "name": "search",
+        "arguments": '{"query": "allos sdk"}',
+    }

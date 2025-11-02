@@ -21,6 +21,7 @@ class ConversationContext:
     """
 
     messages: List[Message] = field(default_factory=list)
+    provider_state: Dict[str, Any] = field(default_factory=dict)
 
     def add_system_message(self, content: str) -> None:
         """Adds a system message to the context."""
@@ -52,6 +53,14 @@ class ConversationContext:
             )
         )
 
+    def get_provider_state(self, key: str, default: Any = None) -> Any:
+        """Get provider-specific state."""
+        return self.provider_state.get(key, default)
+
+    def set_provider_state(self, key: str, value: Any) -> None:
+        """Set provider-specific state."""
+        self.provider_state[key] = value
+
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the entire conversation context to a dictionary."""
         return asdict(self)
@@ -70,6 +79,11 @@ class ConversationContext:
                 msg_data["tool_calls"] = [ToolCall(**tc) for tc in tool_calls_data]
 
             context.messages.append(Message(**msg_data))
+
+        # Load provider state (but don't restore response_id - it's invalid)
+        context.provider_state = data.get("provider_state", {})
+        # Clear response_id on load since it's from a previous session
+        context.provider_state.pop("response_id", None)
         return context
 
     def to_json(self, **kwargs) -> str:

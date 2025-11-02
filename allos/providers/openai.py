@@ -1,7 +1,6 @@
 # allos/providers/openai.py
 
 import json
-from pprint import pprint
 from typing import Any, Dict, List, Optional, Tuple
 
 import openai
@@ -79,13 +78,34 @@ class OpenAIProvider(BaseProvider):
                 openai_messages.append(
                     {
                         "type": "function_call_output",
-                        "call_id": msg.tool_call_id,
+                        # The ID of this item itself, can be a new UUID. Let's just use the tool_call_id for simplicity.
+                        "id": f"fco_{msg.tool_call_id}",
+                        "call_id": msg.tool_call_id,  # This MUST match the `call_id` of the function_call it answers
                         "status": "completed",  # Assuming success for now
                         "output": msg.content,
                     }
                 )
-            else:
+            elif msg.role == MessageRole.USER:
+                # Only include USER messages, not ASSISTANT messages
                 openai_messages.append({"role": msg.role.value, "content": msg.content})
+            elif msg.role == MessageRole.ASSISTANT:
+                # An assistant turn can have text and/or tool calls.
+                # These are represented as separate items in the history.
+                if msg.content:
+                    openai_messages.append(
+                        {"role": "assistant", "content": msg.content}
+                    )
+
+                for tc in msg.tool_calls:
+                    openai_messages.append(
+                        {
+                            "type": "function_call",
+                            "id": f"fc_{tc.id}",
+                            "call_id": tc.id,  # The correlation ID
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments),
+                        }
+                    )
 
         return instructions, openai_messages
 
@@ -107,9 +127,12 @@ class OpenAIProvider(BaseProvider):
             param_schema: Dict[str, Any] = {
                 "type": "object",
                 "properties": properties,
-                "required": required_params,  # <--- Correctly populated list
-                "additionalProperties": False,  # Good practice to keep this
+                "required": required_params,
+                "additionalProperties": False,
             }
+
+            # Only enable strict mode if all parameters are required
+            all_required = len(required_params) == len(tool.parameters)
 
             openai_tools.append(
                 {
@@ -117,7 +140,7 @@ class OpenAIProvider(BaseProvider):
                     "name": tool.name,
                     "description": tool.description,
                     "parameters": param_schema,
-                    "strict": True,
+                    "strict": all_required,
                 }
             )
         return openai_tools
@@ -170,6 +193,7 @@ class OpenAIProvider(BaseProvider):
         Returns:
             An Allos ProviderResponse object.
         """
+
         instructions, input_messages = self._convert_to_openai_messages(messages)
 
         api_kwargs: Dict[str, Any] = {
@@ -182,19 +206,13 @@ class OpenAIProvider(BaseProvider):
         if tools:
             api_kwargs["tools"] = self._convert_to_openai_tools(tools)
 
-        # --- TEMPORARY DEBUGGING STEP ---
-        print("\n" + "=" * 20 + " DEBUG: API Call Payload " + "=" * 20)
-        try:
-            # Use pprint for better readability of complex structures
-            pprint(api_kwargs)
-        except Exception as e:
-            print(f"Could not print api_kwargs: {e}")
-        print("=" * 64 + "\n")
-        # --- END OF DEBUGGING STEP ---
-
         try:
             response = self.client.responses.create(**api_kwargs)
-            return self._parse_openai_response(response)
+            provider_response = self._parse_openai_response(response)
+
+            # We still add the response_id to metadata for potential future use, but we don't use it for state.
+            provider_response.metadata["response_id"] = response.id
+            return provider_response
 
         except (
             openai.RateLimitError,
@@ -247,10 +265,11 @@ def _process_tool_call(
     item: ResponseFunctionToolCall, tool_calls: list[ToolCall], metadata: dict
 ) -> None:
     metadata["tool_calls"]["total"] += 1
-    id_ = getattr(item, "id", None)
-    if not id_:
+    call_id_ = getattr(item, "call_id", None)
+    # id_ = getattr(item, "id", None)
+    if not call_id_:
         logger.warning(
-            "Skipping tool call due to missing ID: %s",
+            "Skipping tool call due to missing call_id: %s",
             getattr(item, "name", "<unknown>"),
         )
         metadata["tool_calls"]["skipped"] += 1
@@ -267,5 +286,5 @@ def _process_tool_call(
     else:
         parsed_arguments = {}
 
-    tool_calls.append(ToolCall(id=id_, name=item.name, arguments=parsed_arguments))
+    tool_calls.append(ToolCall(id=call_id_, name=item.name, arguments=parsed_arguments))
     metadata["tool_calls"]["processed"] += 1

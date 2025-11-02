@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 from ..context import ConversationContext
-from ..providers import ProviderRegistry
+from ..providers import Message, MessageRole, ProviderRegistry
 from ..providers.base import BaseProvider, ProviderResponse, ToolCall
 from ..tools import ToolRegistry
 from ..tools.base import BaseTool, ToolPermission
@@ -115,24 +115,16 @@ class Agent:
         for i in range(self.config.max_iterations):
             logger.debug(f"Starting agent iteration {i + 1}")
 
-            # 1. Get LLM response based on the CURRENT context
+            # 1. Get LLM response based on the CURRENT full context
             llm_response = self._get_llm_response()
 
-            # 2. Add the assistant's response to the context. This is now part of the history.
+            # 2. Add the assistant's thinking/action to the context. This is now part of the history.
             self.context.add_assistant_message(
                 llm_response.content, llm_response.tool_calls
             )
 
-            # 3. Decide what to do next based on the response we just got.
-            if llm_response.tool_calls:
-                tool_results = self._execute_tool_calls(llm_response.tool_calls)
-                for tool_call, result in zip(llm_response.tool_calls, tool_results):
-                    self.context.add_tool_result_message(
-                        tool_call.id, json.dumps(result)
-                    )
-                # Loop to plan the next step with the new tool results in context
-                continue
-            else:
+            # 3. If there are no tool calls, the loop is done. Return the final answer.
+            if not llm_response.tool_calls:
                 # The response had no tool calls, so it's the final answer.
                 final_answer = llm_response.content or "No response generated."
                 self.console.print(
@@ -143,6 +135,14 @@ class Agent:
                     )
                 )
                 return final_answer
+            # 4. If there are tool calls, execute them.
+            tool_results = self._execute_tool_calls(llm_response.tool_calls)
+
+            # 5. Add the tool results to the context.
+            for tool_call, result in zip(llm_response.tool_calls, tool_results):
+                self.context.add_tool_result_message(tool_call.id, json.dumps(result))
+
+            # The loop will now continue with the tool results in the context.
 
         # If loop finishes, it means max iterations were reached
         exhausted_message = "Agent reached maximum iterations without a final answer."
@@ -153,12 +153,59 @@ class Agent:
         """Sends the current context to the provider and gets a response."""
         self.console.print("[dim]🧠 Thinking...[/dim]")
 
+        # The provider is responsible for handling the message history correctly.
+        # We pass a shallow copy to prevent accidental mutation.
         response = self.provider.chat(
             messages=self.context.messages[:],
             tools=self.tools,
         )
 
+        # DO NOT modify context here. The run loop is responsible for that.
         return response
+
+    def _prepare_fresh_conversation_messages(self) -> List[Message]:
+        """
+        Prepares messages for a fresh conversation by removing orphaned tool
+        messages that reference tool calls from a previous session.
+
+        For stateful providers like OpenAI Responses API, we can't include
+        tool calls/results without a valid response chain.
+        """
+        clean_messages = []
+
+        i = 0
+        while i < len(self.context.messages):
+            msg = self.context.messages[i]
+
+            if msg.role == MessageRole.SYSTEM:
+                clean_messages.append(msg)
+                i += 1
+            elif msg.role == MessageRole.USER:
+                clean_messages.append(msg)
+                i += 1
+            elif msg.role == MessageRole.ASSISTANT:
+                if msg.tool_calls:
+                    # Assistant message with tool calls - skip it and its results
+                    # Find how many tool results follow
+                    j = i + 1
+                    while (
+                        j < len(self.context.messages)
+                        and self.context.messages[j].role == MessageRole.TOOL
+                    ):
+                        j += 1
+                    # Skip to after the tool results
+                    i = j
+                else:
+                    # Regular assistant message - keep it
+                    clean_messages.append(msg)
+                    i += 1
+            elif msg.role == MessageRole.TOOL:
+                # Orphaned tool result - skip it
+                i += 1
+            else:
+                i += 1
+
+        return clean_messages
 
     def _execute_tool_calls(self, tool_calls: List[ToolCall]) -> List[dict]:
         """Executes a list of tool calls after checking permissions."""
