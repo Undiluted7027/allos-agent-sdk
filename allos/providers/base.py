@@ -7,7 +7,6 @@ This module defines the abstract interface that all provider implementations mus
 ensuring they are interchangeable within the Allos ecosystem.
 """
 
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -30,10 +29,6 @@ class ToolCall:
     id: str
     name: str
     arguments: dict[str, Any]
-
-    def arguments_to_json(self) -> str:
-        """Returns the arguments as a JSON string"""
-        return json.dumps(self.arguments)
 
 
 @dataclass

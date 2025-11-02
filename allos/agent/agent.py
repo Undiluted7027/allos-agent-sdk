@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 from ..context import ConversationContext
-from ..providers import Message, MessageRole, ProviderRegistry
+from ..providers import ProviderRegistry
 from ..providers.base import BaseProvider, ProviderResponse, ToolCall
 from ..tools import ToolRegistry
 from ..tools.base import BaseTool, ToolPermission
@@ -162,50 +162,6 @@ class Agent:
 
         # DO NOT modify context here. The run loop is responsible for that.
         return response
-
-    def _prepare_fresh_conversation_messages(self) -> List[Message]:
-        """
-        Prepares messages for a fresh conversation by removing orphaned tool
-        messages that reference tool calls from a previous session.
-
-        For stateful providers like OpenAI Responses API, we can't include
-        tool calls/results without a valid response chain.
-        """
-        clean_messages = []
-
-        i = 0
-        while i < len(self.context.messages):
-            msg = self.context.messages[i]
-
-            if msg.role == MessageRole.SYSTEM:
-                clean_messages.append(msg)
-                i += 1
-            elif msg.role == MessageRole.USER:
-                clean_messages.append(msg)
-                i += 1
-            elif msg.role == MessageRole.ASSISTANT:
-                if msg.tool_calls:
-                    # Assistant message with tool calls - skip it and its results
-                    # Find how many tool results follow
-                    j = i + 1
-                    while (
-                        j < len(self.context.messages)
-                        and self.context.messages[j].role == MessageRole.TOOL
-                    ):
-                        j += 1
-                    # Skip to after the tool results
-                    i = j
-                else:
-                    # Regular assistant message - keep it
-                    clean_messages.append(msg)
-                    i += 1
-            elif msg.role == MessageRole.TOOL:
-                # Orphaned tool result - skip it
-                i += 1
-            else:
-                i += 1
-
-        return clean_messages
 
     def _execute_tool_calls(self, tool_calls: List[ToolCall]) -> List[dict]:
         """Executes a list of tool calls after checking permissions."""

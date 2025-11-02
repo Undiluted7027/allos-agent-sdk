@@ -46,6 +46,42 @@ class TestProviderBase:
         assert resp.content == "World"
         assert resp.tool_calls == []
 
+    def test_unimplemented_abstract_methods_raise_error(self):
+        """Test that calling abstract methods on a non-implemented subclass raises NotImplementedError."""
+
+        class UnimplementedProvider(BaseProvider):
+            # This class doesn't implement the abstract methods
+            pass
+
+        # Instantiation will fail because abstract methods are not implemented
+        with pytest.raises(TypeError):
+            provider = UnimplementedProvider(
+                model="test"
+            )  # pyright: ignore[reportAbstractUsage]
+
+        # To test the `raise` statement itself, we need a partial implementation
+        class PartiallyImplementedProvider(BaseProvider):
+            def chat(self, messages, **kwargs):
+                return super().chat(
+                    messages, **kwargs
+                )  # pyright: ignore[reportAbstractUsage] # Call the abstract method
+
+            def get_context_window(self) -> int:
+                return super().get_context_window()  # type: ignore # Call the abstract method
+
+        provider = PartiallyImplementedProvider(model="test")
+        with pytest.raises(NotImplementedError):
+            provider.chat([])
+        with pytest.raises(NotImplementedError):
+            provider.get_context_window()
+
+    def test_base_provider_repr(self):
+        """Test the __repr__ string representation of the provider."""
+        # We can use our DummyProvider for this test
+        provider = DummyProvider(model="dummy-model-123")
+        representation = repr(provider)
+        assert representation == "DummyProvider(model='dummy-model-123')"
+
 
 class TestProviderRegistry:
     """Tests for the provider registry and factory."""

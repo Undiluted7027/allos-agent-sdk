@@ -97,3 +97,27 @@ def test_validate_directory_non_existent_fails(work_dir: Path):
     # Assert that the specific error is raised
     with pytest.raises(FileOperationError, match="Directory not found"):
         validate_directory(work_dir, non_existent_dir)
+
+
+@pytest.mark.parametrize(
+    "exception_to_raise",
+    [
+        pytest.param(OSError("Simulated OS Error"), id="os_error"),
+        pytest.param(ValueError("Simulated Value Error"), id="value_error"),
+        pytest.param(RuntimeError("Simulated Runtime Error"), id="runtime_error"),
+    ],
+)
+def test_is_safe_path_catches_exceptions_and_returns_false(
+    work_dir: Path, mocker, exception_to_raise
+):
+    """
+    Test that is_safe_path's main try-except block correctly catches
+    low-level errors and returns False, indicating an unsafe path.
+    """
+    # We mock `pathlib.Path.resolve` to raise the desired exception
+    mocker.patch("pathlib.Path.resolve", side_effect=exception_to_raise)
+
+    # The actual path doesn't matter since resolve is mocked
+    is_it_safe = is_safe_path(work_dir, "some/path.txt")
+
+    assert is_it_safe is False

@@ -53,14 +53,6 @@ class ConversationContext:
             )
         )
 
-    def get_provider_state(self, key: str, default: Any = None) -> Any:
-        """Get provider-specific state."""
-        return self.provider_state.get(key, default)
-
-    def set_provider_state(self, key: str, value: Any) -> None:
-        """Set provider-specific state."""
-        self.provider_state[key] = value
-
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the entire conversation context to a dictionary."""
         return asdict(self)
