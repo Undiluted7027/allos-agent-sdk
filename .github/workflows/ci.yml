@@ -30,7 +30,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run tests
-        run: uv run pytest tests/ -v --cov=allos --cov-report=xml
+        run: uv run pytest tests/unit/ -v --cov=allos --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

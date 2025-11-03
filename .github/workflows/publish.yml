@@ -1,1 +1,51 @@
-# Publish to PyPI
+# .github/workflows/publish.yml
+
+name: Publish Python 🐍 distributions to PyPI
+
+on:
+  # This workflow is triggered manually from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi-publish
+
+    # These permissions are essential for trusted publishing
+    permissions:
+      id-token: write  # This is required for passwordless deployment
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      # It's a good practice to fetch all history for a more accurate version number
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.9"
+
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Install build dependencies
+      run: |
+        source $HOME/.cargo/env
+        uv pip install build
+
+    - name: Build package
+      run: |
+        source $HOME/.cargo/env
+        python -m build
+
+    # - name: Publish package to PyPI
+    #   uses: pypa/gh-action-pypi-publish@release/v1
+    #   # The `id-token: write` permission allows this action to get a temporary
+    #   # token from GitHub's OIDC provider, which PyPI trusts. No API token needed here.
+    - name: Publish package to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/

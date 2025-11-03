@@ -21,19 +21,20 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 
 ## Phase 1: MVP ✅ → 🏗️
 
-**Timeline**: Weeks 1-8  
-**Status**: In Progress  
+**Timeline**: Weeks 1-8
+**Status**: In Progress
 **Goal**: Ship working provider-agnostic agentic SDK
 
 See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 
 ### Delivered Features
 - ✅ Core architecture
-- ⏳ OpenAI & Anthropic providers
-- ⏳ Essential tools (file, shell)
-- ⏳ Basic agentic loop
-- ⏳ CLI interface
-- ⏳ Session management
+- ✅ OpenAI & Anthropic providers
+- ✅ Essential tools (file, shell)
+- ✅ Basic agentic loop
+- ✅ CLI interface
+- ✅ Session management
+- ✅ Comprehensive Testing
 - ⏳ Documentation
 
 **Completion Target**: End of Week 8
@@ -42,8 +43,8 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 
 ## Phase 2: Enhanced Features
 
-**Timeline**: Weeks 9-14 (6 weeks)  
-**Status**: 📋 Planned  
+**Timeline**: Weeks 9-14 (6 weeks)
+**Status**: 📋 Planned
 **Goal**: Add essential capabilities for production use
 
 ### 2.1 Local Models Support (Weeks 9-10)
@@ -169,7 +170,7 @@ default:
   provider: anthropic
   model: claude-sonnet-4-5
   temperature: 0.7
-  
+
 tools:
   enabled:
     - read_file
@@ -179,11 +180,11 @@ tools:
     shell_exec: ask
     write_file: ask
     read_file: always_allow
-    
+
 system_prompt: |
   You are an expert Python developer.
   Focus on writing clean, tested code.
-  
+
 providers:
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}
@@ -237,8 +238,8 @@ allos --plugins my_plugin "Use my custom tool"
 
 ## Phase 3: Advanced Tooling
 
-**Timeline**: Weeks 15-20 (6 weeks)  
-**Status**: 📋 Planned  
+**Timeline**: Weeks 15-20 (6 weeks)
+**Status**: 📋 Planned
 **Goal**: Best-in-class developer experience and advanced features
 
 ### 3.1 Hooks System (Week 15)
@@ -461,11 +462,11 @@ from allos import AsyncAgent, AgentConfig
 
 async def main():
     agent = AsyncAgent(AgentConfig(...))
-    
+
     # Stream response
     async for chunk in agent.run_stream("Create a web app"):
         print(chunk, end='', flush=True)
-    
+
     # Or parallel execution
     results = await asyncio.gather(
         agent.run("Task 1"),
@@ -480,8 +481,8 @@ asyncio.run(main())
 
 ## Phase 4: Enterprise & Scale
 
-**Timeline**: Weeks 21-28 (8 weeks)  
-**Status**: 🔮 Future  
+**Timeline**: Weeks 21-28 (8 weeks)
+**Status**: 🔮 Future
 **Goal**: Production-ready for enterprise deployments
 
 ### 4.1 MCP (Model Context Protocol) Support (Weeks 21-23)
@@ -672,8 +673,8 @@ kubectl apply -f allos-deployment.yaml
 
 ## Phase 5: Ecosystem Integration
 
-**Timeline**: Weeks 29-36 (8 weeks)  
-**Status**: 🔮 Future  
+**Timeline**: Weeks 29-36 (8 weeks)
+**Status**: 🔮 Future
 **Goal**: Interoperability with existing frameworks
 
 ### 5.1 Pydantic AI Integration (Weeks 29-30)
@@ -792,8 +793,8 @@ agent = Agent(AgentConfig(
 
 ## Phase 6: Innovation
 
-**Timeline**: Ongoing  
-**Status**: 🔮 Future  
+**Timeline**: Ongoing
+**Status**: 🔮 Future
 **Goal**: Cutting-edge capabilities
 
 ### 6.1 Multi-modal Support
@@ -821,7 +822,7 @@ agent = Agent(AgentConfig(
     tools=["read_file", "analyze_image"]
 ))
 
-agent.run("Analyze this UI screenshot and suggest improvements", 
+agent.run("Analyze this UI screenshot and suggest improvements",
           image="screenshot.png")
 ```
 
@@ -993,7 +994,7 @@ We're building Allos in the open! Here's how you can help:
 
 ### How to Contribute
 1. Check [Issues](https://github.com/Undiluted7027/allos-agent-sdk/issues) for open tasks
-2. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines
+2. Read [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for guidelines
 3. Join [Discussions](https://github.com/Undiluted7027/allos-agent-sdk/discussions)
 4. Submit PRs with your improvements
 
@@ -1112,11 +1113,12 @@ Share your thoughts:
 
 **Building the future of AI agents, together** 🚀
 
-[Back to README](./README.md) • [MVP Roadmap](./MVP_ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
+[Back to README](./README.md) • [MVP Roadmap](./MVP_ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
 ---
 
-*Last Updated: October 31, 2025*  
+*Last Updated: November 03, 2025*
+
 *Next Review: November 30, 2025*
 
 </div>

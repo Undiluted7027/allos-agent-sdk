@@ -32,11 +32,16 @@ repos:
           - pytest-mock
           - tiktoken
 
-  - repo: local
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.9.7
     hooks:
-      - id: uv-lock-check
-        name: Check uv.lock is up-to-date
-        stages: [pre-commit]
-        language: system
-        entry: uv lock --check
-        files: ^pyproject\.toml$
+      - id: uv-lock
+      # Compile requirements
+      - id: pip-compile
+        name: pip-compile requirements.in
+        args: [requirements.in, -o, requirements.txt]
+      - id: pip-compile
+        name: pip-compile requirements-dev.in
+        args: [requirements-dev.in, -o, requirements-dev.txt]
+        files: ^requirements-dev\.(in|txt)$
