@@ -13,6 +13,7 @@ To run this example:
 """
 
 import os
+import shutil
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -40,14 +41,11 @@ main()
 
 
 def setup_workspace():
-    """Create a dummy project for the agent to review."""
+    """Create a dummy project and operate inside it."""
     if DUMMY_PROJECT_DIR.exists():
-        import shutil
-
         shutil.rmtree(DUMMY_PROJECT_DIR)
     DUMMY_PROJECT_DIR.mkdir()
     (DUMMY_PROJECT_DIR / "main.py").write_text(DUMMY_FILE_CONTENT)
-    # The agent will operate inside this directory
     os.chdir(DUMMY_PROJECT_DIR)
 
 
@@ -55,8 +53,6 @@ def cleanup():
     """Clean up the dummy project."""
     os.chdir("..")
     if DUMMY_PROJECT_DIR.exists():
-        import shutil
-
         shutil.rmtree(DUMMY_PROJECT_DIR)
 
 
@@ -70,25 +66,21 @@ def main():
             title="Setup",
         )
     )
-
     try:
         config = AgentConfig(
             provider_name="openai",
             model="gpt-4o",
-            tool_names=["list_directory", "read_file"],
+            tool_names=["list_directory", "read_file"],  # Only read-only tools
         )
         agent = Agent(config)
 
         prompt = (
             "Please review the code in the current project. "
-            "Start by listing the files, then read `main.py` and provide feedback "
-            "on code quality, style, and potential bugs."
+            "Start by listing the files to see what's here, then read `main.py` and provide feedback "
+            "on code quality, style, and potential best practice improvements."
         )
 
-        final_response = agent.run(prompt)
-
-        console.print("\n--- [bold green]Code Review Complete[/] ---")
-        console.print(final_response)
+        agent.run(prompt)
 
     finally:
         cleanup()

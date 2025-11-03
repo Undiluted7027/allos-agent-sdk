@@ -20,6 +20,7 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
   - **[Adding a New Tool](./contributing/adding-tools.md)**: A guide for adding new built-in tools.
   - **Note:** The core agent logic is not yet extensible in the MVP. See our [Roadmap](./../ROADMAP.md) for future plans on sub-agents and custom agent architectures.
 - **[Reference](./reference/)**: Detailed technical reference for the API.
+  - **[CLI Reference](./reference/cli-reference.md)**: A complete reference for the `allos` command-line tool.
   - **[Provider API](./reference/provider-api.md)**: Technical details of the provider abstraction layer.
   - **[Tool API](./reference/tool-api.md)**: Technical details of the tool abstraction layer.
   - **[Agent API](./reference/agent-api.md)**: Technical details of the `Agent` class and its configuration.

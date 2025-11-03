@@ -1,108 +1,65 @@
 # Getting Started
 
-Welcome to the Allos Agent SDK! This guide provides a conceptual overview to get you started. For a runnable code example, see our [5-Minute Quickstart](./guides/quickstart.md).
+Welcome to the Allos Agent SDK! This guide provides a conceptual overview of the two main ways to use Allos: the **Command-Line Interface (CLI)** for quick tasks and the **Python API** for building custom applications.
 
-## 1. Installation
+For a runnable code example, see our [5-Minute Quickstart](./guides/quickstart.md).
 
-First, make sure you've installed the SDK along with the providers you need. For example, to use OpenAI and Anthropic:
+## 1. Installation & Setup
+
+First, install the SDK and configure your API keys.
 
 ```bash
+# Install the SDK with all providers
 uv pip install "allos-agent-sdk[all]"
+
+# Create a .env file for your keys
+echo "OPENAI_API_KEY=your_key_here" > .env
 ```
 For more details, see the [Installation Guide](./installation.md).
 
-## 2. Configure Your API Keys
+## 2. The CLI: Your Primary Interface
 
-The SDK automatically reads API keys from your environment variables. Before you can use a provider, you must set the appropriate key.
+The `allos` CLI is the fastest way to get started. It gives you direct access to a pre-configured agent. You can run a single task by providing a prompt directly.
 
-Create a `.env` file in your project's root directory:
-
-```env
-# .env
-OPENAI_API_KEY="your_openai_api_key_here"
-ANTHROPIC_API_KEY="your_anthropic_api_key_here"
+```bash
+# The agent will use its tools (like `write_file` and `shell_exec`) to accomplish this task.
+# It will ask for your permission before executing any sensitive commands.
+allos "Create a python script named 'app.py' that prints 'Hello, Agent!' and then execute it."
 ```
 
-Your Python script will need to load these variables. We recommend using the `python-dotenv` library.
-
-## 3. The `ProviderRegistry`
-
-The central entry point for interacting with LLMs in Allos is the `ProviderRegistry`. It acts as a factory that gives you a provider instance on demand.
-
-You never need to import `OpenAIProvider` or `AnthropicProvider` directly. You simply ask the registry for the provider you want by name.
-
-```python
-from allos.providers import ProviderRegistry
-
-# Get an instance of the OpenAI provider for the gpt-4o model
-openai_provider = ProviderRegistry.get_provider("openai", model="gpt-4o")
-
-# Get an instance of the Anthropic provider
-anthropic_provider = ProviderRegistry.get_provider("anthropic", model="claude-3-5-sonnet-20240620")
+For a conversational experience, use the interactive flag:
+```bash
+allos --interactive
 ```
+For a complete list of commands and options, see the [CLI Reference](./reference/cli-reference.md).
 
-## 4. Making an API Call
+## 3. The Python API: The underlying Engine
 
-Once you have a provider instance, you can use the unified `.chat()` method to interact with the LLM. You'll pass it a list of `Message` objects.
+The CLI is a user-friendly wrapper around the core Python components of the SDK. You can use these components directly to build more complex, custom agentic applications.
 
-```python
-from allos.providers import Message, MessageRole
+### `AgentConfig` and `Agent`
 
-# Create a list of messages
-messages = [
-    Message(role=MessageRole.USER, content="Hello, what is your name?")
-]
-
-# Get a response from OpenAI
-response = openai_provider.chat(messages)
-
-print(response.content)
-```
-
-The interface is the **same** for every provider, which is the core power of Allos.
-
-## 5. Configure and Create an Agent
-
-Instead of using providers directly, you'll typically configure and create an `Agent` instance.
+These are the two main classes you'll work with. `AgentConfig` defines the agent's setup, and `Agent` is the engine that runs the task.
 
 ```python
 from allos import Agent, AgentConfig
 
-# Define the agent's configuration
+# 1. Define the agent's configuration
 config = AgentConfig(
     provider_name="openai",
     model="gpt-4o",
     tool_names=["read_file", "write_file", "shell_exec"]
 )
 
-# Create the agent
+# 2. Create the agent
 agent = Agent(config)
-```
-The `Agent` automatically initializes the correct provider and tools from the registries based on your configuration.
 
-## 6. Run a Task
+# 3. Run a task
+result = agent.run("Create a simple 'hello world' script in a file named 'main.py'.")
 
-Once you have an agent, you can give it a high-level task using the `.run()` method.
-
-```python
-# The agent will use its LLM and tools to accomplish this task
-result = agent.run("Create a python script named 'app.py' that prints 'Hello, Agent!' and then execute it.")
-```
-During the run, the agent will prompt you for permission before executing sensitive tools like `write_file` or `shell_exec`.
-
-## 7. Save and Load Sessions
-
-You can persist an agent's conversation history to a file and load it back later to continue a task.
-
-```python
-# Save the agent's state after the task
-agent.save_session("my_project_session.json")
-
-# Later, in a different script or session...
-loaded_agent = Agent.load_session("my_project_session.json")
-
-# Continue the conversation
-result = loaded_agent.run("Now, modify the script to print 'Hello again!'")
+print(result)
 ```
 
-Now, head to the [Quickstart Guide](./guides/quickstart.md) to run this yourself!
+This Python code does the same thing as the CLI, but gives you programmatic control over the agent's lifecycle, its context, and its final output.
+
+For more details on building with the Python API, see the [Agents Guide](./guides/agents.md).
