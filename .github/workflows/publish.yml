@@ -6,6 +6,10 @@ on:
   # This workflow is triggered manually from the GitHub Actions UI
   workflow_dispatch:
 
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   build-and-publish:
     name: Build and publish to PyPI
@@ -23,23 +27,28 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install uv and set the Python version
+      uses: astral-sh/setup-uv@v6
       with:
+        # Install a specific version of uv.
+        version: 0.9.7
         python-version: "3.9"
+        enable-cache: true
 
-    - name: Install uv
-      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Install dependencies and project
+      run: uv sync --locked --all-extras --dev
 
     - name: Install build dependencies
-      run: |
-        source $HOME/.cargo/env
-        uv pip install build
+      run: uv pip install build
 
     - name: Build package
-      run: |
-        source $HOME/.cargo/env
-        python -m build
+      run: python -m build
+
+    - name: Upload built distributions
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-files
+        path: dist/*
 
     # - name: Publish package to PyPI
     #   uses: pypa/gh-action-pypi-publish@release/v1
