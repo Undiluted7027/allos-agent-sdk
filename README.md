@@ -35,7 +35,7 @@ Switch seamlessly between OpenAI, Anthropic, Ollama, and other LLM providers. Us
 Built-in tools for:
 - 📁 File operations (read, write, edit)
 - 💻 Shell command execution
-- 🌐 Web search and fetching
+- 🌐 Web search and fetching *(coming soon)*
 - 🔌 MCP (Model Context Protocol) extensibility *(coming soon)*
 
 ### 🎛️ **Advanced Capabilities**
@@ -339,7 +339,7 @@ Please see our full [ROADMAP.md](./ROADMAP.md) for more details on our plans for
 
 ## 🚦 Current Status
 
-**🟠 MVP Development in Progress**
+**🔵 MVP Development is almost complete**
 
 All major features for the MVP are implemented and tested.
 - ✅ **Providers:** OpenAI and Anthropic are fully supported.
