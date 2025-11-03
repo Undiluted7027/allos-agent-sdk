@@ -39,7 +39,7 @@ jobs:
       run: uv sync --locked --all-extras --dev
 
     - name: Install build dependencies
-      run: uv pip install --system build setuptools wheel
+      run: uv pip install build setuptools wheel
 
     - name: Build package
       run: uv run python -m build
