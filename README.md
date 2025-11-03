@@ -8,11 +8,11 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: MVP Nearing Completion](https://img.shields.io/badge/status-MVP%20Nearing%20Completion-brightgreen.svg)](./MVP_ROADMAP.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./.github/CONTRIBUTING.md)
+[![Status: MVP Nearing Completion](https://img.shields.io/badge/status-MVP%20Nearing%20Completion-brightgreen.svg)](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/MVP_ROADMAP.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/.github/CONTRIBUTING.md)
 [![codecov](https://codecov.io/gh/Undiluted7027/allos-agent-sdk/graph/badge.svg?token=NT2N055YTL)](https://codecov.io/gh/Undiluted7027/allos-agent-sdk)
 
-[Documentation](./docs) • [Roadmap](./ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
+[Documentation](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs) • [Roadmap](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/ROADMAP.md) • [Contributing](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/.github/CONTRIBUTING.md)
 
 </div>
 
@@ -283,14 +283,14 @@ content_agent.run("Research AI trends and write a blog post")
 
 ## 📚 Documentation
 
-- **[Getting Started](./docs/getting-started.md)** - Installation and first steps
-- **[Quickstart Guide](./docs/guides/quickstart.md)** - 5-minute tutorial
-- **[Providers](./docs/guides/providers.md)** - Provider configuration
-- **[Tools](./docs/guides/tools.md)** - Using built-in tools
-- **[Custom Tools](./docs/guides/custom-tools.md)** - Creating your own tools
-- **[CLI Reference](./docs/reference/cli-reference.md)** - Command-line options
-- **[API Reference](./docs/reference/agent-api.md)** - Python API documentation
-- **[Architecture](./docs/reference/initial-architecture-design.md)** - System design
+- **[Getting Started](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/getting-started.md)** - Installation and first steps
+- **[Quickstart Guide](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/guides/quickstart.md)** - 5-minute tutorial
+- **[Providers](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/guides/providers.md)** - Provider configuration
+- **[Tools](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/guides/tools.md)** - Using built-in tools
+- **[Custom Tools](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/guides/custom-tools.md)** - Creating your own tools
+- **[CLI Reference](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/reference/cli-reference.md)** - Command-line options
+- **[API Reference](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/reference/agent-api.md)** - Python API documentation
+- **[Architecture](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/docs/reference/initial-architecture-design.md)** - System design
 
 ## 🗺️ Roadmap
 
@@ -304,7 +304,7 @@ content_agent.run("Research AI trends and write a blog post")
 - [x] Comprehensive unit, integration, and E2E test suites
 - [ ] Final documentation and launch prep
 
-See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed MVP timeline.
+See [MVP_ROADMAP.md](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/MVP_ROADMAP.md) for detailed MVP timeline.
 
 ### 🚧 Phase 2: Enhanced Features
 - [ ] Ollama integration (local models)
@@ -335,7 +335,7 @@ The current MVP of the Allos Agent SDK is focused on providing a robust foundati
 -   **No Web Tools:** Built-in tools for web search (`web_search`) and fetching URLs (`web_fetch`) are planned but not yet implemented.
 -   **Basic Error Recovery:** While the agent can recover from tool execution errors (like permission denied), it does not yet have sophisticated strategies for retrying failed API calls or self-correcting flawed plans.
 
-Please see our full [ROADMAP.md](./ROADMAP.md) for more details on our plans for these and other features.
+Please see our full [ROADMAP.md](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/ROADMAP.md) for more details on our plans for these and other features.
 
 ## 🚦 Current Status
 
@@ -362,7 +362,7 @@ We're building Allos in the open and would love your help! Whether you're:
 - 🔧 **Submitting PRs**
 - ⭐ **Starring the repo** (helps a lot!)
 
-All contributions are welcome! See [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for guidelines.
+All contributions are welcome! See [CONTRIBUTING.md](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/.github/CONTRIBUTING.md) for guidelines.
 
 ### Development Setup
 
@@ -433,7 +433,7 @@ ruff check allos tests --fix
 
 ## 📄 License
 
-Allos is open source and available under the [MIT License](./LICENSE).
+Allos is open source and available under the [MIT License](https://github.com/Undiluted7027/allos-agent-sdk/blob/main/LICENSE).
 
 ## 🙏 Acknowledgments
 

@@ -55,9 +55,8 @@ jobs:
 
     # - name: Publish package to PyPI
     #   uses: pypa/gh-action-pypi-publish@release/v1
-    #   # The `id-token: write` permission allows this action to get a temporary
-    #   # token from GitHub's OIDC provider, which PyPI trusts. No API token needed here.
-    # Triggering a test publish
+      # The `id-token: write` permission allows this action to get a temporary
+      # token from GitHub's OIDC provider, which PyPI trusts. No API token needed here.
     - name: Publish package to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
