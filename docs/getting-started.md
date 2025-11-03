@@ -17,7 +17,7 @@ echo "OPENAI_API_KEY=your_key_here" > .env
 ```
 For more details, see the [Installation Guide](./installation.md).
 
-## 2. The CLI: Your Primary Interface
+## 2. Using the CLI (The Easiest Way)
 
 The `allos` CLI is the fastest way to get started. It gives you direct access to a pre-configured agent. You can run a single task by providing a prompt directly.
 
@@ -33,7 +33,7 @@ allos --interactive
 ```
 For a complete list of commands and options, see the [CLI Reference](./reference/cli-reference.md).
 
-## 3. The Python API: The underlying Engine
+## 3. Using the Python API (For Custom Applications)
 
 The CLI is a user-friendly wrapper around the core Python components of the SDK. You can use these components directly to build more complex, custom agentic applications.
 

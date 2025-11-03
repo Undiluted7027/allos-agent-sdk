@@ -12,12 +12,6 @@ from allos.utils.errors import AllosError
 
 
 @pytest.fixture
-def mock_get_provider(mocker):
-    """Fixture to mock ProviderRegistry.get_provider."""
-    return mocker.patch("allos.agent.agent.ProviderRegistry.get_provider")
-
-
-@pytest.fixture
 def mock_get_tool(mocker):
     """Fixture to mock ToolRegistry.get_tool."""
     return mocker.patch("allos.agent.agent.ToolRegistry.get_tool")

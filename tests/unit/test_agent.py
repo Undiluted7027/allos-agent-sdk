@@ -7,13 +7,7 @@ import pytest
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import ProviderResponse, ToolCall
 from allos.tools.base import ToolPermission
-from allos.utils.errors import AllosError
-
-
-@pytest.fixture
-def mock_get_provider(mocker):
-    """Fixture to mock ProviderRegistry.get_provider."""
-    return mocker.patch("allos.agent.agent.ProviderRegistry.get_provider")
+from allos.utils.errors import AllosError, ContextWindowExceededError
 
 
 @pytest.fixture
@@ -243,3 +237,23 @@ class TestAgent:
         # Even though the tool is ALWAYS_DENY, auto_approve should grant permission
         permission_granted = agent._check_tool_permission(mock_tool)
         assert permission_granted is True
+
+    def test_context_window_exceeded_raises_error(self, mock_get_provider):
+        """Test that an error is raised if the context is too large."""
+        mock_provider = mock_get_provider.return_value
+        # Configure the mock provider to report a small context window
+        mock_provider.get_context_window.return_value = 100
+
+        config = AgentConfig(provider_name="test", model="test")
+        agent = Agent(config)
+
+        # Add a very long message to the context to exceed the limit
+        long_content = "word " * 200  # This will be > 100 tokens
+        agent.context.add_user_message(long_content)
+
+        with pytest.raises(ContextWindowExceededError) as excinfo:
+            agent.run("Another prompt")  # The run method will call _get_llm_response
+
+        assert "Conversation context has grown too large" in str(excinfo.value)
+        # Ensure the provider's chat method was never called
+        mock_provider.chat.assert_not_called()

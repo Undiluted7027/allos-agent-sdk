@@ -14,8 +14,9 @@ from ..providers import ProviderRegistry
 from ..providers.base import BaseProvider, ProviderResponse, ToolCall
 from ..tools import ToolRegistry
 from ..tools.base import BaseTool, ToolPermission
-from ..utils.errors import AllosError, ToolExecutionError
+from ..utils.errors import AllosError, ContextWindowExceededError, ToolExecutionError
 from ..utils.logging import logger
+from ..utils.token_counter import count_tokens
 
 
 @dataclass
@@ -153,6 +154,29 @@ class Agent:
     def _get_llm_response(self) -> ProviderResponse:
         """Sends the current context to the provider and gets a response."""
         self.console.print("[dim]🧠 Thinking...[/dim]")
+
+        # --- Proactive Context Window Check ---
+        # We'll use a simple token counting method for the MVP.
+        # This can be made more sophisticated in the future.
+        context_text = " ".join([msg.content or "" for msg in self.context.messages])
+        estimated_tokens = count_tokens(context_text, model=self.config.model)
+
+        # Get the provider's context window and leave a buffer for the response.
+        context_window = self.provider.get_context_window()
+        TOKEN_BUFFER = 2048  # Reserve tokens for the model's response
+
+        if estimated_tokens > (context_window - TOKEN_BUFFER):
+            error_msg = (
+                f"Conversation context has grown too large. "
+                f"Estimated tokens: {estimated_tokens}, "
+                f"Model limit: {context_window}. "
+                f"Please start a new session."
+            )
+            raise ContextWindowExceededError(error_msg)
+
+        logger.debug(
+            f"Context size check OK. Estimated tokens: {estimated_tokens}/{context_window}"
+        )
 
         # The provider is responsible for handling the message history correctly.
         # We pass a shallow copy to prevent accidental mutation.

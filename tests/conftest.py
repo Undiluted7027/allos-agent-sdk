@@ -144,3 +144,31 @@ def mock_tool_factory(mocker: MockerFixture) -> Callable[..., mock.MagicMock]:
         return mock_tool
 
     return _create_mock_tool
+
+
+@pytest.fixture
+def mock_provider_instance(mocker):
+    """
+    Provides a MagicMock of a BaseProvider instance with default
+    configurations needed for agent tests (e.g., context window size).
+    """
+    mock_instance = mocker.MagicMock(spec=BaseProvider)
+
+    # Configure the essential methods that agent tests will call
+    mock_instance.get_context_window.return_value = 8192
+
+    return mock_instance
+
+
+@pytest.fixture
+def mock_get_provider(mocker, mock_provider_instance):
+    """
+    Mocks ProviderRegistry.get_provider to return a pre-configured
+    mock provider instance.
+    """
+    # This single patch will affect all calls to ProviderRegistry.get_provider
+    # across the entire test suite.
+    return mocker.patch(
+        "allos.agent.agent.ProviderRegistry.get_provider",
+        return_value=mock_provider_instance,
+    )

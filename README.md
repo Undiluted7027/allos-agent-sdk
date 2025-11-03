@@ -8,7 +8,7 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: MVP Development](https://img.shields.io/badge/status-MVP%20Development-orange.svg)](./MVP_ROADMAP.md)
+[![Status: MVP Nearing Completion](https://img.shields.io/badge/status-MVP%20Nearing%20Completion-brightgreen.svg)](./MVP_ROADMAP.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 [![codecov](https://codecov.io/gh/Undiluted7027/allos-agent-sdk/graph/badge.svg?token=NT2N055YTL)](https://codecov.io/gh/Undiluted7027/allos-agent-sdk)
 
@@ -67,7 +67,14 @@ allos "Create a REST API for a todo app"
 
 ## 🚀 Quick Start
 
+See the full workflow in action by running our CLI demo script:
+```bash
+bash <(curl -s https://raw.githubusercontent.com/Undiluted7027/allos-agent-sdk/main/examples/cli_workflow.sh)
+```
+
 ### Installation
+
+We recommend using `uv`, a fast Python package manager.
 
 ```bash
 # Basic installation
@@ -81,26 +88,23 @@ uv pip install "allos-agent-sdk[all]"  # All providers
 
 ### CLI Usage
 
+The `allos` CLI is the quickest way to use the agent.
+
 ```bash
-# Set your API key
-export OPENAI_API_KEY=your_key_here
+# Set your API key (or use a .env file)
+export OPENAI_API_KEY="your_key_here"
 
-# Run a task
-allos "Create a FastAPI hello world app"
+# Run a single task
+allos "Create a FastAPI hello world app in a file named main.py and then run it."
 
-# Use a different provider
-export ANTHROPIC_API_KEY=your_key_here
-allos --provider anthropic --model claude-sonnet-4-5 "Same task"
+# Start an interactive session for a conversation
+allos -i
+# >>> Create a file named 'app.py' with a simple Flask app.
+# >>> Now, add a route to it that returns the current time.
 
-# Interactive mode
-allos --interactive
-
-# With specific tools
-allos --tools read_file --tools write_file "Refactor main.py"
-
-# Save session for later
-allos --session my-project.json "Start building a web scraper"
-allos --session my-project.json "Continue where we left off"
+# Switch providers and save your session
+export ANTHROPIC_API_KEY="your_key_here"
+allos -p anthropic -s my_project.json "Refactor the 'app.py' file to be more modular."
 ```
 
 ### Python API
@@ -165,12 +169,15 @@ class DatabaseQueryTool(BaseTool):
         )
     ]
 
-    def execute(self, **kwargs: dict[str, any]) -> dict[str, any]:
+    def execute(self, **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         query = kwargs.get("query")
         if not query:
             return {"success": False, "error": "Query parameter is required."}
         # Your implementation
-        result = your_db.execute(query)
+        # In a real scenario, you would connect to a DB.
+        # result = your_db.execute(query)
+        # For this example, we'll return a mock result.
+        return {"status": "success", "result": f"Query '{query}' executed."}
 
 # Use it
 agent = Agent(AgentConfig(
@@ -294,8 +301,8 @@ content_agent.run("Research AI trends and write a blog post")
 - [x] Tool system (filesystem, shell) with user-approval permissions
 - [x] Agent core with agentic loop and session management
 - [x] CLI interface
-- [ ] Basic tests
-- [ ] Documentation
+- [x] Comprehensive unit, integration, and E2E test suites
+- [ ] Final documentation and launch prep
 
 See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed MVP timeline.
 
@@ -317,20 +324,29 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed MVP timeline.
 - [ ] Advanced monitoring and observability
 - [ ] Cloud deployment support
 
-See [ROADMAP.md](./ROADMAP.md) for the complete roadmap.
+## 🚧 Known Limitations (MVP)
+
+The current MVP of the Allos Agent SDK is focused on providing a robust foundation. It intentionally excludes some advanced features that are planned for future releases:
+
+-   **No Streaming Support:** The agent currently waits for the full response from the LLM and tools. Real-time streaming of responses is a post-MVP feature.
+-   **Limited Context Management:** The agent performs a basic check to prevent exceeding the context window but does not yet implement advanced context compaction or summarization for very long conversations.
+-   **No Async Support:** The core `Agent` and `Tool` classes are synchronous. An async-first version is planned for a future release.
+-   **Limited Provider Support:** The MVP includes `openai` and `anthropic`. Support for `ollama`, `google`, and others is on the roadmap.
+-   **No Web Tools:** Built-in tools for web search (`web_search`) and fetching URLs (`web_fetch`) are planned but not yet implemented.
+-   **Basic Error Recovery:** While the agent can recover from tool execution errors (like permission denied), it does not yet have sophisticated strategies for retrying failed API calls or self-correcting flawed plans.
+
+Please see our full [ROADMAP.md](./ROADMAP.md) for more details on our plans for these and other features.
 
 ## 🚦 Current Status
 
 **🟠 MVP Development in Progress**
 
-Allos is currently under active development. The MVP will include:
-- ✅ Initial architecture designed
-- ✅ OpenAI and Anthropic providers
-- ✅ Essential file and shell tools
-- ✅ Core agentic loop with tool execution and permissions
-- ✅ Session management (save/load)
-- ✅ CLI interface
-- ⏳ Python API
+All major features for the MVP are implemented and tested.
+- ✅ **Providers:** OpenAI and Anthropic are fully supported.
+- ✅ **Tools:** Secure filesystem and shell tools are included.
+- ✅ **Agent Core:** The agentic loop, permissions, and session management are functional.
+- ✅ **CLI:** A polished and powerful CLI is the primary user interface.
+- ✅ **Python API:** The underlying Python API is stable and ready for use.
 
 **Expected MVP Release**: 6-8 weeks from project start
 
@@ -370,11 +386,11 @@ source venv/bin/activate
 # Install in development mode
 pip install -e ".[dev]"
 
-# Run tests to verify setup (REQUIRES API KEYS)
-./scripts/run_tests.sh --run-integration
+# Run unit tests (fast, no API keys required)
+uv run pytest tests/unit/
 
-# Run tests to verify setup (NO API KEYS REQUIRED)
-./scripts/run_tests.sh
+# Run all tests, including integration tests (requires API keys)
+./scripts/run_tests.sh --run-integration
 
 # Format code
 black allos tests
@@ -398,11 +414,11 @@ source .venv/bin/activate
 # Install in development mode
 uv pip install -e ".[dev]"
 
-# Run tests to verify setup (REQUIRES API KEYS)
-./scripts/run_tests.sh --run-integration
+# Run unit tests (fast, no API keys required)
+uv run pytest tests/unit/
 
-# Run tests to verify setup (NO API KEYS REQUIRED)
-./scripts/run_tests.sh
+# Run all tests, including integration tests (requires API keys)
+./scripts/run_tests.sh --run-integration
 
 # Format code
 black allos tests

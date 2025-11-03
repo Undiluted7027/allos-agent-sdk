@@ -53,3 +53,7 @@ class PermissionError(AllosError):
 
 class FileOperationError(AllosError):
     """Raised for errors during safe file operations."""
+
+
+class ContextWindowExceededError(AllosError):
+    """Raised when the conversation context exceeds the provider's model limit."""

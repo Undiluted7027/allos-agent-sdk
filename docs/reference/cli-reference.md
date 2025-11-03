@@ -8,26 +8,23 @@ The `allos` command-line interface is the primary way to interact with the Allos
 allos [OPTIONS] [PROMPT]...
 ```
 
-The CLI is designed to be intuitive. You can either provide a prompt directly to the `allos` command or use one of the specific subcommands.
+The CLI is designed to be intuitive. You can either provide a prompt directly to the `allos` command or use one of the action flags like `--interactive`.
 
-## Global Options
+## Options
 
-These options can be used before the main prompt or any subcommand.
+All options can be used before the main prompt.
 
 #### `-h, --help`
 Shows the main help message and exits.
-
-#### `-v, --verbose`
-Enables verbose, DEBUG-level logging to the console. Useful for debugging agent behavior.
-
-#### `-i, --interactive`
-Starts an interactive REPL session with the agent, allowing for a continuous, multi-turn conversation. If this flag is used, any `[PROMPT]` argument is ignored.
 
 #### `--list-providers`
 Lists all available and registered LLM providers and exits.
 
 #### `--list-tools`
 Lists all available and registered tools, including their permission levels and descriptions, and exits.
+
+#### `-i, --interactive`
+Starts an interactive REPL session with the agent, allowing for a continuous, multi-turn conversation. If this flag is used, any `[PROMPT]` argument is ignored.
 
 #### `-p, --provider <name>`
 Specifies the LLM provider to use.
@@ -48,6 +45,9 @@ Loads an agent session from a specified JSON file and saves the updated session 
 Automatically approves all tool execution requests that would normally require user confirmation (`ASK_USER` permission).
 > [!WARNING]
 > Use this option with extreme caution, especially with tools like `shell_exec`.
+
+#### `-v, --verbose`
+Enables verbose, DEBUG-level logging to the console. Useful for debugging agent behavior.
 
 ## Main Usage
 
@@ -91,10 +91,4 @@ allos -s project.json "Create a file 'test.py' with a function that adds two num
 
 # Next, load the session and continue the task
 allos -s project.json "Now add a unit test for that function in the same file."
-```
-
-#### Use auto-approve for a trusted workflow
-```bash
-# The agent will not ask for permission before writing and executing
-allos --auto-approve "Create a script 'run.sh' that prints the current date, then run it."
 ```

@@ -77,6 +77,27 @@ class TestToolBase:
         representation = repr(tool_instance)
         assert representation == "DummySearchTool(name='web_search')"
 
+    def test_calling_super_execute_raises_not_implemented_error(self):
+        """
+        Test that explicitly calling the abstract BaseTool.execute() method
+        raises NotImplementedError.
+        """
+
+        # Create a minimal subclass that calls super()
+        class CallSuperTool(BaseTool):
+            name = "call_super"
+            description = "A tool that calls super().execute()"
+            parameters = []
+
+            def execute(self, **kwargs: Any) -> Dict[str, Any]:
+                # This line will trigger the uncovered `raise` statement
+                return super().execute(**kwargs)  # type: ignore
+
+        tool_instance = CallSuperTool()
+
+        with pytest.raises(NotImplementedError):
+            tool_instance.execute()
+
 
 class TestToolRegistry:
     """Tests for the tool registry and factory."""

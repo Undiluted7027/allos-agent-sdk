@@ -1,6 +1,6 @@
 # 5-Minute Quickstart
 
-Get your first "Hello, World!" app created and running with the Allos agent in under 5 minutes, directly from your command line.
+Create and run your first "Hello, World!" application using the Allos agent in under 5 minutes, directly from your command line.
 
 ## Prerequisites
 
@@ -14,9 +14,9 @@ Get your first "Hello, World!" app created and running with the Allos agent in u
     OPENAI_API_KEY="your_openai_api_key_here"
     ```
 
-## Step 1: Create the File
+## Step 1: Create the Application File
 
-Run the following command in your terminal. The agent will ask for your permission to write the file. Type `y` and press Enter.
+Run the following command in your terminal. The agent will ask for your permission to write the file. **Type `y` and press Enter.**
 
 ```bash
 allos "Create a Python file named 'app.py' that prints 'Hello from Allos!'"
@@ -31,28 +31,19 @@ Model not specified, defaulting to 'gpt-4o' for provider 'openai'.
 🧠 Thinking...
 ╭──────────────────── Tool Call Requested ─────────────────────╮
 │ Tool: write_file                                             │
-│ Arguments: {                                                 │
-│   "path": "app.py",                                          │
-│   "content": "print('Hello from Allos!')"                    │
-│ }                                                            │
+│ Arguments: { ... }                                           │
 ╰──────────────────────────────────────────────────────────────╯
 ❓ Allow tool 'write_file' to run? (y/n): y
-╭────────────────── Tool Result: write_file ───────────────────╮
-│ {                                                            │
-│   "status": "success",                                       │
-│   "message": "Successfully wrote 24 bytes to 'app.py'."      │
-│ }                                                            │
-╰──────────────────────────────────────────────────────────────╯
-🧠 Thinking...
+...
 ╭─────────────────────── Final Response ───────────────────────╮
 │ Agent: The file `app.py` has been created successfully.      │
 ╰──────────────────────────────────────────────────────────────╯
 ```
 You should now have a file named `app.py` in your directory.
 
-## Step 2: Run the File
+## Step 2: Run the Application
 
-Now, let's ask the agent to execute the script it just created. It will ask for permission again.
+Now, let's ask the agent to execute the script it just created. It will ask for permission again. **Type `y` and press Enter.**
 
 ```bash
 allos "Execute the 'app.py' script using python."
@@ -66,23 +57,12 @@ allos "Execute the 'app.py' script using python."
 🧠 Thinking...
 ╭──────────────────── Tool Call Requested ─────────────────────╮
 │ Tool: shell_exec                                             │
-│ Arguments: {                                                 │
-│   "command": "python app.py"                                 │
-│ }                                                            │
+│ Arguments: { "command": "python app.py" }                    │
 ╰──────────────────────────────────────────────────────────────╯
 ❓ Allow tool 'shell_exec' to run? (y/n): y
-╭────────────────── Tool Result: shell_exec ───────────────────╮
-│ {                                                            │
-│   "status": "success",                                       │
-│   "return_code": 0,                                          │
-│   "stdout": "Hello from Allos!\n",                           │
-│   "stderr": ""                                               │
-│ }                                                            │
-╰──────────────────────────────────────────────────────────────╯
-🧠 Thinking...
+...
 ╭─────────────────────── Final Response ────────────────────────────────────╮
 │ Agent: The script executed successfully and printed the following output: │
-│                                                                           │
 │ ```                                                                       │
 │ Hello from Allos!                                                         │
 │ ```                                                                       │
