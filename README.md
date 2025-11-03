@@ -438,7 +438,7 @@ Allos is open source and available under the [MIT License](./LICENSE).
 ## 🙏 Acknowledgments
 
 Inspired by:
-- [Anthropic's Claude Code](https://claude.ai/code) - For showing what's possible with agentic coding
+- [Anthropic's Claude Code](https://www.claude.com/product/claude-code) - For showing what's possible with agentic coding
 - [LangChain](https://github.com/langchain-ai/langchain) - For pioneering LLM frameworks
 - [AutoGPT](https://github.com/Significant-Gravitas/AutoGPT) - For autonomous agent patterns
 
