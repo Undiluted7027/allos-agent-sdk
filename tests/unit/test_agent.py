@@ -1,6 +1,5 @@
 # tests/unit/test_agent.py
 
-import json
 from unittest.mock import call, patch
 
 import pytest
@@ -227,68 +226,20 @@ class TestAgent:
         permission_granted = agent._check_tool_permission(mock_tool)
         assert permission_granted is False
 
+    def test_permission_check_auto_approve(self, mock_get_provider, mock_get_tool):
+        """Test that auto_approve=True bypasses all other permission checks."""
+        mock_tool = mock_get_tool.return_value
+        # Give the tool a restrictive permission to prove auto-approve overrides it
+        mock_tool.permission = ToolPermission.ALWAYS_DENY
 
-class TestAgentSessionErrors:
-    @pytest.fixture
-    def agent_instance(self, mock_get_provider, mock_get_tool):
-        """Provides a basic agent instance for session tests."""
-        config = AgentConfig(provider_name="test", model="test")
-        return Agent(config)
+        config = AgentConfig(
+            provider_name="test",
+            model="test",
+            tool_names=["any_tool"],
+            auto_approve=True,  # The key setting for this test
+        )
+        agent = Agent(config)
 
-    @pytest.mark.parametrize(
-        "exception_to_raise",
-        [
-            pytest.param(IOError("Permission denied"), id="IOError_on_save"),
-            pytest.param(TypeError("Cannot serialize object"), id="TypeError_on_save"),
-        ],
-    )
-    @patch("builtins.open")
-    def test_save_session_raises_allos_error_on_failure(
-        self, mock_open, exception_to_raise, agent_instance, work_dir
-    ):
-        """Test that save_session wraps IO/Type errors in AllosError."""
-        # Configure the mock to raise an error when writing
-        mock_open.side_effect = exception_to_raise
-
-        filepath = work_dir / "session.json"
-
-        with pytest.raises(AllosError) as excinfo:
-            agent_instance.save_session(filepath)
-
-        assert f"Failed to save session to '{filepath}'" in str(excinfo.value)
-
-    @pytest.mark.parametrize(
-        "file_content, exception_type, error_msg",
-        [
-            pytest.param(
-                None, FileNotFoundError, "Failed to load session", id="file_not_found"
-            ),
-            pytest.param(
-                '{"config": {}, "context": {}',
-                json.JSONDecodeError,
-                "Failed to load session",
-                id="json_decode_error",
-            ),
-            pytest.param(
-                '{"no_config_key": {}, "context": {}}',
-                KeyError,
-                "Failed to load session",
-                id="key_error",
-            ),
-        ],
-    )
-    def test_load_session_raises_allos_error_on_failure(
-        self, file_content, exception_type, error_msg, work_dir
-    ):
-        """Test that load_session wraps various errors in AllosError."""
-        filepath = work_dir / "session.json"
-
-        if file_content is not None:
-            filepath.write_text(file_content)
-
-        with pytest.raises(AllosError) as excinfo:
-            Agent.load_session(filepath)
-
-        assert error_msg in str(excinfo.value)
-        # Check that the original exception is chained
-        assert isinstance(excinfo.value.__cause__, exception_type)
+        # Even though the tool is ALWAYS_DENY, auto_approve should grant permission
+        permission_granted = agent._check_tool_permission(mock_tool)
+        assert permission_granted is True

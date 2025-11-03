@@ -26,6 +26,7 @@ class AgentConfig:
     model: str
     tool_names: List[str] = field(default_factory=list)
     max_iterations: int = 10
+    auto_approve: bool = False
     # Provider-specific kwargs can be added here if needed in the future
 
 
@@ -215,6 +216,8 @@ class Agent:
 
     def _check_tool_permission(self, tool: BaseTool) -> bool:
         """Checks if the agent has permission to run a tool."""
+        if self.config.auto_approve:
+            return True
         if tool.permission == ToolPermission.ALWAYS_ALLOW:
             return True
         if tool.permission == ToolPermission.ALWAYS_DENY:

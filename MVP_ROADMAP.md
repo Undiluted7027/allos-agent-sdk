@@ -27,11 +27,11 @@ Build a functional agentic SDK that demonstrates:
 | **Phase 2: Provider Layer** | ✅ Complete | 100% |
 | **Phase 3: Tool System** | ✅ Complete| 100% |
 | **Phase 4: Agent Core** | ✅ Complete | 100% |
-| **Phase 5: CLI & Integration** | 🔜 Not Started | 0% |
+| **Phase 5: CLI & Integration** | ✅ Complete | 100% |
 | **Phase 6: Testing & Polish** | 🔜 Not Started | 0% |
 | **Phase 7: Documentation & Launch** | 🔜 Not Started | 0% |
 
-**Overall Progress**: 62.5% (5/8 phases complete)
+**Overall Progress**: 75% (6/8 phases complete)
 
 ---
 
@@ -421,10 +421,15 @@ print(ToolRegistry.list_tools())
 
 ### Success Criteria
 ✅ Agent can complete simple tasks (read file, write file)
+
 ✅ Works with both OpenAI and Anthropic
+
 ✅ Tool calling loop works correctly
+
 ✅ Permission system works
+
 ✅ Sessions save and load correctly
+
 ✅ All tests pass
 
 ### Deliverables
@@ -461,7 +466,9 @@ agent = Agent.load_session("my-session.json", config)
 ## Phase 5: CLI & Integration
 
 **Duration**: Week 5 (Days 29-35)
-**Status**: 🔜 Not Started
+
+**Status**: ✅ Complete
+
 **Focus**: Command-line interface and user experience
 
 ### Goals
@@ -474,7 +481,7 @@ agent = Agent.load_session("my-session.json", config)
 ### Tasks
 
 #### Day 29-31: CLI Implementation
-- [ ] **`allos/cli/main.py`**
+- [x] **`allos/cli/main.py`**
   - Click command group
   - `run` command with all options
   - `list-providers` command
@@ -485,23 +492,23 @@ agent = Agent.load_session("my-session.json", config)
   - Interactive mode (`--interactive`)
   - Verbose logging (`--verbose`)
   - Auto-approve option (`--auto-approve`)
-- [ ] **`allos/cli/__init__.py`**
-- [ ] Add entry point to `pyproject.toml`:
+- [x] **`allos/cli/__init__.py`**
+- [x] Add entry point to `pyproject.toml`:
 ```toml
   [project.scripts]
   allos = "allos.cli.main:main"
 ```
 
 #### Day 32-33: Interactive Mode & Output
-- [ ] **`allos/cli/interactive.py`** (if needed)
+- [x] **`allos/cli/interactive.py`** (if needed)
   - Interactive REPL
   - History support
   - Exit commands
-- [ ] **`allos/cli/output.py`** (if needed)
+- [x] **`allos/cli/output.py`** (if needed)
   - Rich formatting helpers
   - Progress indicators
   - Error formatting
-- [ ] Test CLI commands manually:
+- [x] Test CLI commands manually:
 ```bash
   allos "Create a hello.py file"
   allos --provider anthropic "Same task"
@@ -511,28 +518,33 @@ agent = Agent.load_session("my-session.json", config)
 ```
 
 #### Day 34-35: CLI Testing & Polish
-- [ ] **Write tests**: `tests/e2e/test_cli.py`
+- [x] **Write tests**: `tests/e2e/test_cli.py`
   - Test command parsing
   - Test provider selection
   - Test tool selection
   - Test session management
   - Test error messages
-- [ ] **Integration testing**:
+- [x] **Integration testing**:
   - Test real tasks end-to-end
   - Test with both providers
   - Test error scenarios
   - Test permission prompts
-- [ ] Polish user experience:
+- [x] Polish user experience:
   - Better error messages
   - Helpful hints
   - Nice formatting
 
 ### Success Criteria
 ✅ `allos "task"` works from command line
+
 ✅ Can switch providers easily
+
 ✅ Interactive mode works
+
 ✅ Session save/load works from CLI
+
 ✅ Help text is clear and useful
+
 ✅ Error messages are helpful
 
 ### Deliverables
@@ -542,13 +554,13 @@ agent = Agent.load_session("my-session.json", config)
 - E2E tests
 - Polished user experience
 
-### Example Usage After This Phase
+### Example Usage After This Phase (VERIFIED)
 ```bash
 # Basic usage
 allos "Create a FastAPI hello world app"
 
 # Different provider
-allos --provider anthropic --model claude-sonnet-4-5 "Same task"
+allos --provider anthropic --model claude-sonnet-4-5 "Create a FastAPI hello world app"
 
 # Interactive mode
 allos --interactive
@@ -557,10 +569,10 @@ allos --interactive
 allos --session my-project.json "Start building a web scraper"
 
 # List available providers
-allos list-providers
+allos --list-providers
 
 # List available tools
-allos list-tools
+allos --list-tools
 
 # Verbose mode
 allos --verbose "Debug this issue"
@@ -574,7 +586,9 @@ allos --auto-approve "Read all Python files"
 ## Phase 6: Testing & Polish
 
 **Duration**: Week 6 (Days 36-42)
+
 **Status**: 🔜 Not Started
+
 **Focus**: Comprehensive testing, bug fixes, edge cases
 
 ### Goals
@@ -835,12 +849,12 @@ allos --auto-approve "Read all Python files"
   - [x] Error handling
   - [x] Permission system
 
-- [ ] **CLI**
-  - [ ] Basic commands
-  - [ ] Provider selection
-  - [ ] Tool selection
-  - [ ] Interactive mode
-  - [ ] Session management
+- [x] **CLI**
+  - [x] Basic commands
+  - [x] Provider selection
+  - [x] Tool selection
+  - [x] Interactive mode
+  - [x] Session management
 
 - [ ] **Testing**
   - [ ] Unit tests
@@ -892,6 +906,9 @@ The MVP intentionally excludes:
 - ❌ Streaming responses (Phase 2)
 - ❌ Async support (Phase 3)
 
+> [!NOTE] Adding a check for tools in CLI
+In `cli/main.py`, in the run command's try block, we can add a check for tools. If no tools are specified for a task that seems to require them, we could add a hint.
+
 These are documented in [ROADMAP.md](./ROADMAP.md) for post-MVP development.
 
 ---
@@ -925,7 +942,7 @@ If you get stuck:
 - **Week 2 Complete**: Providers working! 🔌
 - **Week 3 Complete**: Tools operational! 🛠️
 - **Week 4 Complete**: Agent thinking! 🧠
-- **Week 5 Pending**: CLI ready! ⌨️
+- **Week 5 Complete**: CLI ready! ⌨️
 - **Week 6 Pending**: Tested & polished! ✨
 - **Week 7-8 Pending**: MVP SHIPPED! 🚀
 
@@ -959,7 +976,7 @@ Keep a development log to track progress:
 
 **Let's build something amazing! 💪**
 
-Progress: ████████████████░░░░░░ 62.5%
+Progress: ██████████████████░░░░ 75%
 
 [Back to README](./README.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
 

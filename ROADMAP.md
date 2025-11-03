@@ -32,7 +32,7 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 - ✅ OpenAI & Anthropic providers
 - ✅ Essential tools (file, shell)
 - ✅ Basic agentic loop
-- ⏳ CLI interface
+- ✅ CLI interface
 - ⏳ Session management
 - ⏳ Documentation
 

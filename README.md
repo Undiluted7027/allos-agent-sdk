@@ -293,7 +293,7 @@ content_agent.run("Research AI trends and write a blog post")
 - [x] Provider layer (OpenAI, Anthropic)
 - [x] Tool system (filesystem, shell) with user-approval permissions
 - [x] Agent core with agentic loop and session management
-- [ ] CLI interface
+- [x] CLI interface
 - [ ] Basic tests
 - [ ] Documentation
 
@@ -329,7 +329,7 @@ Allos is currently under active development. The MVP will include:
 - ✅ Essential file and shell tools
 - ✅ Core agentic loop with tool execution and permissions
 - ✅ Session management (save/load)
-- ⏳ CLI interface
+- ✅ CLI interface
 - ⏳ Python API
 
 **Expected MVP Release**: 6-8 weeks from project start
