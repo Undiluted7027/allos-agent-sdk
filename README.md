@@ -9,10 +9,10 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: MVP Nearing Completion](https://img.shields.io/badge/status-MVP%20Nearing%20Completion-brightgreen.svg)](./MVP_ROADMAP.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./.github/CONTRIBUTING.md)
 [![codecov](https://codecov.io/gh/Undiluted7027/allos-agent-sdk/graph/badge.svg?token=NT2N055YTL)](https://codecov.io/gh/Undiluted7027/allos-agent-sdk)
 
-[Documentation](./docs) • [Roadmap](./ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
+[Documentation](./docs) • [Roadmap](./ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
 </div>
 
@@ -362,7 +362,7 @@ We're building Allos in the open and would love your help! Whether you're:
 - 🔧 **Submitting PRs**
 - ⭐ **Starring the repo** (helps a lot!)
 
-All contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+All contributions are welcome! See [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for guidelines.
 
 ### Development Setup
 

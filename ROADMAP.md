@@ -994,7 +994,7 @@ We're building Allos in the open! Here's how you can help:
 
 ### How to Contribute
 1. Check [Issues](https://github.com/Undiluted7027/allos-agent-sdk/issues) for open tasks
-2. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines
+2. Read [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for guidelines
 3. Join [Discussions](https://github.com/Undiluted7027/allos-agent-sdk/discussions)
 4. Submit PRs with your improvements
 
@@ -1113,11 +1113,12 @@ Share your thoughts:
 
 **Building the future of AI agents, together** 🚀
 
-[Back to README](./README.md) • [MVP Roadmap](./MVP_ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
+[Back to README](./README.md) • [MVP Roadmap](./MVP_ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
 ---
 
-*Last Updated: November 01, 2025*
+*Last Updated: November 03, 2025*
+
 *Next Review: November 30, 2025*
 
 </div>

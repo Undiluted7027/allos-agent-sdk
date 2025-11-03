@@ -782,6 +782,8 @@ allos --auto-approve "Read all Python files"
 - [ ] Prepare PyPI description (from README)
 - [ ] Create GitHub release notes
 - [ ] Tag version `v0.1.0`
+- [ ] Create `.github/workflows/docs.yml` actions workflow to push docs
+- [ ] Create `.github/workflows/publish.yml` actions workflow to publish to PyPI.
 
 #### Day 53-54: Launch Materials
 - [ ] **Create demo video** (3-5 minutes):
@@ -996,6 +998,6 @@ Keep a development log to track progress:
 Progress: ████████████████████░░ 87.5%
 
 
-[Back to README](./README.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./CONTRIBUTING.md)
+[Back to README](./README.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
 </div>

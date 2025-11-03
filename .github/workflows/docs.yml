@@ -1,1 +1,35 @@
-# Build/deploy docs
+# .github/workflows/docs.yml
+
+name: "Docs: Check Links"
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'docs/**.md'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'docs/**.md'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "docs"
+  cancel-in-progress: false
+
+jobs:
+  markdown-link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-verbose-mode: 'yes'
