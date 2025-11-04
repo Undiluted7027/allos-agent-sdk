@@ -72,6 +72,20 @@ exclude = ["tests*"]  # exclude the tests package
 [tool.black]
 line-length = 88
 target-version = ['py39']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
 
 [tool.ruff]
 line-length = 88

@@ -11,37 +11,71 @@ repos:
       - id: check-toml
       - id: detect-private-key
 
-  - repo: https://github.com/psf/black
+  - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 25.9.0
     hooks:
       - id: black
         language_version: python3.9
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.3
     hooks:
-      - id: ruff
+      - id: ruff-check
+        types_or: [ python, pyi ]
         args: [--fix, --exit-non-zero-on-fix]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.18.2
     hooks:
       - id: mypy
+        # FIX: Trigger the hook if any Python file is changed.
+        files: \.py$
+        # FIX: Tell the hook to run once, without passing filenames.
+        # This forces mypy to scan the whole project as configured.
+        pass_filenames: false
+        args: ["allos/", "tests/"]
+        # Mypy needs access to our project's dependencies to find their types.
+        # We install them directly into its isolated environment.
         additional_dependencies:
-          - pytest
-          - pytest-mock
-          - tiktoken
+          # --- Core Dependencies ---
+          - "pydantic>=2.0"
+          - "httpx>=0.25"
+          - "rich>=13.0"
+          - "click>=8.0"
+          - "pyyaml>=6.0"
+          - "tiktoken>=0.5"
+          # --- Provider Dependencies ---
+          - "openai>=1.10.0"
+          - "anthropic>=0.20.0"
+          # --- Stubs for untyped libraries ---
+          - "types-PyYAML"
+          # --- Dev Dependencies Mypy might need ---
+          - "pytest"
+          - "pytest-mock"
 
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
     rev: 0.9.7
     hooks:
-      - id: uv-lock
-      # Compile requirements
+      # This hook synchronizes your virtual environment with uv.lock if you use it.
+      # It can be slow, so it's often better to run `uv sync` manually.
+      # We can keep it commented out for now.
+      # - id: uv-lock
+
+      # FIX: Use uv-pip-compile to update lockfiles from pyproject.toml
       - id: pip-compile
-        name: pip-compile requirements.in
-        args: [requirements.in, -o, requirements.txt]
+        name: uv pip compile -o requirements.txt
+        # This will run if pyproject.toml or requirements.txt changes.
+        files: ^(pyproject\.toml|requirements\.txt)$
+        args:
+          - pyproject.toml
+          - --output-file=requirements.txt
+
       - id: pip-compile
-        name: pip-compile requirements-dev.in
-        args: [requirements-dev.in, -o, requirements-dev.txt]
-        files: ^requirements-dev\.(in|txt)$
+        name: uv pip compile --all-extras -o requirements-dev.txt
+        # This will run if pyproject.toml or requirements-dev.txt changes.
+        files: ^(pyproject\.toml|requirements-dev\.txt)$
+        args:
+          - pyproject.toml
+          - --all-extras
+          - --output-file=requirements-dev.txt
