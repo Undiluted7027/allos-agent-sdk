@@ -13,6 +13,7 @@ from ..tools import ToolRegistry
 from ..utils.errors import AllosError
 from ..utils.logging import setup_logging
 from .interactive import start_interactive_session
+from .logo import LOGO_BANNER
 
 # --- Helper to load API keys from a .env file if it exists ---
 try:
@@ -23,6 +24,14 @@ except ImportError:
     pass  # python-dotenv is not a core dependency
 
 console = Console()
+
+
+class RichHelpCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        """Writes the help into the formatter."""
+        console.print(LOGO_BANNER, style="bold cyan")
+        super().format_help(ctx, formatter)
+
 
 # --- Set of known flag names to prevent misuse as prompts ---
 KNOWN_FLAG_WORDS = {
@@ -65,7 +74,11 @@ def print_tools(ctx, param, value):
     ctx.exit()
 
 
-@click.command(name="allos", context_settings={"help_option_names": ["-h", "--help"]})
+@click.command(
+    name="allos",
+    cls=RichHelpCommand,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging.")
 @click.option(
     "--interactive", "-i", is_flag=True, help="Start an interactive chat session."

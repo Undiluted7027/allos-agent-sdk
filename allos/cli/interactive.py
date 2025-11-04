@@ -9,6 +9,7 @@ from rich.panel import Panel
 from ..agent import Agent, AgentConfig
 from ..tools import ToolRegistry
 from ..utils.errors import AllosError
+from .logo import LOGO_BANNER
 
 console = Console()
 
@@ -45,6 +46,7 @@ def start_interactive_session(
 
 
 def _print_welcome_message() -> None:
+    console.print(LOGO_BANNER, style="bold blue")
     console.print(
         Panel(
             "[bold]Welcome to the Allos Interactive Session![/]\n\n"
