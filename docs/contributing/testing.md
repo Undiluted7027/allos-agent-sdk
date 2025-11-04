@@ -3,53 +3,57 @@
 Our test suite is built with `pytest` and is divided into three main categories. A high standard of testing is crucial for the reliability of the SDK.
 
 -   **Unit Tests (`tests/unit/`):** These are fast, run in complete isolation, and do not require any external services or API keys. They test individual functions and classes.
--   **Integration Tests (`tests/integration/`):** These tests verify the interaction between different parts of our SDK or make **real API calls** to external services (like OpenAI and Anthropic). They require API keys and a special flag to run.
--   **End-to-End (E2E) Tests (`tests/e2e/`):** These tests validate the CLI application from an end-user's perspective, simulating command-line invocations. They use mocks to isolate the CLI logic from the agent's core and require API keys.
+-   **End-to-End (E2E) Tests (`tests/e2e/`):** These tests validate the full application flow, primarily through the CLI. They use a **mocked LLM provider** but interact with the **real filesystem and tools**. They **do not** require real API keys to run.
+-   **Integration Tests (`tests/integration/`):** These tests verify the interaction between different parts of our SDK by making **real API calls** to external services (like OpenAI and Anthropic). They are slower, may incur costs, and require API keys and a special flag to run.
 
 ## Running Tests
 
-We provide a helper script to run tests consistently.
+We provide a helper script for the most common testing scenario and command-line flags for more specific needs.
 
-### Running Unit Tests (Fastest)
+### The Default Test Suite (Unit + E2E)
 
-This is the most common command you'll run during development. It's fast and checks the core logic. Our CI pipeline runs this on every commit.
+This is the command you should run most often. It executes all unit and E2E tests quickly and without needing any API keys. This is the same command our CI/CD pipeline uses.
 
 ```bash
+./scripts/run_tests.sh
+```
+
+This script is a convenient wrapper around `pytest -m "not integration"`.
+
+### Running a Specific Category of Tests
+
+If you are working on a specific area, you can run just the tests for that category using these flags:
+
+```bash
+# Run ONLY the End-to-End (E2E) tests
+uv run pytest --run-e2e
+
+# Run ONLY the Integration tests
+uv run pytest --run-integration
+
+# Run ONLY the Unit tests (by specifying the directory)
 uv run pytest tests/unit/
 ```
-*(You can also use `./scripts/run_tests.sh`, which defaults to running all tests but will be slow if it includes E2E tests.)*
 
-### Running CLI (E2E, Requires Keys) Tests
+### Running Integration Tests
 
-These tests are also fast and require API keys. They are essential for verifying any changes to the CLI.
-
-```bash
-uv run pytest tests/e2e/
-```
-
-### Running Integration Tests (Slowest, Requires Keys)
-
-These tests make **real API calls**.
+These tests make **real API calls** and are skipped by default.
 
 **Requirements:**
--   You must have the appropriate API keys set in your `.env` file.
--   You must pass the `--run-integration` flag to `pytest`.
+1.  You must have the appropriate API keys set in a `.env` file at the project root (e.g., `OPENAI_API_KEY=...`).
+2.  You must pass the `--run-integration` flag to `pytest`.
 
 ```bash
 # Run only the integration tests
-uv run pytest tests/integration/ --run-integration
+uv run pytest --run-integration
 ```
 
-### Running the Full Test Suite Locally
-
-To run every single test (unit, integration, and E2E) on your local machine:
-
-```bash
-./scripts/run_tests.sh --run-integration
-```
+If you are missing a required API key, pytest will skip the relevant tests and print a specific message telling you which environment variable needs to be set.
 
 ## Writing Tests
 
+Always place new tests in the appropriate directory (`unit`, `e2e`, or `integration`).
+
 -   **Unit Tests:** Place in `tests/unit/`. Use `pytest-mock` (`@patch`) extensively to isolate the component being tested.
--   **Integration Tests:** Place in `tests/integration/`. Mark them with the `@pytest.mark.integration` decorator (defined in `tests/conftest.py` and `pyproject.toml`) to ensure they are skipped by default.
--   **E2E Tests:** Place in `tests/e2e/`. Use `click.testing.CliRunner` to invoke the CLI and assert against the output and exit codes.
+-   **E2E Tests:** Place in `tests/e2e/`. Mark them with `@pytest.mark.e2e`. Use `click.testing.CliRunner` to invoke the CLI and assert against the output and exit codes.
+-   **Integration Tests:** Place in `tests/integration/`. Mark the test or class with `@pytest.mark.integration`. For provider-specific tests, also add `@pytest.mark.requires_openai` or `@pytest.mark.requires_anthropic` to enable automatic, specific API key checks.

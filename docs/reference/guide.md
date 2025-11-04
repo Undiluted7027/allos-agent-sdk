@@ -31,7 +31,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "allos-agent-sdk"
-version = "0.1.0"
+version = "0.0.1"
 description = "LLM-agnostic agentic SDK with provider flexibility"
 authors = [{name = "Your Name", email = "your.email@example.com"}]
 license = {text = "MIT"}
@@ -179,7 +179,7 @@ pre-commit install
 ```python
 """Version information for Allos Agent SDK"""
 
-__version__ = "0.1.0"
+__version__ = "0.0.1"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
 ```

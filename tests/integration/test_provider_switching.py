@@ -1,6 +1,5 @@
 # tests/integration/test_provider_switching.py
 
-import os
 
 import pytest
 
@@ -42,21 +41,16 @@ TOOL_CALL_MESSAGES = [
 
 # --- Pytest Parametrization ---
 # We create a list of providers to test. This makes it easy to add more providers later.
-# We mark each with pytest.mark.skipif to selectively skip if the required API key is not set.
+# We now use our custom markers for more specific skipping.
 
 providers_to_test = [
     pytest.param(
         "openai",
-        marks=pytest.mark.skipif(
-            os.getenv("OPENAI_API_KEY") is None, reason="OPENAI_API_KEY is not set"
-        ),
+        marks=pytest.mark.requires_openai,
     ),
     pytest.param(
         "anthropic",
-        marks=pytest.mark.skipif(
-            os.getenv("ANTHROPIC_API_KEY") is None,
-            reason="ANTHROPIC_API_KEY is not set",
-        ),
+        marks=pytest.mark.requires_anthropic,
     ),
 ]
 

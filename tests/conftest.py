@@ -12,19 +12,29 @@ from _pytest.logging import LogCaptureFixture
 # Import this for better type hinting with the mocker fixture
 from pytest_mock import MockerFixture
 
-# This import will now work because we created the placeholder files
 from allos.providers.base import BaseProvider, ProviderResponse, ToolCall
 from allos.tools.base import BaseTool
 
 
 def pytest_addoption(parser):
-    """Adds the --run-integration command-line option to pytest."""
+    """Adds command-line options for running specific test categories."""
+    parser.addoption(
+        "--run-e2e",
+        action="store_true",
+        default=False,
+        help="Run only the end-to-end tests.",
+    )
     parser.addoption(
         "--run-integration",
         action="store_true",
         default=False,
-        help="Run integration tests (requires OPENAI_API_KEY).",
+        help="Run only the integration tests (requires API keys).",
     )
+
+
+def run_e2e_tests(func):
+    """Decorator to mark tests as end-to-end tests."""
+    return pytest.mark.e2e(func)
 
 
 def run_integration_tests(func):
@@ -33,27 +43,102 @@ def run_integration_tests(func):
 
 
 def pytest_configure(config):
+    """Registers custom markers for pytest."""
     config.addinivalue_line(
         "markers",
-        "integration: mark test as integration (requires --run-integration and OPENAI_API_KEY)",
+        "e2e: marks tests as end-to-end tests (mocked LLM, real tools/filesystem)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "integration: marks tests as integration (requires --run-integration and API keys)",
+    )
+    config.addinivalue_line(
+        "markers", "requires_openai: marks tests as requiring an OpenAI API key"
+    )
+    config.addinivalue_line(
+        "markers", "requires_anthropic: marks tests as requiring an Anthropic API key"
     )
 
 
-def pytest_collection_modifyitems(config, items):
-    """Skip integration tests unless explicitly enabled and key provided."""
-    run_integration = config.getoption("--run-integration")
-    api_key = os.getenv("OPENAI_API_KEY")
-
-    if run_integration and api_key:
-        return
-
+def _skip_integration_tests(items):
+    """Skip integration tests unless explicitly requested."""
     skip_marker = pytest.mark.skip(
-        reason="Requires --run-integration flag and OPENAI_API_KEY environment variable"
+        reason="Integration tests require the --run-integration flag"
     )
-
     for item in items:
         if "integration" in item.keywords:
             item.add_marker(skip_marker)
+
+
+def _select_tests_by_flag(items, run_e2e, run_integration):
+    """Return the list of tests to run based on given flags."""
+    selected, deselected = [], []
+
+    for item in items:
+        is_e2e = "e2e" in item.keywords
+        is_integration = "integration" in item.keywords
+
+        if run_e2e and is_e2e:
+            selected.append(item)
+        elif run_integration and is_integration:
+            selected.append(item)
+        else:
+            deselected.append(item)
+
+    return selected
+
+
+def _apply_integration_key_skips(items):
+    """Skip integration tests that require missing API keys."""
+    missing_keys = {
+        "requires_openai": "OPENAI_API_KEY",
+        "requires_anthropic": "ANTHROPIC_API_KEY",
+    }
+
+    for item in items:
+        if "integration" not in item.keywords:
+            continue
+        for marker_name, key_name in missing_keys.items():
+            if marker_name in item.keywords and not os.getenv(key_name):
+                item.add_marker(
+                    pytest.mark.skip(
+                        reason=f"Requires the '{key_name}' environment variable"
+                    )
+                )
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    Selects or skips tests based on custom command-line flags.
+
+    - If no flags are given, runs unit and e2e tests (skips integration).
+    - If --run-e2e is given, runs ONLY e2e tests.
+    - If --run-integration is given, runs ONLY integration tests and
+      provides skip messages if required API keys are missing.
+    """
+    run_e2e = config.getoption("--run-e2e")
+    run_integration = config.getoption("--run-integration")
+
+    if not run_e2e and not run_integration:
+        _skip_integration_tests(items)
+        return
+
+    selected = _select_tests_by_flag(items, run_e2e, run_integration)
+
+    if run_integration:
+        _apply_integration_key_skips(selected)
+
+    items[:] = selected
+
+
+@pytest.fixture(autouse=True)
+def mock_api_keys(monkeypatch):
+    """
+    Automatically mock API keys for all tests to bypass CLI checks.
+    Comment this function to use actual keys for E2E tests.
+    """
+    monkeypatch.setenv("OPENAI_API_KEY", "test_key_for_cli_tests")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test_key_for_cli_tests")
 
 
 @pytest.fixture

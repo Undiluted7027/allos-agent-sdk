@@ -9,6 +9,9 @@ from click.testing import CliRunner
 from allos.cli.main import main
 from allos.providers.base import ProviderResponse, ToolCall
 
+pytestmark = pytest.mark.e2e
+
+
 # --- Fixtures ---
 
 

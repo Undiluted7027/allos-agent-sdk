@@ -766,7 +766,7 @@ allos --auto-approve "Read all Python files"
 - [x] **`LICENSE`**
   - MIT License
 - [x] **`CHANGELOG.md`**
-  - Version 0.1.0 (MVP) changes
+  - Version 0.0.1 (MVP) changes
 - [x] **Issue templates**:
   - Bug report template
   - Feature request template
@@ -781,7 +781,7 @@ allos --auto-approve "Read all Python files"
 - [x] Test package installation from wheel
 - [x] Prepare PyPI description (from README)
 - [x] Create GitHub release notes
-- [x] Tag version `v0.1.0`
+- [x] Tag version `v0.0.1`
 - [x] Create `.github/workflows/docs.yml` actions workflow to push docs
 - [x] Create `.github/workflows/publish.yml` actions workflow to publish to TestPyPI.
 

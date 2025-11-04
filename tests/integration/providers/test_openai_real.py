@@ -6,6 +6,8 @@ import pytest
 from allos.providers import Message, MessageRole, ProviderRegistry
 from allos.tools.base import BaseTool, ToolParameter
 
+pytestmark = pytest.mark.requires_openai
+
 
 # --- Test Case 2: Tool Definition ---
 class GetWeatherTool(BaseTool):

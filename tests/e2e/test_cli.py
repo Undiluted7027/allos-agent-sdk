@@ -13,6 +13,9 @@ from allos.agent import Agent, AgentConfig
 from allos.cli.main import main
 from allos.utils.errors import AllosError
 
+pytestmark = pytest.mark.e2e
+
+
 # --- Fixtures ---
 
 

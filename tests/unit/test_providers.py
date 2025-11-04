@@ -1,6 +1,8 @@
 # tests/unit/test_providers.py
 
 
+import sys
+
 import pytest
 
 from allos.providers.base import (
@@ -173,3 +175,93 @@ class TestProviderRegistry:
                     pass
 
         assert "Provider 'duplicate_name' is already registered" in str(excinfo.value)
+
+
+class TestProviderInit:
+    """
+    Tests the provider __init__.py import logic to ensure it gracefully handles
+    missing optional dependencies.
+    """
+
+    def setup_method(self):
+        """Save the original registry state and clear it for an isolated test run."""
+        self._original_registry = _provider_registry.copy()
+        # Save only the modules we are about to manipulate
+        self._original_sys_modules = {
+            name: mod
+            for name, mod in sys.modules.items()
+            if name.startswith("allos.providers")
+        }
+        _provider_registry.clear()
+
+    def teardown_method(self):
+        """Restore the original registry and sys.modules state to ensure test isolation."""
+        _provider_registry.clear()
+        _provider_registry.update(self._original_registry)
+        # Restore sys.modules to its pre-test state
+        for name, mod in self._original_sys_modules.items():
+            if mod is not None:
+                sys.modules[name] = mod
+        # Re-import the main module to ensure its state is restored for other test files
+        import importlib
+
+        importlib.import_module("allos.providers")
+
+    def _unload_provider_modules(self, monkeypatch):
+        """Helper to remove all provider-related modules from the import cache."""
+        modules_to_unload = [
+            m
+            for m in sys.modules
+            if m.startswith("allos.providers")
+            and m
+            not in {
+                "allos.providers.base",
+                "allos.providers.registry",
+            }
+        ]
+        for module_name in modules_to_unload:
+            monkeypatch.delitem(sys.modules, module_name, raising=False)
+
+    def test_init_handles_missing_openai_library(self, monkeypatch):
+        """
+        Tests that `allos.providers` can be imported even if 'openai' is not installed.
+        """
+        # 1. Simulate the 'openai' package not being installed.
+        monkeypatch.setitem(sys.modules, "openai", None)
+
+        # 2. Unload all provider-related modules from the cache. This is the crucial step.
+        self._unload_provider_modules(monkeypatch)
+
+        # 3. Re-import the module to trigger the try/except registration logic.
+        import allos.providers  # noqa: F401
+
+        # 4. Assert that the openai provider is missing, but anthropic was registered.
+        registered_providers = ProviderRegistry.list_providers()
+        assert "openai" not in registered_providers
+        assert "anthropic" in registered_providers
+
+    def test_init_handles_missing_anthropic_library(self, monkeypatch):
+        """
+        Tests that `allos.providers` can be imported even if 'anthropic' is not installed.
+        """
+        monkeypatch.setitem(sys.modules, "anthropic", None)
+        self._unload_provider_modules(monkeypatch)
+
+        import allos.providers  # noqa: F401
+
+        registered_providers = ProviderRegistry.list_providers()
+        assert "anthropic" not in registered_providers
+        assert "openai" in registered_providers
+
+    def test_init_handles_all_libraries_missing(self, monkeypatch):
+        """
+        Tests that `allos.providers` can be imported even if all optional provider
+        libraries are missing.
+        """
+        monkeypatch.setitem(sys.modules, "openai", None)
+        monkeypatch.setitem(sys.modules, "anthropic", None)
+        self._unload_provider_modules(monkeypatch)
+
+        import allos.providers  # noqa: F401
+
+        assert ProviderRegistry.list_providers() == []

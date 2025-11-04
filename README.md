@@ -140,7 +140,7 @@ agent_claude = Agent(AgentConfig(
     tools=["read_file", "write_file"]
 ))
 
-# Or use local models with Ollama
+# Or use local models with Ollama (COMING SOON!)
 agent_local = Agent(AgentConfig(
     provider="ollama",
     model="qwen2.5-coder",
@@ -245,7 +245,7 @@ agent = Agent(AgentConfig(
 
 ### Coding Agents
 ```python
-# SRE Agent - Diagnose and fix production issues
+# SRE Agent - Diagnose and fix production issues (Web Search COMING SOON!)
 sre_agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-4-opus",
@@ -272,7 +272,7 @@ data_agent = Agent(AgentConfig(
 ))
 data_agent.run("Analyze Q4 sales data and create a summary report")
 
-# Content Creation Agent
+# Content Creation Agent (Web Search COMING SOON!)
 content_agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
@@ -386,11 +386,14 @@ source venv/bin/activate
 # Install in development mode
 pip install -e ".[dev]"
 
-# Run unit tests (fast, no API keys required)
-uv run pytest tests/unit/
+# Make the test script executable
+chmod +x scripts/run_tests.sh
 
-# Run all tests, including integration tests (requires API keys)
-./scripts/run_tests.sh --run-integration
+# Run the default test suite (unit + e2e, no API keys required)
+./scripts/run_tests.sh
+
+# Run ONLY integration tests (requires API keys in a .env file)
+uv run pytest --run-integration
 
 # Format code
 black allos tests
@@ -414,11 +417,14 @@ source .venv/bin/activate
 # Install in development mode
 uv pip install -e ".[dev]"
 
-# Run unit tests (fast, no API keys required)
-uv run pytest tests/unit/
+# Make the test script executable
+chmod +x scripts/run_tests.sh
 
-# Run all tests, including integration tests (requires API keys)
-./scripts/run_tests.sh --run-integration
+# Run the default test suite (unit + e2e, no API keys required)
+./scripts/run_tests.sh
+
+# Run ONLY integration tests (requires API keys in a .env file)
+uv run pytest --run-integration
 
 # Format code
 black allos tests
