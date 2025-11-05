@@ -19,6 +19,7 @@ MODEL_CONTEXT_WINDOWS = {
     "claude-3-sonnet-20240229": 200000,
     "claude-3-haiku-20240307": 200000,
     "claude-3-5-sonnet-20240620": 200000,
+    "claude-3-7-sonnet-latest": 200000,
 }
 
 
