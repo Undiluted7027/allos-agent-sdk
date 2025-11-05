@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "allos-agent-sdk"
-version = "0.0.1-dev"
+version = "0.0.2-dev"
 authors = [
   { name="The Allos Community", email="contact@allos.dev" },
 ]
