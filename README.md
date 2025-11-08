@@ -8,9 +8,15 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: MVP Nearing Completion](https://img.shields.io/badge/status-MVP%20Nearing%20Completion-brightgreen.svg)](./MVP_ROADMAP.md)
+[![Status: Stable](https://img.shields.io/badge/status-Stable-brightgreen.svg)](./ROADMAP.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./.github/CONTRIBUTING.md)
 [![codecov](https://codecov.io/gh/Undiluted7027/allos-agent-sdk/graph/badge.svg?token=DUZU3HSZDL)](https://codecov.io/gh/Undiluted7027/allos-agent-sdk)
+[![PyPI version](https://img.shields.io/pypi/v/allos-agent-sdk.svg)](https://pypi.org/project/allos-agent-sdk/)
+[![GitHub release](https://img.shields.io/github/v/release/Undiluted7027/allos-agent-sdk)](https://github.com/Undiluted7027/allos-agent-sdk/releases)
+[![Build](https://github.com/Undiluted7027/allos-agent-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/Undiluted7027/allos-agent-sdk/actions/workflows/ci.yml)
+
+
+
 [Documentation](./docs) • [Roadmap](./ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
 </div>
