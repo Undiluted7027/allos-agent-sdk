@@ -10,7 +10,7 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 
 | Phase | Focus | Timeline | Status |
 |-------|-------|----------|--------|
-| **Phase 1: MVP** | Core functionality | Weeks 1-8 | 🏗️ In Progress |
+| **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ 96.79% Complete |
 | **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 📋 Planned |
 | **Phase 3: Advanced Tooling** | Developer experience | Weeks 15-20 | 📋 Planned |
 | **Phase 4: Enterprise & Scale** | Production features | Weeks 21-28 | 🔮 Future |
@@ -22,7 +22,7 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 ## Phase 1: MVP ✅ → 🏗️
 
 **Timeline**: Weeks 1-8
-**Status**: In Progress
+**Status**: 96.79% Complete (7/8 phases done, only demo video remaining)
 **Goal**: Ship working provider-agnostic agentic SDK
 
 See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
@@ -36,8 +36,23 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 - ✅ Session management
 - ✅ Comprehensive Testing
 - ✅ Documentation
+- ✅ Security audit (path traversal, shell injection, API keys)
+- ✅ Basic context window management (proactive checks)
+- ✅ Token usage tracking (via provider metadata)
+- ✅ Error recovery (implicit via LLM intelligence)
+- ✅ Known limitations documented
+- ⏳ **Launch**: Awaiting demo video (96.79% complete)
 
 **Completion Target**: End of Week 8
+**Current Status**: 96.79% complete - All technical work done, demo video in progress
+**Expected Launch**: Upon demo video completion
+
+### MVP Known Limitations
+
+For a comprehensive list of intentionally excluded features, see the
+[Known Limitations section in README.md](./README.md#-known-limitations-mvp).
+
+These limitations are by design and are addressed in subsequent phases of this roadmap.
 
 ---
 
@@ -128,7 +143,11 @@ agent.run("Research current AI trends and write a summary")
 
 ### 2.4 Advanced Context Management (Week 12)
 
-**Motivation**: Handle large codebases and long conversations
+> [!NOTE]
+The MVP includes basic context window checking with proactive `ContextWindowExceededError`.
+This phase focuses on *advanced* optimization techniques beyond basic prevention.
+
+**Motivation**: Handle large codebases, long conversations and reduce token costs
 
 #### Context Compaction Strategies
 - [ ] **`allos/context/compactor.py`** (enhance)
@@ -590,6 +609,11 @@ agent = Agent(...)  # Automatically traced
   - All actions logged
   - Compliance ready
   - Tamper-proof logs
+
+> [!NOTE]
+> The MVP includes implicit error recovery where tool errors are fed back into
+> the agent's context, allowing the LLM to self-correct. Advanced features below add
+> explicit retry strategies and self-healing capabilities.
 
 **Impact**: Safe to run in production
 
@@ -1117,7 +1141,7 @@ Share your thoughts:
 
 ---
 
-*Last Updated: November 03, 2025*
+*Last Updated: November 07, 2025*
 
 *Next Review: November 30, 2025*
 

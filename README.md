@@ -431,7 +431,20 @@ black allos tests
 ruff check allos tests --fix
 ```
 
+## 🌟 Stargazers Hall of Fame
 
+A huge thank you to our first 100 stargazers! You're helping build the future of AI agent development. 🚀
+
+<div align="center">
+
+<!-- STARGAZERS:START -->
+<!-- STARGAZERS:END -->
+
+</div>
+
+**Not featured yet?** [⭐ Star us on GitHub](https://github.com/Undiluted7027/allos-agent-sdk) to join the Hall of Fame!
+
+---
 
 ## 🌟 Why "Allos"?
 

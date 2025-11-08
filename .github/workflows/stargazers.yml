@@ -1,0 +1,22 @@
+name: Update Stargazer Hall of Fame
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-stars:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Stargazer List
+        run: |
+          pip install requests
+          python scripts/update_stars.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "Update stargazer list" || echo "No changes"
+          git push

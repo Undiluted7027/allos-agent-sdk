@@ -46,4 +46,4 @@ If you're planning a significant new feature, it's a good idea to open a feature
 -   **For a new provider:** Please follow the [Guide to Adding Providers](../docs/contributing/adding-providers.md).
 -   **For a new built-in tool:** Please follow the [Guide to Adding Tools](../docs/contributing/adding-tools.md).
 
-Thank you again for your contribution!
+More information is available at [docs/contributing](https://github.com/Undiluted7027/allos-agent-sdk/tree/main/docs/contributing). Thank you again for your contribution!
