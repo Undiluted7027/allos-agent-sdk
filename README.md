@@ -438,6 +438,7 @@ A huge thank you to our first 100 stargazers! You're helping build the future of
 <div align="center">
 
 <!-- STARGAZERS:START -->
+*No stargazers yet. Be the first!* ⭐
 <!-- STARGAZERS:END -->
 
 </div>
