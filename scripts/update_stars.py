@@ -1,3 +1,4 @@
+# scripts/update_stars.py
 import re
 
 import requests

@@ -1,3 +1,4 @@
+# .github/workflows/stargazers.yml
 name: Update Stargazer Hall of Fame
 permissions:
   contents: write
