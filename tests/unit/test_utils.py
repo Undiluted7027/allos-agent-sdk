@@ -34,7 +34,7 @@ def test_version_is_exposed_and_correct():
     assert allos.__version__ == internal_version
     assert isinstance(allos.__version__, str)
     # Check that the version for MVP is correct
-    assert allos.__version__ == "0.0.2-dev"
+    assert allos.__version__ == "0.0.1"
 
 
 def test_custom_error_hierarchy():

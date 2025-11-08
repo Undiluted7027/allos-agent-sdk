@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "allos-agent-sdk"
-version = "0.0.2-dev"
+version = "0.0.1"
 authors = [
-  { name="The Allos Community", email="contact@allos.dev" },
+  { name="The Allos Community", email="Undiluted7027@proton.me" },
 ]
 description = "The LLM-Agnostic Agentic Framework"
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -16,9 +16,11 @@ requires-python = ">=3.9"
 license = { file="LICENSE" }
 keywords = ["ai", "agent", "llm", "sdk", "openai", "anthropic", "agnostic", "automation"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5",
+    "Operating System :: OS Independent",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",

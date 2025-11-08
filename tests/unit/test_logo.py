@@ -6,9 +6,9 @@ from allos.cli.logo import _format_version
 
 def test_format_version_normal():
     """Test that a standard version string is correctly formatted and padded."""
-    version = "0.1.0"
+    version = "0.0.1"
     formatted = _format_version(version, max_width=12)
-    assert formatted == "v0.1.0      "
+    assert formatted == "v0.0.1      "
     assert len(formatted) == 12
 
 
