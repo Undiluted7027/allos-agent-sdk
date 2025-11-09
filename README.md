@@ -443,7 +443,11 @@ A huge thank you to our first 100 stargazers! You're helping build the future of
 <div align="center">
 
 <!-- STARGAZERS:START -->
-*No stargazers yet. Be the first!* ⭐
+**2 Amazing Stargazers:**
+
+<table>
+<tr><td align='center'><a href="https://github.com/tkersey"><img src="https://avatars.githubusercontent.com/u/217?v=4&s=50" width="50" height="50" alt="tkersey"/></a></td><td align='center'><a href="https://github.com/amrhas82"><img src="https://avatars.githubusercontent.com/u/194412865?v=4&s=50" width="50" height="50" alt="amrhas82"/></a></td></tr>
+</table>
 <!-- STARGAZERS:END -->
 
 </div>
