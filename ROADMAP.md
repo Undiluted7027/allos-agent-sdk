@@ -10,7 +10,7 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 
 | Phase | Focus | Timeline | Status |
 |-------|-------|----------|--------|
-| **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ 96.79% Complete |
+| **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ 100% Complete |
 | **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 📋 Planned |
 | **Phase 3: Advanced Tooling** | Developer experience | Weeks 15-20 | 📋 Planned |
 | **Phase 4: Enterprise & Scale** | Production features | Weeks 21-28 | 🔮 Future |
@@ -41,11 +41,13 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 - ✅ Token usage tracking (via provider metadata)
 - ✅ Error recovery (implicit via LLM intelligence)
 - ✅ Known limitations documented
-- ⏳ **Launch**: Awaiting demo video (96.79% complete)
+- ✅ **Launch**: Launched on Nov 8, 2025!
 
 **Completion Target**: End of Week 8
-**Current Status**: 96.79% complete - All technical work done, demo video in progress
-**Expected Launch**: Upon demo video completion
+
+**Current Status**: 96.79% complete - All technical work done, demo video published
+
+**MVP Launch**: Launched on on Nov 8, 2025!
 
 ### MVP Known Limitations
 
@@ -59,7 +61,9 @@ These limitations are by design and are addressed in subsequent phases of this r
 ## Phase 2: Enhanced Features
 
 **Timeline**: Weeks 9-14 (6 weeks)
+
 **Status**: 📋 Planned
+
 **Goal**: Add essential capabilities for production use
 
 ### 2.1 Local Models Support (Weeks 9-10)
@@ -95,13 +99,13 @@ allos --provider ollama --model qwen2.5-coder:7b "Create a FastAPI app"
 #### Google Gemini Provider
 - [ ] **`allos/providers/google.py`**
   - Google Gemini Pro support
-  - Google Gemini Ultra support (when available)
-  - Vertex AI integration
+  - Vertex AI integration (Gemini and other models like Kimi-K2, Llama 4 etc.)
   - Native tool calling
   - Token counting
 
 #### Provider Enhancements
 - [ ] **Cohere** (initial support)
+- [ ] **Amazon Bedrock** (initial support)
 - [ ] **Azure OpenAI** (endpoint configuration)
 - [ ] **Together AI** (OpenAI-compatible)
 - [ ] **Anyscale** (OpenAI-compatible)
@@ -1141,7 +1145,7 @@ Share your thoughts:
 
 ---
 
-*Last Updated: November 07, 2025*
+*Last Updated: November 18, 2025*
 
 *Next Review: November 30, 2025*
 
