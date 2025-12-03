@@ -85,6 +85,30 @@ def test_chat_sends_correctly_formatted_messages(MockOpenAI):
 
 
 @patch("allos.providers.openai.openai.OpenAI")
+def test_chat_converts_max_tokens_parameter(MockOpenAI):
+    """
+    Test that the legacy 'max_tokens' parameter is converted to the
+    parameter name expected by the Responses API (e.g., 'max_output_tokens').
+    """
+    mock_client = MockOpenAI.return_value
+    mock_client.responses.create.return_value = MagicMock()
+
+    provider = OpenAIProvider(model="gpt-4o")
+
+    # Call with the generic SDK parameter 'max_tokens'
+    provider.chat([Message(role=MessageRole.USER, content="Hi")], max_tokens=500)
+
+    mock_client.responses.create.assert_called_once()
+    call_kwargs = mock_client.responses.create.call_args.kwargs
+
+    # Assert 'max_tokens' was removed
+    assert "max_tokens" not in call_kwargs
+
+    # Assert the new key is present
+    assert call_kwargs.get("max_output_tokens") == 500
+
+
+@patch("allos.providers.openai.openai.OpenAI")
 def test_chat_sends_correctly_formatted_tools(MockOpenAI):
     """
     Test that the chat method correctly converts tools and calls the API

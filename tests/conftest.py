@@ -131,18 +131,18 @@ def pytest_collection_modifyitems(config, items):
     items[:] = selected
 
 
-# @pytest.fixture(autouse=True)
-# def mock_api_keys(monkeypatch):
-#     """
-#     Automatically mock API keys for all tests to bypass CLI checks.
-#     Comment this function to use actual keys for E2E tests.
-#     """
-#     TEST_OPENAI_API_KEY = os.getenv("TEST_OPENAI_API_KEY", "test-openai-api-key")
-#     TEST_ANTHROPIC_API_KEY = os.getenv(
-#         "TEST_ANTHROPIC_API_KEY", "test-anthropic-api-key"
-#     )
-#     monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
-#     monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
+@pytest.fixture(autouse=True)
+def mock_api_keys(monkeypatch):
+    """
+    Automatically mock API keys for all tests to bypass CLI checks.
+    Comment this function to use actual keys for E2E tests.
+    """
+    TEST_OPENAI_API_KEY = os.getenv("TEST_OPENAI_API_KEY", "test-openai-api-key")
+    TEST_ANTHROPIC_API_KEY = os.getenv(
+        "TEST_ANTHROPIC_API_KEY", "test-anthropic-api-key"
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
 
 
 @pytest.fixture
