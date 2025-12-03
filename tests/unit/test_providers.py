@@ -95,10 +95,63 @@ class TestProviderRegistry:
         self._original_registry = _provider_registry.copy()
         _provider_registry.clear()
 
+        # Register a dummy implementation for 'chat_completions'
+        # which is the target for most aliases
+        @provider("chat_completions")
+        class MockChatCompletions(BaseProvider):
+            def chat(self, messages, **kwargs):
+                pass
+
+            def get_context_window(self):
+                return 100
+
     def teardown_method(self):
         """Restore the original registry state."""
         _provider_registry.clear()
         _provider_registry.update(self._original_registry)
+
+    def test_get_provider_alias_auto_config(self):
+        """Test retrieving a provider via an alias (e.g., 'groq')."""
+        # Groq maps to chat_completions implementation
+        instance = ProviderRegistry.get_provider(
+            "groq", api_key="explicit_key", model="groq-model-123"
+        )
+
+        assert isinstance(instance, BaseProvider)
+        # Check that base_url was injected from the config map
+        assert (
+            instance.provider_specific_kwargs["base_url"]
+            == "https://api.groq.com/openai/v1"
+        )
+        # Check that api_key was passed through
+        assert instance.provider_specific_kwargs["api_key"] == "explicit_key"
+
+    def test_get_provider_alias_env_var_injection(self, monkeypatch):
+        """Test that the registry automatically injects the correct env var for an alias."""
+        monkeypatch.setenv("TOGETHER_API_KEY", "env_var_key")
+
+        # Request 'together' without explicit key
+        instance = ProviderRegistry.get_provider("together", model="together-model-123")
+
+        # Should have picked up the key from env
+        assert instance.provider_specific_kwargs["api_key"] == "env_var_key"
+        assert (
+            instance.provider_specific_kwargs["base_url"]
+            == "https://api.together.xyz/v1"
+        )
+
+    def test_get_provider_alias_missing_implementation(self):
+        """Test error when an alias points to an unregistered implementation."""
+        # Unregister chat_completions to force the error
+        del _provider_registry["chat_completions"]
+
+        with pytest.raises(ConfigurationError) as excinfo:
+            ProviderRegistry.get_provider("groq")
+
+        assert (
+            "implementation 'chat_completions' for alias 'groq' is not registered"
+            in str(excinfo.value)
+        )
 
     def test_provider_registration(self):
         """Test that the @provider decorator correctly registers a class."""
@@ -139,7 +192,11 @@ class TestProviderRegistry:
             def chat(self, messages: list[Message], **kwargs):
                 pass
 
-        assert sorted(ProviderRegistry.list_providers()) == ["provider_a", "provider_b"]
+        # Check for containment instead of exact list equality
+        # because the registry now includes dynamic aliases.
+        providers = ProviderRegistry.list_providers()
+        assert "provider_a" in providers
+        assert "provider_b" in providers
 
     def test_get_provider_success(self):
         """Test successfully getting a provider instance."""
@@ -264,4 +321,8 @@ class TestProviderInit:
 
         import allos.providers  # noqa: F401
 
-        assert ProviderRegistry.list_providers() == []
+        providers = ProviderRegistry.list_providers()
+        assert "openai" not in providers
+        assert "anthropic" not in providers
+        # But we expect 'ollama_compat' to be there as it's an alias
+        assert "ollama_compat" in providers

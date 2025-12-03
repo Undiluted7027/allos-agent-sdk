@@ -3,7 +3,7 @@
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 from rich.console import Console
 from rich.panel import Panel
@@ -28,6 +28,12 @@ class AgentConfig:
     tool_names: List[str] = field(default_factory=list)
     max_iterations: int = 10
     auto_approve: bool = False
+    max_tokens: Optional[int] = None
+    no_tools: bool = False
+    # field for custom API endpoints
+    base_url: Optional[str] = None
+    # api_key, exclude from repr for security logs (for providers like Together AI)
+    api_key: Optional[str] = field(default=None, repr=False)
     # Provider-specific kwargs can be added here if needed in the future
 
 
@@ -46,12 +52,23 @@ class Agent:
         self.console = Console()
 
         # Initialize provider and tools from registries
+        # Pass base_url if it exists in the config
+        provider_kwargs: Dict[str, Union[str, int]] = {}
+        if config.base_url:
+            provider_kwargs["base_url"] = config.base_url
+        if config.api_key:
+            provider_kwargs["api_key"] = config.api_key
+
+        # Initialize provider and tools from registries
         self.provider: BaseProvider = ProviderRegistry.get_provider(
-            config.provider_name, model=config.model
+            config.provider_name, model=config.model, **provider_kwargs
         )
-        self.tools: List[BaseTool] = [
-            ToolRegistry.get_tool(name) for name in config.tool_names
-        ]
+        # Initialize tools
+        # If no_tools is set, we ignore tool_names and load nothing.
+        if config.no_tools:
+            self.tools: List[BaseTool] = []
+        else:
+            self.tools = [ToolRegistry.get_tool(name) for name in config.tool_names]
 
     def save_session(self, filepath: Union[str, Path]) -> None:
         """
@@ -61,8 +78,11 @@ class Agent:
             filepath: The path to the file where the session will be saved.
         """
         self.console.print(f"[dim]💾 Saving session to '{filepath}'...[/dim]")
+        config_data = asdict(self.config)
+        if "api_key" in config_data:
+            config_data.pop("api_key")
         session_data = {
-            "config": asdict(self.config),
+            "config": config_data,
             "context": self.context.to_dict(),
         }
         try:
@@ -178,12 +198,18 @@ class Agent:
             f"Context size check OK. Estimated tokens: {estimated_tokens}/{context_window}"
         )
 
+        # Prepare kwargs for chat
+        chat_kwargs: Dict[str, Any] = {}
+        if self.config.max_tokens:
+            chat_kwargs["max_tokens"] = self.config.max_tokens
+
+        # Only pass tools if we have them
+        if self.tools:
+            chat_kwargs["tools"] = self.tools
+
         # The provider is responsible for handling the message history correctly.
         # We pass a shallow copy to prevent accidental mutation.
-        response = self.provider.chat(
-            messages=self.context.messages[:],
-            tools=self.tools,
-        )
+        response = self.provider.chat(messages=self.context.messages[:], **chat_kwargs)
 
         # DO NOT modify context here. The run loop is responsible for that.
         return response

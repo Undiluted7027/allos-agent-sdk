@@ -52,6 +52,10 @@ providers_to_test = [
         "anthropic",
         marks=pytest.mark.requires_anthropic,
     ),
+    pytest.param(
+        "chat_completions",
+        marks=pytest.mark.requires_openai,
+    ),
 ]
 
 # --- The Tests ---
@@ -66,7 +70,12 @@ def test_provider_switching_simple_chat(provider_name):
     print(f"\n--- Testing Simple Chat on Provider: {provider_name.upper()} ---")
 
     # Use a model appropriate for the provider
-    model = "gpt-4o" if provider_name == "openai" else "claude-3-haiku-20240307"
+    if provider_name == "openai":
+        model = "gpt-4o"
+    elif provider_name == "anthropic":
+        model = "claude-3-haiku-20240307"
+    else:
+        model = "gpt-3.5-turbo"  # chat_completions default for testing
 
     provider = ProviderRegistry.get_provider(provider_name, model=model)
     response = provider.chat(SIMPLE_CHAT_MESSAGES, temperature=0)
@@ -86,7 +95,13 @@ def test_provider_switching_tool_calling(provider_name):
     print(f"\n--- Testing Tool Calling on Provider: {provider_name.upper()} ---")
 
     # Use a model appropriate for the provider
-    model = "gpt-4o" if provider_name == "openai" else "claude-3-haiku-20240307"
+    if provider_name == "openai":
+        model = "gpt-4o"
+    elif provider_name == "anthropic":
+        model = "claude-3-haiku-20240307"
+    else:
+        model = "gpt-3.5-turbo"  # chat_completions default for testing
+
     tools = [GetWeatherTool()]
 
     provider = ProviderRegistry.get_provider(provider_name, model=model)

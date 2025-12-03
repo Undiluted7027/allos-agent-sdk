@@ -83,6 +83,74 @@ def test_list_tools_command(runner: CliRunner):
     assert "(ask_user)" in result.output  # Check for permission display
 
 
+def test_active_providers_command(runner: CliRunner, monkeypatch):
+    """
+    Test the --active-providers command prints a table with correct statuses.
+    This covers the if/elif/else branches in print_active_providers.
+    """
+    # 1. Set a key for one provider (Ready)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    # 2. Ensure another provider key is unset (Missing Key)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    result = runner.invoke(main, ["--active-providers"])
+    assert result.exit_code == 0
+
+    # Check for table headers and content
+    assert "Active Providers Configuration" in result.output
+    # OpenAI should be Ready
+    assert "openai" in result.output
+    assert "Ready" in result.output
+
+    # Anthropic should be Missing Key (if it appears in list)
+    # Note: Rich tables might wrap or format differently, but the text should be present
+    assert "anthropic" in result.output
+    # ollama_compat should be Manual Config
+    assert "ollama_compat" in result.output
+    assert "Manual Config Required" in result.output
+
+
+def test_run_command_max_tokens(runner: CliRunner, mock_agent_and_load_session):
+    """Test that --max-tokens is parsed and passed to config."""
+    mock_agent_class = mock_agent_and_load_session["class_main"]
+
+    result = runner.invoke(main, ["run", "prompt", "--max-tokens", "123"])
+
+    assert result.exit_code == 0
+    mock_agent_class.assert_called_once()
+    config = mock_agent_class.call_args.args[0]
+    assert config.max_tokens == 123
+
+
+def test_run_command_no_tools(runner: CliRunner, mock_agent_and_load_session):
+    """Test that --no-tools sets the flag in config."""
+    mock_agent_class = mock_agent_and_load_session["class_main"]
+
+    result = runner.invoke(main, ["run", "prompt", "--no-tools"])
+
+    assert result.exit_code == 0
+    mock_agent_class.assert_called_once()
+    config = mock_agent_class.call_args.args[0]
+    assert config.no_tools is True
+
+
+def test_run_command_base_url_and_api_key(
+    runner: CliRunner, mock_agent_and_load_session
+):
+    """Test that base-url and api-key flags are passed to config."""
+    mock_agent_class = mock_agent_and_load_session["class_main"]
+
+    result = runner.invoke(
+        main,
+        ["run", "prompt", "--base-url", "http://test.url", "--api-key", "secret-key"],
+    )
+
+    assert result.exit_code == 0
+    config = mock_agent_class.call_args.args[0]
+    assert config.base_url == "http://test.url"
+    assert config.api_key == "secret-key"
+
+
 def test_cli_no_arguments_shows_help(runner: CliRunner):
     """
     Test that running the command with no prompt or flags shows the help message.
@@ -213,7 +281,9 @@ class TestCliRunCommand:
         assert (
             result.exit_code == 0
         )  # The command itself doesn't fail, it prints an error
-        assert "API key 'OPENAI_API_KEY' not found" in result.output
+        assert "Error" in result.output
+        assert "API key not found" in result.output
+        assert "Please set the OPENAI_API_KEY environment variable" in result.output
 
     def test_run_command_session_management(
         self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
@@ -282,6 +352,49 @@ class TestCliRunCommand:
 
         # Check that the config on the loaded instance was updated
         assert mock_agent_instance.config.tool_names == ["write_file"]
+
+    def test_run_command_session_management_with_overrides(
+        self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
+    ):
+        """
+        Test that loading a session AND providing new flags correctly updates the config.
+        This covers all the 'if' branches in _update_agent_config.
+        """
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # Prepare a dummy session file
+        session_file = work_dir / "cli_session.json"
+        dummy_config = {"provider_name": "openai", "model": "old", "tool_names": []}
+        session_file.write_text(json.dumps({"config": dummy_config, "context": {}}))
+
+        # Run with ALL override flags
+        runner.invoke(
+            main,
+            [
+                "--session",
+                str(session_file),
+                "run",
+                "prompt",
+                "--base-url",
+                "http://new.url",
+                "--api-key",
+                "new-key",
+                "--max-tokens",
+                "99",
+                "--no-tools",
+            ],
+        )
+
+        # Verify load_session was called
+        mock_agent_class.load_session.assert_called_once_with(str(session_file))
+
+        # Verify the instance attributes were updated (via _update_agent_config)
+        assert mock_agent_instance.config.base_url == "http://new.url"
+        assert mock_agent_instance.config.api_key == "new-key"
+        assert mock_agent_instance.config.max_tokens == 99
+        assert mock_agent_instance.config.no_tools is True
+        assert mock_agent_instance.tools == []
 
     def test_run_command_auto_approve_shows_warning(
         self, runner: CliRunner, mock_agent_and_load_session
@@ -610,3 +723,60 @@ class TestCliInteractiveCommand:
         # Now, check the output and the repl call
         assert "Auto-approve is enabled" in result.output
         mock_repl.assert_called_once()
+
+    def test_interactive_overrides_session_config(
+        self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
+    ):
+        """
+        Test that interactive mode correctly overrides session config with CLI flags.
+        This covers all branches in _override_agent_config.
+        """
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # 1. Setup a dummy session file
+        session_file = work_dir / "session.json"
+        session_file.touch()
+
+        # 2. Run interactive with ALL override flags
+        result = runner.invoke(
+            main,
+            [
+                "--interactive",
+                "--session",
+                str(session_file),
+                "--base-url",
+                "http://override.url",
+                "--api-key",
+                "override-key",
+                "--max-tokens",
+                "500",
+                "--no-tools",
+                "--auto-approve",
+            ],
+            input="exit\n",  # Exit immediately
+        )
+
+        assert result.exit_code == 0
+
+        # 3. Verify the overrides were applied to the agent config
+        assert mock_agent_instance.config.base_url == "http://override.url"
+        assert mock_agent_instance.config.api_key == "override-key"
+        assert mock_agent_instance.config.max_tokens == 500
+        assert mock_agent_instance.config.no_tools is True
+        assert mock_agent_instance.config.auto_approve is True
+
+        # Verify tools list was cleared (no_tools logic)
+        assert mock_agent_instance.tools == []
+
+    @patch("allos.cli.interactive._run_repl_loop")
+    def test_interactive_no_tools_message(
+        self, mock_repl, runner: CliRunner, mock_agent_and_load_session
+    ):
+        """Test that the 'Tools are disabled' message is printed."""
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+        mock_agent_instance.config.no_tools = True
+
+        result = runner.invoke(main, ["--interactive"])
+
+        assert result.exit_code == 0
+        assert "Tools are disabled for this session" in result.output

@@ -17,7 +17,11 @@ console = Console()
 def start_interactive_session(
     provider: str,
     model: Optional[str],
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
     tool_names: list[str],
+    no_tools: bool,
     session_file: Optional[str],
     auto_approve: bool,
 ):
@@ -26,10 +30,22 @@ def start_interactive_session(
 
     try:
         agent = _load_or_create_agent(
-            provider, model, tool_names, session_file, auto_approve
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            tool_names,
+            no_tools,
+            session_file,
+            auto_approve,
         )
-        if agent.config.auto_approve:
+        if agent.config.auto_approve and not agent.config.no_tools:
             console.print("[bold yellow]⚠️ Auto-approve is enabled.[/bold yellow]")
+        if agent.config.no_tools:
+            console.print(
+                "[bold blue] Tools are disabled for this session.[/bold blue]"
+            )
     except AllosError as e:
         _print_panel(f"Failed to initialize agent: {e}", "Initialization Error", "red")
         return
@@ -60,7 +76,11 @@ def _print_welcome_message() -> None:
 def _load_or_create_agent(
     provider: str,
     model: Optional[str],
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
     tool_names: list[str],
+    no_tools: bool,
     session_file: Optional[str],
     auto_approve: bool,
 ) -> Agent:
@@ -69,13 +89,27 @@ def _load_or_create_agent(
         console.print(f"🔄 Loading session from '{session_file}'...")
         agent = Agent.load_session(session_file)
         # Override loaded config with any new CLI flags
-        _override_agent_config(agent, provider, model, tool_names, auto_approve)
+        _override_agent_config(
+            agent,
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            tool_names,
+            no_tools,
+            auto_approve,
+        )
         return agent
 
     model = model or ("gpt-4o" if provider == "openai" else "claude-3-haiku-20240307")
     config = AgentConfig(
         provider_name=provider,
         model=model,
+        base_url=base_url,
+        api_key=api_key,
+        max_tokens=max_tokens,
+        no_tools=no_tools,
         tool_names=list(tool_names) or ToolRegistry.list_tools(),
         auto_approve=auto_approve,
     )
@@ -86,15 +120,30 @@ def _override_agent_config(
     agent: Agent,
     provider: str,
     model: Optional[str],
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
     tool_names: list[str],
+    no_tools: bool,
     auto_approve: bool,
 ) -> None:
     """Apply CLI overrides to a loaded agent config."""
     agent.config.provider_name = provider
     agent.config.model = model or agent.config.model
     agent.config.auto_approve = auto_approve
-    if tool_names:
+    if base_url:
+        agent.config.base_url = base_url
+    if api_key:
+        agent.config.api_key = api_key
+    if max_tokens:
+        agent.config.max_tokens = max_tokens
+    if no_tools:
+        agent.config.no_tools = True
+        agent.tools = []
+    elif tool_names:
         agent.config.tool_names = list(tool_names)
+        # Re-initialize tools
+        agent.tools = [ToolRegistry.get_tool(name) for name in tool_names]
 
 
 def _run_repl_loop(agent: Agent) -> None:

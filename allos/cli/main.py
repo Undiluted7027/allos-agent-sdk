@@ -6,6 +6,7 @@ from typing import List, Optional
 import click
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from ..agent import Agent, AgentConfig
 from ..providers import ProviderRegistry
@@ -45,6 +46,10 @@ KNOWN_FLAG_WORDS = {
     "session",
     "auto-approve",
     "help",
+    "base-url",
+    "api-key",
+    "max-tokens",
+    "no-tools",
 }
 
 
@@ -59,6 +64,37 @@ def print_providers(ctx, param, value):
             border_style="blue",
         )
     )
+    ctx.exit()
+
+
+def print_active_providers(ctx, param, value):
+    """Prints a table of providers and their readiness status."""
+    if not value or ctx.resilient_parsing:
+        return
+
+    providers = ProviderRegistry.list_providers()
+    table = Table(title="Active Providers Configuration")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", style="bold")
+    table.add_column("Required Env Var", style="dim")
+
+    for p in providers:
+        env_var = ProviderRegistry.get_env_var_name(p)
+
+        # Special case for generic providers or those without env vars
+        if not env_var:
+            status = "[yellow]Manual Config Required[/]"
+            var_display = "N/A"
+        elif env_var in os.environ:
+            status = "[green]Ready[/]"
+            var_display = f"{env_var} (Set)"
+        else:
+            status = "[red]Missing Key[/]"
+            var_display = f"{env_var} (Not Set)"
+
+        table.add_row(p, status, var_display)
+
+    console.print(table)
     ctx.exit()
 
 
@@ -92,6 +128,14 @@ def print_tools(ctx, param, value):
     help="List available providers and exit.",
 )
 @click.option(
+    "--active-providers",
+    is_flag=True,
+    callback=print_active_providers,
+    expose_value=False,
+    is_eager=True,
+    help="List providers that are configured and ready to use.",
+)
+@click.option(
     "--list-tools",
     is_flag=True,
     callback=print_tools,
@@ -113,11 +157,29 @@ def print_tools(ctx, param, value):
     help="The specific model to use. If not provided, a default will be chosen.",
 )
 @click.option(
+    "--base-url",
+    help="The base URL for the API (only used for 'chat_completions' or compatible providers).",
+)
+@click.option(
+    "--api-key",
+    help="The API key to use. Overrides environment variables.",
+)
+@click.option(
+    "--max-tokens",
+    type=int,
+    help="Maximum number of tokens to generate.",
+)
+@click.option(
     "--tool",
     "tool_names",
     multiple=True,
     help="Specify a tool the agent can use. Can be used multiple times.",
     type=click.Choice(ToolRegistry.list_tools()),
+)
+@click.option(
+    "--no-tools",
+    is_flag=True,
+    help="Disable all tools for this session.",
 )
 @click.option(
     "--session",
@@ -137,7 +199,11 @@ def main(
     interactive: bool,
     provider: str,
     model: Optional[str],
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
     tool_names: List[str],
+    no_tools: bool,
     session_file: Optional[str],
     auto_approve: bool,
     prompt: tuple,
@@ -154,7 +220,15 @@ def main(
     # If interactive mode is requested, start it and exit.
     if interactive:
         start_interactive_session(
-            provider, model, list(tool_names), session_file, auto_approve
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            list(tool_names),
+            no_tools,
+            session_file,
+            auto_approve,
         )
         return
 
@@ -184,8 +258,122 @@ def main(
     # If all checks pass, proceed to run the agent.
     full_prompt = " ".join(prompt)
     run_agent(
-        full_prompt, provider, model, list(tool_names), session_file, auto_approve
+        full_prompt,
+        provider,
+        model,
+        base_url,
+        api_key,
+        max_tokens,
+        list(tool_names),
+        no_tools,
+        session_file,
+        auto_approve,
     )
+
+
+# --- Helper Functions ---
+def _determine_model(provider: str, model: Optional[str]) -> str:
+    """Selects a default model if none is provided."""
+    if model is not None:
+        return model
+
+    default_model = "gpt-4o" if provider == "openai" else "claude-3-haiku-20240307"
+    console.print(
+        f"[dim]Model not specified, defaulting to '{default_model}' for provider '{provider}'.[/dim]"
+    )
+    return default_model
+
+
+def _validate_api_key(provider: str, api_key: Optional[str]) -> bool:
+    """
+    Checks if an API key is available.
+    Returns True if valid, False if missing (and prints error).
+    """
+    if api_key:
+        return True
+
+    required_env_var = ProviderRegistry.get_env_var_name(provider)
+
+    if required_env_var and required_env_var not in os.environ:
+        console.print(
+            f"[bold red]Error:[/] API key not found. "
+            f"Please set the [bold]{required_env_var}[/] environment variable "
+            f"or use the [bold]--api-key[/] option."
+        )
+        return False
+    return True
+
+
+def _initialize_agent(
+    provider: str,
+    model: str,
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
+    tool_names: List[str],
+    no_tools: bool,
+    session_file: Optional[str],
+    auto_approve: bool,
+) -> Agent:
+    """Loads an existing agent or creates a new one."""
+    if session_file and os.path.exists(session_file):
+        console.print(f"🔄 Loading session from '{session_file}'...")
+        agent = Agent.load_session(session_file)
+        _update_agent_config(
+            agent,
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            tool_names,
+            no_tools,
+            auto_approve,
+        )
+        return agent
+
+    config = AgentConfig(
+        provider_name=provider,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+        max_tokens=max_tokens,
+        no_tools=no_tools,
+        tool_names=list(tool_names)
+        or ToolRegistry.list_tools(),  # Default to all tools if none specified
+        auto_approve=auto_approve,
+    )
+    return Agent(config)
+
+
+def _update_agent_config(
+    agent: Agent,
+    provider: str,
+    model: str,
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
+    tool_names: List[str],
+    no_tools: bool,
+    auto_approve: bool,
+):
+    """Updates an existing agent's config with CLI overrides."""
+    agent.config.provider_name = provider
+    agent.config.model = model
+    agent.config.auto_approve = auto_approve
+    if base_url:
+        agent.config.base_url = base_url
+    if api_key:
+        agent.config.api_key = api_key
+    if max_tokens:
+        agent.config.max_tokens = max_tokens
+    if no_tools:
+        agent.config.no_tools = True
+        agent.tools = []
+    elif tool_names:
+        agent.config.tool_names = list(tool_names)
+        # Re-initialize tools if names changed
+        agent.tools = [ToolRegistry.get_tool(name) for name in tool_names]
 
 
 # --- Helper function to contain the 'run' logic ---
@@ -193,52 +381,40 @@ def run_agent(
     prompt: str,
     provider: str,
     model: Optional[str],
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
     tool_names: List[str],
+    no_tools: bool,
     session_file: Optional[str],
     auto_approve: bool,
 ):
     """The core logic for running the agent."""
 
     # --- Determine the model ---
-    if model is None:
-        model = "gpt-4o" if provider == "openai" else "claude-3-haiku-20240307"
-        console.print(
-            f"[dim]Model not specified, defaulting to '{model}' for provider '{provider}'.[/dim]"
-        )
+    model = _determine_model(provider, model)
 
-    # --- Check for API Keys ---
-    key_map = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-    }
-    if key_map.get(provider) not in os.environ:
-        console.print(
-            f"[bold red]Error:[/] API key '{key_map[provider]}' not found in environment variables."
-        )
+    # --- Validate API Key ---
+    if not _validate_api_key(provider, api_key):
         return
 
+    console.print(f"[dim] Using {provider} with model {model}.")
     try:
-        if session_file and os.path.exists(session_file):
-            console.print(f"🔄 Loading session from '{session_file}'...")
-            agent = Agent.load_session(session_file)
-            # Override loaded config with any new CLI flags
-            agent.config.provider_name = provider
-            agent.config.model = model
-            agent.config.auto_approve = auto_approve
-            if tool_names:
-                agent.config.tool_names = list(tool_names)
-        else:
-            config = AgentConfig(
-                provider_name=provider,
-                model=model,
-                tool_names=list(tool_names)
-                or ToolRegistry.list_tools(),  # Default to all tools if none specified
-                auto_approve=auto_approve,
-            )
-            agent = Agent(config)
+        # --- Initialize Agent ---
+        agent = _initialize_agent(
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            tool_names,
+            no_tools,
+            session_file,
+            auto_approve,
+        )
 
         # --- Handle Auto-Approve ---
-        if agent.config.auto_approve:
+        if agent.config.auto_approve and not agent.config.no_tools:
             console.print(
                 "[bold yellow]⚠️ Auto-approve is enabled. All tool executions will be approved automatically.[/bold yellow]"
             )

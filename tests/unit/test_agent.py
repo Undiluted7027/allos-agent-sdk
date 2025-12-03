@@ -257,3 +257,48 @@ class TestAgent:
         assert "Conversation context has grown too large" in str(excinfo.value)
         # Ensure the provider's chat method was never called
         mock_provider.chat.assert_not_called()
+
+    def test_run_passes_max_tokens_to_provider(self, mock_get_provider):
+        """Test that max_tokens is passed to provider.chat."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.chat.return_value = ProviderResponse(content="Answer")
+
+        config = AgentConfig(provider_name="test", model="test", max_tokens=50)
+        agent = Agent(config)
+
+        agent.run("prompt")
+
+        # Verify kwargs
+        call_kwargs = mock_provider.chat.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 50
+
+    @patch("allos.agent.agent.ToolRegistry.get_tool")
+    def test_no_tools_config_prevents_tool_loading(
+        self, mock_get_tool, mock_get_provider
+    ):
+        """Test that no_tools=True results in empty tool list even if names provided."""
+        config = AgentConfig(
+            provider_name="test", model="test", tool_names=["read_file"], no_tools=True
+        )
+        agent = Agent(config)
+
+        assert len(agent.tools) == 0
+        mock_get_tool.assert_not_called()
+
+    def test_initialization_passes_base_url_and_api_key(
+        self, mock_get_provider, mock_get_tool
+    ):
+        """Test that Agent passes base_url and api_key from config to provider."""
+        config = AgentConfig(
+            provider_name="chat_completions",
+            model="test-model",
+            base_url="http://custom.url",
+            api_key="secret-key",
+        )
+        Agent(config)
+
+        mock_get_provider.assert_called_once()
+        call_kwargs = mock_get_provider.call_args.kwargs
+
+        assert call_kwargs["base_url"] == "http://custom.url"
+        assert call_kwargs["api_key"] == "secret-key"

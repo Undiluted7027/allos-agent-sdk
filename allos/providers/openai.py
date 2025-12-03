@@ -196,6 +196,12 @@ class OpenAIProvider(BaseProvider):
 
         instructions, input_messages = self._convert_to_openai_messages(messages)
 
+        if "max_tokens" in kwargs:
+            # Map max_tokens to max_completion_tokens for Responses API
+            # OR just remove it if the model doesn't support it,
+            # but usually max_completion_tokens is the modern equivalent.
+            kwargs["max_output_tokens"] = kwargs.pop("max_tokens")
+
         api_kwargs: Dict[str, Any] = {
             "model": self.model,
             "input": input_messages,
