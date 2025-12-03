@@ -224,3 +224,4 @@ __marimo__/
 
 # Rough scripts
 manual_test_*.py
+manual_test_*.sh

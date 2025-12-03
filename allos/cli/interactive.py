@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..agent import Agent, AgentConfig
+from ..providers import ProviderRegistry
 from ..tools import ToolRegistry
 from ..utils.errors import AllosError
 from .logo import LOGO_BANNER
@@ -128,6 +129,12 @@ def _override_agent_config(
     auto_approve: bool,
 ) -> None:
     """Apply CLI overrides to a loaded agent config."""
+    # Detect if provider changed
+    if agent.config.provider_name != provider:
+        # Reset provider-specific settings to defaults to avoid pollution
+        agent.config.base_url = None
+        agent.config.no_tools = False
+        agent.config.api_key = None
     agent.config.provider_name = provider
     agent.config.model = model or agent.config.model
     agent.config.auto_approve = auto_approve
@@ -144,6 +151,25 @@ def _override_agent_config(
         agent.config.tool_names = list(tool_names)
         # Re-initialize tools
         agent.tools = [ToolRegistry.get_tool(name) for name in tool_names]
+
+    # The agent.provider instance holds the client. We must recreate it
+    # so it picks up the new provider_name, model, base_url, and api_key.
+    provider_kwargs = {}
+    if agent.config.base_url:
+        provider_kwargs["base_url"] = agent.config.base_url
+    if agent.config.api_key:
+        provider_kwargs["api_key"] = agent.config.api_key
+
+    agent.provider = ProviderRegistry.get_provider(
+        agent.config.provider_name, model=agent.config.model, **provider_kwargs
+    )
+
+    # 5. Re-initialize Tools Instance
+    if agent.config.no_tools:
+        agent.tools = []
+    else:
+        # Reload tools based on potentially updated tool_names
+        agent.tools = [ToolRegistry.get_tool(name) for name in agent.config.tool_names]
 
 
 def _run_repl_loop(agent: Agent) -> None:
