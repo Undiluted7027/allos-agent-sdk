@@ -22,6 +22,10 @@ The core logic of the tool. It must be implemented by all subclasses. It receive
 #### `to_provider_format(provider: str) -> Dict[str, Any]`
 Converts the tool's definition into the format required by a specific LLM provider (e.g., "openai" or "anthropic").
 
+-   **OpenAI Responses API (`openai`)**: Returns the tool definition directly (internal tagging).
+-   **Chat Completions API (`chat_completions`)**: Wraps the definition in `{"type": "function", "function": ...}` as required by legacy and compatible endpoints.
+-   **Anthropic**: Returns the definition in `input_schema` format.
+
 ---
 
 ## `@tool` Decorator

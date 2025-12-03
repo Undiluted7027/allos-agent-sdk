@@ -10,12 +10,22 @@ Every agent starts with an `AgentConfig`. This simple dataclass tells the agent 
 from allos import Agent, AgentConfig
 
 config = AgentConfig(
-    # Specify the LLM provider and model
+    # 1. Provider Selection
     provider_name="openai",
     model="gpt-4o",
 
-    # List the names of the tools the agent can use
-    tool_names=["read_file", "write_file", "shell_exec"]
+    # 2. Tool Selection
+    tool_names=["read_file", "write_file", "shell_exec"],
+
+    # 3. Behavior Control
+    max_iterations=10,        # Prevent infinite loops
+    auto_approve=False,       # require user permission for sensitive tools
+    no_tools=False,           # Set True to disable all tools (chat only)
+    max_tokens=None,          # Limit output length (required by some providers)
+
+    # 4. Advanced Connection Settings (Optional)
+    # base_url="https://api.custom.com/v1",
+    # api_key="sk-explicit-key"
 )
 ```
 The `tool_names` must correspond to the names of built-in or custom tools that have been registered with the `ToolRegistry`.
@@ -48,6 +58,9 @@ During the `run()` method, the agent will perform its reasoning loop:
 ## 3. Session Management: Saving and Loading
 
 For tasks that span multiple sessions, you can save the agent's state (its configuration and entire conversation history) and load it back later.
+
+> [!NOTE] Security
+> The `api_key` field in `AgentConfig` is **never** saved to the session file to prevent secret leakage.
 
 ```python
 # After the first run, save the session

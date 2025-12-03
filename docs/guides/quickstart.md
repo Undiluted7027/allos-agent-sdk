@@ -8,13 +8,24 @@ Create and run your first "Hello, World!" application using the Allos agent in u
     ```bash
     uv pip install "allos-agent-sdk[all]" python-dotenv
     ```
-2.  **Create a `.env` file** in your project directory with your API key. For this example, we'll use OpenAI.
+2.  **Create a `.env` file** in your project directory with your API key. You can use OpenAI, Anthropic, or any compatible provider like Groq. For this example, we'll use OpenAI.
     ```env
     # .env
     OPENAI_API_KEY="your_openai_api_key_here"
+    # GROQ_API_KEY="gsk_..."
     ```
 
-## Step 1: Create the Application File
+## Step 1: Check Your Setup
+
+Run the diagnostics command to see which providers are ready to use based on your environment variables.
+
+```bash
+allos --active-providers
+```
+
+You should see `[Ready]` next to the providers you have configured.
+
+## Step 2: Create the Application File
 
 Run the following command in your terminal. The agent will ask for your permission to write the file. **Type `y` and press Enter.**
 
@@ -41,7 +52,7 @@ Model not specified, defaulting to 'gpt-4o' for provider 'openai'.
 ```
 You should now have a file named `app.py` in your directory.
 
-## Step 2: Run the Application
+## Step 3: Run the Application
 
 Now, let's ask the agent to execute the script it just created. It will ask for permission again. **Type `y` and press Enter.**
 
@@ -69,6 +80,20 @@ allos "Execute the 'app.py' script using python."
 ╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
-Congratulations! You have successfully used the Allos agent to write and execute code.
+## Step 4: Try a Different Provider (e.g., Groq)
+
+Allos makes it instant to switch providers. If you have a Groq key, try this for blazing fast speed:
+
+```bash
+allos "Explain how this python script works" \
+  --provider groq \
+  --model llama-3.1-8b-instant \
+  --no-tools
+```
+
+> [!NOTE]
+We used `--no-tools` here because smaller models often work better in pure chat mode.
+
+Congratulations! You have successfully used the Allos agent.
 
 For a more conversational experience, try `allos --interactive`.

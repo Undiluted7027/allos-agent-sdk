@@ -52,6 +52,10 @@ Open the newly created `.env` file and add your API keys for the providers you w
 # .env
 OPENAI_API_KEY="your_openai_key"
 ANTHROPIC_API_KEY="your_anthropic_key"
+
+# Optional: Add keys for compatible providers to test the universal adapter
+TOGETHER_API_KEY="your_together_key"
+GROQ_API_KEY="your_groq_key"
 ```
 
 ## 6. Run the Tests

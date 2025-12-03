@@ -4,6 +4,12 @@ Welcome to the official documentation for the Allos Agent SDK.
 
 Allos is an open-source, provider-agnostic agentic SDK that gives you the power to build production-ready AI agents that work with **any LLM provider**.
 
+## Key Features
+
+*   **Universal Compatibility:** Connect to OpenAI, Anthropic, Groq, Mistral, Together AI, DeepSeek, and local models (Ollama/vLLM) with a single interface.
+*   **Rich Tool Ecosystem:** Built-in tools for file operations and shell execution.
+*   **Developer Friendly:** Robust CLI, interactive mode, and intelligent diagnostics.
+
 ## Start Here
 
 - **[Installation](./installation.md)**: How to install the SDK.

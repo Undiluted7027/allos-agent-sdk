@@ -50,6 +50,10 @@ uv run pytest --run-integration
 
 If you are missing a required API key, pytest will skip the relevant tests and print a specific message telling you which environment variable needs to be set.
 
+**Markers:**
+*   `@pytest.mark.requires_openai`: Used for tests hitting OpenAI directly OR using the `ChatCompletionsProvider` (which uses the `openai` library).
+*   `@pytest.mark.requires_anthropic`: Used for tests hitting Anthropic.
+
 ## Writing Tests
 
 Always place new tests in the appropriate directory (`unit`, `e2e`, or `integration`).

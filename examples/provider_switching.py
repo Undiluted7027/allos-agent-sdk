@@ -1,66 +1,112 @@
 # examples/provider_switching.py
 
 """
-An example demonstrating the core provider-switching capability of the Allos SDK.
+A sophisticated example demonstrating "The Assembly Line" pattern.
+Different models are used for what they are best at, sharing context via a Session.
 
-This script runs the exact same prompt through both the OpenAI and Anthropic
-providers, showcasing the unified `.chat()` interface.
+1. Groq (Llama 3): High-speed Ideation.
+2. Anthropic (Claude 3.5 Sonnet): High-IQ Architecture & Reasoning.
+3. OpenAI (GPT-4o): Execution & Tool Usage.
 
-To run this example:
-1. Install all provider dependencies: `uv pip install "allos-agent-sdk[all]" python-dotenv`
-2. Create a .env file and add both your OPENAI_API_KEY and ANTHROPIC_API_KEY.
-3. Run the script: `python examples/provider_switching.py`
+Usage: python examples/provider_switching.py
 """
 
+import os
+
 from dotenv import load_dotenv
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 
-from allos.providers import Message, MessageRole, ProviderRegistry
-from allos.utils.errors import AllosError
+from allos import Agent, AgentConfig
 
-# Load API keys from your .env file
 load_dotenv()
+console = Console()
 
-# The conversation is defined once and reused for both providers
-MESSAGES = [
-    Message(
-        role=MessageRole.USER, content="Write a short, three-line poem about the moon."
+SESSION_FILE = "assembly_line.json"
+
+
+def run_stage(title, provider, model, prompt, color="blue", no_tools=False):
+    # Check keys
+    env_map = {
+        "groq": "GROQ_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+    }
+    if env_map.get(provider) not in os.environ:
+        console.print(f"[yellow]⚠️ Skipping {title}: {env_map[provider]} not found.[/]")
+        return None
+
+    console.print(f"\n[bold {color}]╔══ STEP: {title} ({provider}/{model}) ══╗[/]")
+
+    # Load previous state if available
+    if os.path.exists(SESSION_FILE):
+        agent = Agent.load_session(SESSION_FILE)
+        # Reconfigure for new provider
+        agent.config.provider_name = provider
+        agent.config.model = model
+        agent.config.no_tools = no_tools
+        agent.config.base_url = None  # Reset potential custom URLs
+        # Re-init internals
+        agent.__init__(agent.config, agent.context)
+    else:
+        config = AgentConfig(provider_name=provider, model=model, no_tools=no_tools)
+        agent = Agent(config)
+
+    with console.status(f"[{color}]🤖 {model} is working...[/]", spinner="dots"):
+        response = agent.run(prompt)
+        agent.save_session(SESSION_FILE)
+
+    console.print(
+        Panel(Markdown(response), title=f"{title} Output", border_style=color)
     )
-]
-
-PROVIDERS_TO_TEST = {
-    "openai": "gpt-4o",
-    "anthropic": "claude-3-haiku-20240307",
-}
+    return response
 
 
 def main():
-    """Main function to run the provider switching example."""
-    print("--- Demonstrating Provider Switching ---")
+    if os.path.exists(SESSION_FILE):
+        os.remove(SESSION_FILE)
 
-    for provider_name, model_name in PROVIDERS_TO_TEST.items():
-        print(f"\n--- Testing Provider: {provider_name.upper()} ---")
-        try:
-            # Get the provider from the registry
-            provider = ProviderRegistry.get_provider(provider_name, model=model_name)
+    console.print(
+        Panel.fit("[bold white]🏭 The AI Assembly Line[/]", style="bold magenta")
+    )
 
-            # The .chat() call is identical for every provider
-            response = provider.chat(MESSAGES)
+    # Stage 1: Speed (Groq)
+    # Fast iteration to generate raw ideas
+    run_stage(
+        "The Ideator",
+        "groq",
+        "llama-3.3-70b-versatile",
+        "Generate 3 distinct ideas for a Python CLI tool that helps developers. Be brief.",
+        color="cyan",
+        no_tools=True,
+    )
 
-            print(f"Model: {model_name}")
-            print("Response:")
-            # We add indentation to make the poem stand out
-            if response.content:
-                indented_content = "\n".join(
-                    [f"  {line}" for line in response.content.strip().split("\n")]
-                )
-                print(indented_content)
-            else:
-                print("  No content returned.")
+    # Stage 2: Intelligence (Anthropic)
+    # High context reasoning to pick the best one and architect it
+    run_stage(
+        "The Architect",
+        "anthropic",
+        "claude-3-7-sonnet-20250219",
+        "Review the ideas above. Pick the most useful one and write a detailed technical specification for it. Do not write code yet.",
+        color="magenta",
+        no_tools=True,
+    )
 
-        except AllosError as e:
-            print(f"  An error occurred with provider '{provider_name}': {e}")
-        except Exception as e:
-            print(f"  An unexpected error occurred: {e}")
+    # Stage 3: Execution (OpenAI)
+    # Robust tool use to write the file (Simulated here for visual clarity)
+    run_stage(
+        "The Engineer: This one takes a while",
+        "openai",
+        "gpt-5-nano-2025-08-07",
+        "Based on the specification, write the `main.py` file for this tool. Use Markdown.",
+        color="green",
+        no_tools=False,
+    )
+
+    if os.path.exists(SESSION_FILE):
+        os.remove(SESSION_FILE)
+    console.print("\n[bold green]✅ Assembly Line Complete![/]")
 
 
 if __name__ == "__main__":

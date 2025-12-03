@@ -38,7 +38,12 @@ uv pip install allos-agent-sdk
 
 ### Installation with Providers
 
-To use a specific provider, you can install it as an "extra". This is the recommended approach.
+To use a specific provider, you can install it as an "extra".
+
+> [!NOTE] Universal Compatibility
+> Installing the `openai` extra enables the **Chat Completions Provider**, which allows you to connect to **Together AI, Groq, Mistral, DeepSeek, LocalAI, vLLM**, and any other OpenAI-compatible service.
+
+This is the recommended approach.
 
 ```bash
 # Install with support for OpenAI

@@ -1,6 +1,8 @@
 # OpenAI Provider
 
-The OpenAI provider allows you to interact with models from OpenAI, including the GPT-4 and GPT-3.5 families.
+The OpenAI provider allows you to interact with models from OpenAI, including the GPT-5 and GPT-4 families.
+
+It uses OpenAI's modern **Responses API** (`/v1/responses`) to provide advanced capabilities like native multi-turn tool calling and stateful interactions.
 
 ## Configuration
 
@@ -21,16 +23,22 @@ from allos.providers import ProviderRegistry
 openai_provider = ProviderRegistry.get_provider("openai", model="gpt-4o")
 ```
 
+> [!TIP]
+> For a detailed comparison between this provider and the compatible provider, see the **[API Comparison Guide](../guides/openai-api-comparison.md)**.
+
 ### OpenAI-Compatible APIs
 
-You can also use this provider to connect to any API that is compatible with the OpenAI specification (e.g., local models served with LiteLLM or vLLM). To do this, pass the `base_url` argument during initialization.
+While the `openai` provider handles the official API, many 3rd-party services (like Together AI, Groq, or LocalAI) use the older **Chat Completions API**.
+
+For these services, we recommend using the **[Chat Completions Provider](./chat-completions.md)** (`provider="chat_completions"` or a specific alias like `groq`).
+
+However, if you have an endpoint that strictly implements the new Responses API, you can configure the `openai` provider manually:
 
 ```python
-local_provider = ProviderRegistry.get_provider(
+custom_provider = ProviderRegistry.get_provider(
     "openai",
-    model="your-local-model-name",
-    base_url="http://localhost:8080/v1",
-    api_key="not-needed-for-local" # Often optional for local servers
+    model="custom-model",
+    base_url="https://my-responses-api-clone.com/v1"
 )
 ```
 
@@ -38,6 +46,8 @@ local_provider = ProviderRegistry.get_provider(
 
 The provider is compatible with all models available through the OpenAI Chat Completions and Responses API. Common models include:
 
+- `gpt-5`
+- `gpt-4`
 - `gpt-4o`
 - `gpt-4-turbo`
 - `gpt-3.5-turbo`

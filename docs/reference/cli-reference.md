@@ -20,6 +20,9 @@ Shows the main help message and exits.
 #### `--list-providers`
 Lists all available and registered LLM providers and exits.
 
+#### `--active-providers`
+Lists all providers and checks if they are configured and ready to use in the current environment (i.e., checks if API keys are set).
+
 #### `--list-tools`
 Lists all available and registered tools, including their permission levels and descriptions, and exits.
 
@@ -28,15 +31,27 @@ Starts an interactive REPL session with the agent, allowing for a continuous, mu
 
 #### `-p, --provider <name>`
 Specifies the LLM provider to use.
-- **Choices:** `openai`, `anthropic`
+- **Choices:** `openai`, `anthropic`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, `cohere`, `openrouter`, `portkey`, `ollama_compat`.
 - **Default:** `openai`
 
 #### `-m, --model <model_name>`
 Specifies the exact model name to use. If not provided, a sensible default will be chosen for the selected provider (e.g., `gpt-4o` for OpenAI).
 
+#### `--base-url <url>`
+Overrides the API base URL. This is primarily used with the `chat_completions` provider to connect to custom or local endpoints (e.g., `http://localhost:8000/v1`).
+
+#### `--api-key <key>`
+Explicitly provides an API key for the session. This overrides any environment variables.
+
+#### `--max-tokens <int>`
+Limits the maximum number of tokens the model can generate in its response.
+
 #### `--tool <tool_name>`
 Restricts the agent to using only the specified tool(s). This option can be used multiple times. If no tools are specified, the agent has access to all registered tools by default.
 - **Example:** `allos --tool read_file --tool shell_exec "Read the content of setup.py"`
+
+#### `--no-tools`
+Disables all tools for the session. The agent will operate in pure chat mode. Useful for smaller models that may struggle with tool definitions.
 
 #### `-s, --session <filepath>`
 Loads an agent session from a specified JSON file and saves the updated session back to the same file upon completion. If the file does not exist, a new one will be created upon saving.
@@ -60,7 +75,7 @@ To run a single task, simply provide the prompt after the `allos` command.
 allos "Create a python script that prints 'Hello, World!'"
 
 # Specify a different provider and model
-allos --provider anthropic --model claude-3-5-sonnet-20240620 "Summarize the file 'main.py'"
+allos --provider groq --model llama-3.1-8b-instant "Summarize the file 'main.py'" --no-tools
 ```
 
 ### Starting an Interactive Session
@@ -77,6 +92,20 @@ allos -i -p anthropic -s my_anthropic_session.json
 Inside the interactive session, you can type `exit` or `quit` to end the session.
 
 ## Examples
+
+#### Check Configuration
+```bash
+allos --active-providers
+```
+
+#### Connect to a Local Server
+```bash
+allos "Why is the sky blue?" \
+  --provider chat_completions \
+  --base-url http://localhost:8000/v1 \
+  --model my-local-model \
+  --no-tools
+```
 
 #### Create a file
 ```bash

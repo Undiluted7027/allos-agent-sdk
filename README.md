@@ -29,12 +29,12 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 
 **The Problem**: Most agentic frameworks force you to choose between vendors, making it expensive and risky to switch models.
 
-**The Solution**: Allos provides a unified interface across OpenAI, Anthropic, Ollama, Google, and more—so you can use the best model for each task without rewriting your code.
+**The Solution**: Allos provides a unified interface across OpenAI, Anthropic, Ollama, Google, Groq, Mistral, and more—so you can use the best model for each task without rewriting your code.
 
 ## ✨ Key Features
 
 ### 🔄 **Provider Agnostic**
-Switch seamlessly between OpenAI, Anthropic, Ollama, and other LLM providers. Use GPT-4 for one task, Claude for another, or run models locally—all with the same code.
+Connect to **10+ providers** out of the box. Switch seamlessly between OpenAI and Anthropic natively, or connect to Grow, Together AI, Mistral, Deepseek, and local models via our compatibility layer. Use GPT-5 for one task, Claude for another, or run models locally—all with the same code.
 
 ### 🛠️ **Rich Tool Ecosystem**
 Built-in tools for:
@@ -55,6 +55,9 @@ Built-in tools for:
 # Create your own Claude Code in 5 minutes
 uv pip install allos-agent-sdk
 export OPENAI_API_KEY=your_key
+
+# Check what providers are ready to use
+allos --active-providers
 allos "Create a REST API for a todo app"
 ```
 
@@ -117,11 +120,11 @@ allos -p anthropic -s my_project.json "Refactor the 'app.py' file to be more mod
 ```python
 from allos import Agent, AgentConfig
 
-# Simple agent
+# Configure for Together AI
 agent = Agent(AgentConfig(
-    provider="openai",
-    model="gpt-4",
-    tools=["read_file", "write_file", "shell_exec"]
+    provider_name="together",
+    model="meta-llama/Llama-3-70b-chat-hf",
+    tool_names=["read_file", "write_file"]
 ))
 
 result = agent.run("Fix the bug in main.py and add tests")
@@ -145,7 +148,13 @@ agent_claude = Agent(AgentConfig(
     tools=["read_file", "write_file"]
 ))
 
-# Or use local models with Ollama (COMING SOON!)
+# Switch to Groq for fast responses
+agent_groq = Agent(AgentConfig(
+    provider="groq",
+    model="groq/compound",
+))
+
+# Or use local models with Ollama Native (COMING SOON!)
 agent_local = Agent(AgentConfig(
     provider="ollama",
     model="qwen2.5-coder",
@@ -210,8 +219,9 @@ agent = Agent(AgentConfig(
 │              │  │              │  │              │
 │ • OpenAI     │  │ • FileSystem │  │ • History    │
 │ • Anthropic  │  │ • Shell      │  │ • Compactor  │
-│ • Ollama     │  │ • Web        │  │ • Cache      │
-│ • Google     │  │ • Custom     │  │ • Manager    │
+│ • Groq       │  │ • Web        │  │ • Cache      │
+│ • Mistral    │  │ • Custom     │  │ • Manager    │
+│ • Ollama     │  │              │  │              │
 └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
@@ -225,14 +235,19 @@ agent = Agent(AgentConfig(
 
 ## 📊 Provider Support
 
-| Provider | Status | Models | Features |
-|----------|--------|--------|----------|
-| **OpenAI** | ✅ Ready | GPT-5, GPT-4, GPT-4o | Tool calling, streaming |
-| **Anthropic** | ✅ Ready | Claude 3, Claude 4 (Opus, Sonnet, Haiku) | Tool calling, streaming |
-| **Ollama** | 🚧 Coming Soon | Llama, Mistral, Qwen, etc. | Local models |
-| **Google** | 🚧 Coming Soon | Gemini Pro, Gemini Ultra | Tool calling |
-| **Cohere** | 📋 Planned | Command R, Command R+ | Tool calling |
-| **Custom** | ✅ Ready | Any OpenAI-compatible API | Extensible |
+Allos supports a massive range of models through native integrations and a universal compatibility layer.
+
+| Provider | Status | Models |
+|----------|--------|--------|
+| **OpenAI** | ✅ Ready | GPT-4o, GPT-4-turbo |
+| **Anthropic** | ✅ Ready | Claude 3.5 Sonnet, Haiku |
+| **Groq** | ✅ Ready | Llama 3, Mixtral |
+| **Mistral** | ✅ Ready | Mistral Large, Small |
+| **Together AI** | ✅ Ready | Llama 3, Qwen, DeepSeek |
+| **DeepSeek** | ✅ Ready | DeepSeek Chat/Coder |
+| **Cohere** | ✅ Ready | Command R+ |
+| **Ollama (compat)** | ✅ Ready | Local Llama, Mistral, etc. |
+| **LocalAI / vLLM** | ✅ Ready | Custom endpoints via `chat_completions` |
 
 ## 🛠️ Built-in Tools
 
@@ -291,6 +306,7 @@ content_agent.run("Research AI trends and write a blog post")
 - **[Getting Started](./docs/getting-started.md)** - Installation and first steps
 - **[Quickstart Guide](./docs/guides/quickstart.md)** - 5-minute tutorial
 - **[Providers](./docs/guides/providers.md)** - Provider configuration
+- **[Chat Completions](./docs/providers/chat-completions.md)** - Universal compatibility guide
 - **[Tools](./docs/guides/tools.md)** - Using built-in tools
 - **[Custom Tools](./docs/guides/custom-tools.md)** - Creating your own tools
 - **[CLI Reference](./docs/reference/cli-reference.md)** - Command-line options
@@ -299,20 +315,15 @@ content_agent.run("Research AI trends and write a blog post")
 
 ## 🗺️ Roadmap
 
-### ✅ Phase 1: MVP (Current)
-- [x] Initial architecture design
-- [x] Directory structure
-- [x] Provider layer (OpenAI, Anthropic)
-- [x] Tool system (filesystem, shell) with user-approval permissions
-- [x] Agent core with agentic loop and session management
-- [x] CLI interface
-- [x] Comprehensive unit, integration, and E2E test suites
-- [x] Final documentation and launch prep
+### ✅ Phase 1: MVP (Completed)
+- Core architecture, OpenAI/Anthropic support, CLI, Tools.
 
-See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed MVP timeline.
+See [POST_MVP_ROADMAP.md](./POST_MVP_ROADMAP.md) for detailed post-MVP timeline.
 
-### 🚧 Phase 2: Enhanced Features
-- [ ] Ollama integration (local models)
+### 🏗️ Phase 2: Enhanced Features (In Progress)
+- [x] **Universal Compatibility**: Support for Groq, Mistral, Together, etc.
+- [x] **CLI DX**: Active providers check, config flags.
+- [ ] **Native Ollama**: Advanced local model support.
 - [ ] Google Gemini support
 - [ ] Web search and fetch tools
 - [ ] Advanced context management

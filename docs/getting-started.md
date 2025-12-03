@@ -2,6 +2,8 @@
 
 Welcome to the Allos Agent SDK! This guide provides a conceptual overview of the two main ways to use Allos: the **Command-Line Interface (CLI)** for quick tasks and the **Python API** for building custom applications.
 
+Allos works with **10+ LLM providers** out of the box, including OpenAI, Anthropic, Groq, Mistral, Together AI, and local models via Ollama.
+
 For a runnable code example, see our [5-Minute Quickstart](./guides/quickstart.md).
 
 ## 1. Installation & Setup
@@ -14,6 +16,7 @@ uv pip install "allos-agent-sdk[all]"
 
 # Create a .env file for your keys
 echo "OPENAI_API_KEY=your_key_here" > .env
+# echo "GROQ_API_KEY=your_key_here" >> .env
 ```
 For more details, see the [Installation Guide](./installation.md).
 
@@ -46,8 +49,8 @@ from allos import Agent, AgentConfig
 
 # 1. Define the agent's configuration
 config = AgentConfig(
-    provider_name="openai",
-    model="gpt-4o",
+    provider_name="groq",  # Switch providers easily!
+    model="llama-3.1-8b-instant",
     tool_names=["read_file", "write_file", "shell_exec"]
 )
 
