@@ -1,5 +1,7 @@
 # allos/providers/anthropic.py
 
+import json
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import anthropic
@@ -9,9 +11,16 @@ from anthropic.types import TextBlock, ToolUseBlock
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
 from ..utils.logging import logger
-from .base import BaseProvider, Message, MessageRole, ProviderResponse, ToolCall
+from .base import (
+    BaseProvider,
+    Message,
+    MessageRole,
+    ProviderChunk,
+    ProviderResponse,
+    ToolCall,
+)
+from .metadata import MetadataBuilder
 from .registry import provider
-from .utils import _init_metadata
 
 # A mapping of known Anthropic models to their context window sizes (in tokens)
 MODEL_CONTEXT_WINDOWS = {
@@ -28,6 +37,8 @@ class AnthropicProvider(BaseProvider):
     """
     An Allos provider for interacting with the Anthropic Messages API.
     """
+
+    env_var = "ANTHROPIC_API_KEY"
 
     def __init__(self, model: str, api_key: Optional[str] = None, **kwargs: Any):
         super().__init__(model, **kwargs)
@@ -118,34 +129,22 @@ class AnthropicProvider(BaseProvider):
         return anthropic_tools
 
     @staticmethod
-    def _parse_anthropic_response(response: AnthropicMessage) -> ProviderResponse:
+    def _parse_anthropic_response(
+        response: AnthropicMessage,
+    ) -> Tuple[Optional[str], List[ToolCall]]:
         """Parses the Anthropic Message object into an Allos ProviderResponse."""
         text_accumulator: List[str] = []
         tool_calls: List[ToolCall] = []
 
-        # --- Metadata Counters ---
-        metadata = _init_metadata(len(response.content) if response.content else 0)
         if not response.content:
-            return ProviderResponse(content=None, tool_calls=[], metadata=metadata)
+            return None, []
         for block in response.content:
             if block.type == "text":
-                _process_anthropic_message(block, text_accumulator, metadata)
+                _process_anthropic_message(block, text_accumulator)
             elif block.type == "tool_use":
-                _process_anthropic_tool_use(block, tool_calls, metadata)
+                _process_anthropic_tool_use(block, tool_calls)
 
-        # Aggregate totals
-        metadata["overall"]["processed"] = (
-            metadata["messages"]["processed"] + metadata["tool_calls"]["processed"]
-        )
-        metadata["overall"]["skipped"] = (
-            metadata["messages"]["skipped"] + metadata["tool_calls"]["skipped"]
-        )
-
-        return ProviderResponse(
-            content="".join(text_accumulator) or None,
-            tool_calls=tool_calls,
-            metadata=metadata,
-        )
+        return "".join(text_accumulator) or None, tool_calls
 
     def chat(
         self,
@@ -169,10 +168,41 @@ class AnthropicProvider(BaseProvider):
             api_kwargs["system"] = system_prompt
         if tools:
             api_kwargs["tools"] = self._convert_to_anthropic_tools(tools)
+            metadata_tools = tools
+        else:
+            metadata_tools = []
+
+        builder_kwargs = api_kwargs.copy()
+        builder_kwargs["tools"] = metadata_tools
+
+        start_time = time.time()
 
         try:
             response = self.client.messages.create(**api_kwargs)
-            return self._parse_anthropic_response(response)
+
+            # --- METADATA GENERATION ---
+            # Create a synthetic response object for the builder
+            synthetic_response = {
+                "id": response.id,
+                "model": response.model,
+                "status": "completed",
+                "usage": response.usage,
+                "output": response.content,  # Pass content for tool call parsing
+            }
+            builder = MetadataBuilder(
+                provider_name="anthropic",
+                request_kwargs=builder_kwargs,
+                start_time=start_time,
+            )
+            metadata = builder.with_response_obj(
+                type("obj", (object,), synthetic_response)()
+            ).build()
+
+            content, tool_calls = self._parse_anthropic_response(response)
+
+            return ProviderResponse(
+                content=content, tool_calls=tool_calls, metadata=metadata
+            )
         except anthropic.APIConnectionError as e:
             raise ProviderError(
                 f"Connection error: {e.__cause__}", provider="anthropic"
@@ -198,6 +228,26 @@ class AnthropicProvider(BaseProvider):
                 provider="anthropic",
             ) from e
 
+    def stream_chat(self, messages, tools=None, **kwargs):
+        api_kwargs, _ = self._build_api_kwargs(messages, tools, kwargs)
+        builder_kwargs = self._build_builder_kwargs(api_kwargs, tools)
+        state = self._init_stream_state()
+        start_time = time.time()
+
+        try:
+            with self.client.messages.stream(**api_kwargs) as stream:
+                for event in stream:
+                    result = self._handle_event(event, state)
+                    if result == "STOP":
+                        yield self._finalize_stream(state, builder_kwargs, start_time)
+                    elif result:
+                        yield result
+
+        except anthropic.APIError as e:
+            raise ProviderError(
+                f"Anthropic API streaming error: {e}", provider="anthropic"
+            ) from e
+
     def get_context_window(self) -> int:
         """Returns the context window size for the current model."""
         # Use a generic key to match multiple versions of a model family
@@ -206,24 +256,122 @@ class AnthropicProvider(BaseProvider):
                 return size
         return 4096  # Default to a 4096 for unknown Claude models
 
+    def _build_api_kwargs(self, messages, tools, kwargs):
+        system_prompt, anthropic_messages = self._convert_to_anthropic_messages(
+            messages
+        )
+        api_kwargs = {
+            "model": self.model,
+            "messages": anthropic_messages,
+            "max_tokens": kwargs.pop("max_tokens", 4096),
+            # "stream": True,
+            **kwargs,
+        }
+        if system_prompt:
+            api_kwargs["system"] = system_prompt
 
-def _process_anthropic_message(
-    block: TextBlock, text_accumulator: List[str], metadata: Dict
-) -> None:
+        if tools:
+            api_kwargs["tools"] = self._convert_to_anthropic_tools(tools)
+
+        return api_kwargs, system_prompt
+
+    def _build_builder_kwargs(self, api_kwargs, tools):
+        builder_kwargs = api_kwargs.copy()
+        builder_kwargs["tools"] = tools or []
+        return builder_kwargs
+
+    def _init_stream_state(self):
+        return {
+            "in_progress_tool_calls": {},
+            "final_usage": {},
+            "response_id": "",
+            "model_id": "",
+        }
+
+    def _handle_event(self, event, state):
+        if event.type == "message_start":
+            state["response_id"] = event.message.id
+            state["model_id"] = event.message.model
+            state["final_usage"]["input_tokens"] = event.message.usage.input_tokens
+
+        elif (
+            event.type == "content_block_start"
+            and event.content_block.type == "tool_use"
+        ):
+            state["in_progress_tool_calls"][event.index] = {
+                "id": event.content_block.id,
+                "name": event.content_block.name,
+                "arguments": "",
+            }
+
+        elif event.type == "content_block_delta":
+            return self._handle_block_delta(event, state)
+
+        elif event.type == "content_block_stop":
+            return self._handle_block_stop(event, state)
+
+        elif event.type == "message_delta":
+            state["final_usage"]["output_tokens"] = event.usage.output_tokens
+
+        elif event.type == "message_stop":
+            return "STOP"
+
+        return None
+
+    def _handle_block_delta(self, event, state):
+        if event.delta.type == "text_delta":
+            return ProviderChunk(content=event.delta.text)
+
+        if event.delta.type == "input_json_delta":
+            call = state["in_progress_tool_calls"].get(event.index)
+        if call:
+            call["arguments"] += event.delta.partial_json
+
+    def _handle_block_stop(self, event, state):
+        call = state["in_progress_tool_calls"].get(event.index)
+        if not call:
+            return None
+
+        try:
+            parsed = json.loads(call["arguments"])
+            tool_call = ToolCall(id=call["id"], name=call["name"], arguments=parsed)
+            return ProviderChunk(tool_call_done=tool_call)
+        except Exception as e:
+            return ProviderChunk(error=f"Failed to parse tool arguments: {e}")
+
+    def _finalize_stream(self, state, builder_kwargs, start_time):
+        # Create a usage object with proper attributes
+        usage_obj = type("Usage", (), state["final_usage"])()
+
+        synthetic_response = {
+            "id": state["response_id"],
+            "model": state["model_id"],
+            "status": "completed",
+            "usage": usage_obj,
+        }
+
+        builder = MetadataBuilder(
+            provider_name="anthropic",
+            request_kwargs=builder_kwargs,
+            start_time=start_time,
+        )
+
+        metadata = builder.with_response_obj(
+            type("obj", (object,), synthetic_response)()
+        ).build()
+        return ProviderChunk(final_metadata=metadata)
+
+
+def _process_anthropic_message(block: TextBlock, text_accumulator: List[str]) -> None:
     """Processes a text block from the Anthropic response."""
-    metadata["messages"]["total"] += 1
     if hasattr(block, "text") and block.text:
         text_accumulator.append(block.text)
-        metadata["messages"]["processed"] += 1
-    else:
-        metadata["messages"]["skipped"] += 1
 
 
 def _process_anthropic_tool_use(
-    block: ToolUseBlock, tool_calls: List[ToolCall], metadata: Dict
+    block: ToolUseBlock, tool_calls: List[ToolCall]
 ) -> None:
     """Processes a tool_use block from the Anthropic response."""
-    metadata["tool_calls"]["total"] += 1
 
     tool_id = getattr(block, "id", None)
     tool_name = getattr(block, "name", None)
@@ -233,8 +381,6 @@ def _process_anthropic_tool_use(
             "Skipping tool call due to missing ID or name: %s",
             tool_name or "<unknown>",
         )
-        metadata["tool_calls"]["skipped"] += 1
         return
 
     tool_calls.append(ToolCall(id=tool_id, name=tool_name, arguments=block.input or {}))
-    metadata["tool_calls"]["processed"] += 1

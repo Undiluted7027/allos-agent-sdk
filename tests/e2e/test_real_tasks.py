@@ -8,6 +8,7 @@ from click.testing import CliRunner
 
 from allos.cli.main import main
 from allos.providers.base import ProviderResponse, ToolCall
+from allos.providers.metadata import Metadata
 
 pytestmark = pytest.mark.e2e
 
@@ -25,7 +26,9 @@ def runner() -> CliRunner:
 
 
 @patch("allos.providers.openai.OpenAIProvider.chat")
-def test_task_create_hello_world_script(mock_chat, runner: CliRunner, work_dir: Path):
+def test_task_create_hello_world_script(
+    mock_chat, runner: CliRunner, work_dir: Path, mock_metadata: Metadata
+):
     """
     E2E Test: "Create a Python script that prints Hello World"
     - Mocks the LLM but uses the real Agent, Tools, and Filesystem.
@@ -39,10 +42,13 @@ def test_task_create_hello_world_script(mock_chat, runner: CliRunner, work_dir: 
                 name="write_file",
                 arguments={"path": "hello.py", "content": "print('Hello, World!')"},
             )
-        ]
+        ],
+        metadata=mock_metadata,
     )
     # Turn 2: After writing the file, LLM gives a final answer.
-    response2 = ProviderResponse(content="The file 'hello.py' has been created.")
+    response2 = ProviderResponse(
+        content="The file 'hello.py' has been created.", metadata=mock_metadata
+    )
     mock_chat.side_effect = [response1, response2]
 
     # Invoke the CLI, auto-approving the tool use
@@ -63,7 +69,9 @@ def test_task_create_hello_world_script(mock_chat, runner: CliRunner, work_dir: 
 
 
 @patch("allos.providers.openai.OpenAIProvider.chat")
-def test_task_read_and_count_lines(mock_chat, runner: CliRunner, work_dir: Path):
+def test_task_read_and_count_lines(
+    mock_chat, runner: CliRunner, work_dir: Path, mock_metadata: Metadata
+):
     """
     E2E Test: "Read main.py and count the lines"
     """
@@ -75,10 +83,13 @@ def test_task_read_and_count_lines(mock_chat, runner: CliRunner, work_dir: Path)
     response1 = ProviderResponse(
         tool_calls=[
             ToolCall(id="call_1", name="read_file", arguments={"path": "main.py"})
-        ]
+        ],
+        metadata=mock_metadata,
     )
     # Turn 2: After reading, LLM provides the final answer.
-    response2 = ProviderResponse(content="The file 'main.py' contains 3 lines.")
+    response2 = ProviderResponse(
+        content="The file 'main.py' contains 3 lines.", metadata=mock_metadata
+    )
     mock_chat.side_effect = [response1, response2]
 
     result = runner.invoke(main, ["Read main.py and count the lines"])
@@ -89,7 +100,9 @@ def test_task_read_and_count_lines(mock_chat, runner: CliRunner, work_dir: Path)
 
 
 @patch("allos.providers.openai.OpenAIProvider.chat")
-def test_task_fix_syntax_error(mock_chat, runner: CliRunner, work_dir: Path):
+def test_task_fix_syntax_error(
+    mock_chat, runner: CliRunner, work_dir: Path, mock_metadata: Metadata
+):
     """
     E2E Test: "Fix syntax error in test.py"
     This tests tool chaining: read -> edit
@@ -103,7 +116,8 @@ def test_task_fix_syntax_error(mock_chat, runner: CliRunner, work_dir: Path):
     response1 = ProviderResponse(
         tool_calls=[
             ToolCall(id="call_1", name="read_file", arguments={"path": "test.py"})
-        ]
+        ],
+        metadata=mock_metadata,
     )
     # Turn 2: After reading, LLM identifies the missing colon and decides to edit.
     response2 = ProviderResponse(
@@ -117,11 +131,13 @@ def test_task_fix_syntax_error(mock_chat, runner: CliRunner, work_dir: Path):
                     "replace_with": "def my_function():",
                 },
             )
-        ]
+        ],
+        metadata=mock_metadata,
     )
     # Turn 3: After editing, LLM confirms the fix.
     response3 = ProviderResponse(
-        content="I have fixed the syntax error by adding a colon to the function definition."
+        content="I have fixed the syntax error by adding a colon to the function definition.",
+        metadata=mock_metadata,
     )
     mock_chat.side_effect = [response1, response2, response3]
 
@@ -143,17 +159,20 @@ def test_task_fix_syntax_error(mock_chat, runner: CliRunner, work_dir: Path):
 # --- This is the "final boss" test from test_agent_workflow.py, now as a CLI E2E test ---
 @patch("allos.providers.openai.OpenAIProvider.chat")
 def test_e2e_multi_turn_tool_chaining_workflow(
-    mock_chat, runner: CliRunner, work_dir: Path
+    mock_chat, runner: CliRunner, work_dir: Path, mock_metadata: Metadata
 ):
     """
     Tests a complete agent workflow via the CLI, involving multiple turns and tool chaining.
     """
     # --- Mock Provider Setup ---
     # Turn 1: LLM decides to list the directory
-    response1 = ProviderResponse(tool_calls=[ToolCall("1", "list_directory", {})])
+    response1 = ProviderResponse(
+        tool_calls=[ToolCall("1", "list_directory", {})], metadata=mock_metadata
+    )
     # Turn 2: After seeing the files, LLM decides to read 'instructions.txt'
     response2 = ProviderResponse(
-        tool_calls=[ToolCall("2", "read_file", {"path": "instructions.txt"})]
+        tool_calls=[ToolCall("2", "read_file", {"path": "instructions.txt"})],
+        metadata=mock_metadata,
     )
     # Turn 3: After reading the instructions, LLM decides to write 'app.py'
     response3 = ProviderResponse(
@@ -163,15 +182,18 @@ def test_e2e_multi_turn_tool_chaining_workflow(
                 "write_file",
                 {"path": "app.py", "content": "print('Hello from chained tool!')"},
             )
-        ]
+        ],
+        metadata=mock_metadata,
     )
     # Turn 4: After writing the file, LLM decides to execute it
     response4 = ProviderResponse(
-        tool_calls=[ToolCall("4", "shell_exec", {"command": "python app.py"})]
+        tool_calls=[ToolCall("4", "shell_exec", {"command": "python app.py"})],
+        metadata=mock_metadata,
     )
     # Turn 5: After executing, LLM gives the final answer
     response5 = ProviderResponse(
-        content="I have created and executed the script. The output was 'Hello from chained tool!'."
+        content="I have created and executed the script. The output was 'Hello from chained tool!'.",
+        metadata=mock_metadata,
     )
     mock_chat.side_effect = [response1, response2, response3, response4, response5]
 

@@ -7,6 +7,7 @@ import pytest
 
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import ProviderResponse, ToolCall
+from allos.providers.metadata import Metadata
 
 
 # We can keep the real provider/tool registries, but mock the provider's .chat method
@@ -20,6 +21,7 @@ def test_session_save_and_load_with_filesystem(
     mock_openai_chat,
     provider_name,
     work_dir: Path,
+    mock_metadata: Metadata,
 ):
     """
     Tests the full end-to-end workflow of saving and loading a session to/from the filesystem.
@@ -32,9 +34,12 @@ def test_session_save_and_load_with_filesystem(
     tool_call_response = ProviderResponse(
         tool_calls=[
             ToolCall("1", "write_file", {"path": "test.txt", "content": "hello"})
-        ]
+        ],
+        metadata=mock_metadata,
     )
-    final_answer_response = ProviderResponse(content="File created.")
+    final_answer_response = ProviderResponse(
+        content="File created.", metadata=mock_metadata
+    )
     mock_provider_chat.side_effect = [tool_call_response, final_answer_response]
 
     config = AgentConfig(

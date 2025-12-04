@@ -35,6 +35,7 @@ try:
 except (ImportError, AttributeError):
     logger.debug("Skipped optional provider: anthropic")
 
+
 try:
     from . import chat_completions  # noqa: F401
 except (ImportError, AttributeError):

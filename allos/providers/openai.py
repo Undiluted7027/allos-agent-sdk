@@ -1,7 +1,8 @@
 # allos/providers/openai.py
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+import time
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import openai
 from openai.types.responses import (
@@ -13,9 +14,16 @@ from openai.types.responses import (
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
 from ..utils.logging import logger
-from .base import BaseProvider, Message, MessageRole, ProviderResponse, ToolCall
+from .base import (
+    BaseProvider,
+    Message,
+    MessageRole,
+    ProviderChunk,
+    ProviderResponse,
+    ToolCall,
+)
+from .metadata import MetadataBuilder
 from .registry import provider
-from .utils import _init_metadata
 
 # A mapping of known OpenAI models to their context window sizes (in tokens)
 # This can be expanded over time.
@@ -34,6 +42,8 @@ class OpenAIProvider(BaseProvider):
     An Allos provider for interacting with the OpenAI API, specifically using the
     new Responses API (`/v1/responses`).
     """
+
+    env_var = "OPENAI_API_KEY"
 
     def __init__(self, model: str, api_key: Optional[str] = None, **kwargs: Any):
         """
@@ -146,35 +156,23 @@ class OpenAIProvider(BaseProvider):
         return openai_tools
 
     @staticmethod
-    def _parse_openai_response(response: Response) -> ProviderResponse:
+    def _parse_openai_response(
+        response: Response,
+    ) -> Tuple[Optional[str], List[ToolCall]]:
         """Parses the OpenAI Response object into an Allos ProviderResponse."""
         text_content: list[str] = []
         tool_calls: list[ToolCall] = []
 
-        # --- Metadata Counters ---
-        metadata = _init_metadata(len(response.output) if response.output else 0)
         if not response.output:
-            return ProviderResponse(content=None, tool_calls=[], metadata=metadata)
+            return None, []
 
         for item in response.output:
             if item.type == "message":
-                _process_message(item, text_content, metadata)
+                _process_message(item, text_content)
             elif item.type == "function_call":
-                _process_tool_call(item, tool_calls, metadata)
+                _process_tool_call(item, tool_calls)
 
-        # Aggregate totals
-        metadata["overall"]["processed"] = (
-            metadata["messages"]["processed"] + metadata["tool_calls"]["processed"]
-        )
-        metadata["overall"]["skipped"] = (
-            metadata["messages"]["skipped"] + metadata["tool_calls"]["skipped"]
-        )
-
-        return ProviderResponse(
-            content="".join(text_content) or None,
-            tool_calls=tool_calls,
-            metadata=metadata,
-        )
+        return "".join(text_content) or None, tool_calls
 
     def chat(
         self,
@@ -211,14 +209,32 @@ class OpenAIProvider(BaseProvider):
             api_kwargs["instructions"] = instructions
         if tools:
             api_kwargs["tools"] = self._convert_to_openai_tools(tools)
+            metadata_tools = tools
+        else:
+            metadata_tools = []
 
+        builder_kwargs = api_kwargs.copy()
+        builder_kwargs["tools"] = metadata_tools
+
+        start_time = time.time()
         try:
             response = self.client.responses.create(**api_kwargs)
-            provider_response = self._parse_openai_response(response)
 
-            # We still add the response_id to metadata for potential future use, but we don't use it for state.
-            provider_response.metadata["response_id"] = response.id
-            return provider_response
+            # --- METADATA GENERATION ---
+            builder = MetadataBuilder(
+                provider_name="openai",
+                request_kwargs=builder_kwargs,
+                start_time=start_time,
+            )
+            metadata = builder.with_response_obj(response).build()
+
+            content, tool_calls = self._parse_openai_response(response)
+
+            return ProviderResponse(
+                metadata=metadata,
+                content=content,
+                tool_calls=tool_calls,
+            )
 
         except (
             openai.RateLimitError,
@@ -245,22 +261,186 @@ class OpenAIProvider(BaseProvider):
                 f"OpenAI API error: {e.message}", provider="openai"
             ) from e
 
+    def stream_chat(
+        self,
+        messages: List[Message],
+        tools: Optional[List[BaseTool]] = None,
+        **kwargs: Any,
+    ) -> Iterator[ProviderChunk]:
+        """
+        Sends a request to the OpenAI Responses API and streams the response.
+        """
+        instructions, input_messages = self._convert_to_openai_messages(messages)
+
+        api_kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "input": input_messages,
+            "stream": True,  # Enable streaming
+            **kwargs,
+        }
+        if instructions:
+            api_kwargs["instructions"] = instructions
+        if tools:
+            api_kwargs["tools"] = self._convert_to_openai_tools(tools)
+            metadata_tools = tools
+        else:
+            metadata_tools = []
+
+        builder_kwargs = api_kwargs.copy()
+        builder_kwargs["tools"] = metadata_tools
+
+        start_time = time.time()
+
+        api_call_context = {
+            "builder_kwargs": builder_kwargs,
+            "start_time": start_time,
+        }
+
+        try:
+            stream = self.client.responses.create(**api_kwargs)
+            in_progress_tool_calls: Dict[int, Dict[str, Any]] = {}
+
+            for event in stream:
+                yield from self._dispatch_event(
+                    event, in_progress_tool_calls, api_call_context
+                )
+
+        except openai.APIError as e:
+            raise ProviderError(
+                f"OpenAI API error during streaming: {e}", provider="openai"
+            ) from e
+
     def get_context_window(self) -> int:
         """Returns the context window size for the current model."""
         return MODEL_CONTEXT_WINDOWS.get(self.model, 4096)  # Default to 4k if unknown
+
+    # --- OpenAI Specific Streaming Utility Functions ---
+    def _dispatch_event(self, event, tool_state, _api_call_context):
+        handlers = {
+            "response.output_text.delta": self._handle_text_delta,
+            "response.output_item.added": self._handle_tool_start,
+            "response.function_call_arguments.delta": self._handle_tool_args_delta,
+            "response.output_item.done": self._handle_tool_done,
+            "response.completed": self._handle_completed,
+            "error": self._handle_error,
+        }
+
+        handler = handlers.get(event.type)
+        if handler:
+            yield from handler(event, tool_state, _api_call_context)
+
+    def _handle_text_delta(self, event, _state, _api_call_context):
+        yield ProviderChunk(content=event.delta)
+
+    def _handle_tool_start(self, event, state, _api_call_context):
+        if event.item.type != "function_call":
+            return
+
+        state[event.output_index] = {
+            "id": event.item.call_id,
+            "name": event.item.name,
+            "arguments": "",
+        }
+
+        yield ProviderChunk(
+            tool_call_start={
+                "id": event.item.call_id,
+                "name": event.item.name,
+                "index": event.output_index,
+            }
+        )
+
+    def _handle_tool_args_delta(self, event, state, _api_call_context):
+        if event.output_index not in state:
+            return
+
+        state[event.output_index]["arguments"] += event.delta
+        yield ProviderChunk(tool_call_delta=event.delta)
+
+    def _handle_tool_done(self, event, state, _api_call_context):
+        if event.item.type != "function_call":
+            return
+
+        call_state = state.get(event.output_index)
+        if not call_state:
+            return
+
+        raw_args = call_state["arguments"]
+        try:
+            parsed_args = json.loads(raw_args)
+            tool_call = ToolCall(
+                id=call_state["id"],
+                name=call_state["name"],
+                arguments=parsed_args,
+            )
+            yield ProviderChunk(tool_call_done=tool_call)
+
+        except json.JSONDecodeError as e:
+            yield ProviderChunk(
+                error=f"Failed to parse tool arguments for {call_state['name']}: {e}"
+            )
+
+        finally:
+            del state[event.output_index]
+
+    def _handle_completed(self, event, _state, api_call_context):
+        if event.response and event.response.usage:
+            final_response_obj = event.response
+
+            builder = MetadataBuilder(
+                provider_name="openai",
+                request_kwargs=api_call_context["builder_kwargs"],
+                start_time=api_call_context["start_time"],
+            )
+            metadata = builder.with_response_obj(final_response_obj).build()
+
+        if not metadata.tools.tool_calls and _state:
+            from .metadata import ToolCallDetail
+
+            logger.debug(
+                f"Response object missing tool calls. "
+                f"Extracting {len(_state)} from streaming state."
+            )
+
+            tool_calls_from_state = []
+            for call_state in _state.values():
+                try:
+                    parsed_args = json.loads(call_state.get("arguments", "{}"))
+                    tool_calls_from_state.append(
+                        ToolCallDetail(
+                            tool_call_id=call_state["id"],
+                            tool_name=call_state["name"],
+                            arguments=parsed_args,
+                        )
+                    )
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Failed to parse tool call from state: {e}")
+                    continue
+
+            if tool_calls_from_state:
+                metadata.tools.tool_calls = tool_calls_from_state
+                metadata.tools.total_tool_calls = len(tool_calls_from_state)
+        logger.info(f"Response object has output: {hasattr(event.response, 'output')}")
+        if hasattr(event.response, "output"):
+            logger.info(f"Output items: {len(event.response.output or [])}")
+            for item in event.response.output or []:
+                logger.info(f"  - Item type: {item.type}")
+
+        logger.info(f"Streaming state has {len(_state)} items")
+        logger.info(f"Built metadata has {metadata.tools.total_tool_calls} tool calls")
+
+        yield ProviderChunk(final_metadata=metadata)
+
+    def _handle_error(self, event, _state, _api_call_context):
+        yield ProviderChunk(error=f"API Error: {event.error.message}")
 
 
 # --- OpenAI Specific Utility Functions ---
 
 
-def _process_message(
-    item: ResponseOutputMessage, text_accumulator: list[str], metadata: dict
-) -> None:
-    metadata["messages"]["total"] += 1
+def _process_message(item: ResponseOutputMessage, text_accumulator: list[str]) -> None:
     if not getattr(item, "content", None):
-        metadata["messages"]["skipped"] += 1
         return
-    metadata["messages"]["processed"] += 1
 
     for content_part in item.content:
         if content_part.type == "output_text":
@@ -268,9 +448,8 @@ def _process_message(
 
 
 def _process_tool_call(
-    item: ResponseFunctionToolCall, tool_calls: list[ToolCall], metadata: dict
+    item: ResponseFunctionToolCall, tool_calls: list[ToolCall]
 ) -> None:
-    metadata["tool_calls"]["total"] += 1
     call_id_ = getattr(item, "call_id", None)
     # id_ = getattr(item, "id", None)
     if not call_id_:
@@ -278,7 +457,6 @@ def _process_tool_call(
             "Skipping tool call due to missing call_id: %s",
             getattr(item, "name", "<unknown>"),
         )
-        metadata["tool_calls"]["skipped"] += 1
         return
 
     if getattr(item, "arguments", None):
@@ -293,4 +471,3 @@ def _process_tool_call(
         parsed_arguments = {}
 
     tool_calls.append(ToolCall(id=call_id_, name=item.name, arguments=parsed_arguments))
-    metadata["tool_calls"]["processed"] += 1

@@ -10,7 +10,9 @@ ensuring they are interchangeable within the Allos ecosystem.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
+
+from .metadata import Metadata
 
 
 class MessageRole(str, Enum):
@@ -53,9 +55,28 @@ class Message:
 class ProviderResponse:
     """Standardized response from a provider."""
 
+    metadata: Metadata
     content: Optional[str] = None
     tool_calls: List[ToolCall] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    # metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ProviderChunk:
+    """
+    Represents a single chunk of data yielded from a streaming provider.
+    Only one of the fields should be populated per chunk.
+    """
+
+    content: Optional[str] = None
+    tool_call_start: Optional[Dict[str, Any]] = (
+        None  # e.g., {"id": "call_123", "name": "get_weather", "index": 0}
+    )
+    tool_call_delta: Optional[str] = None  # e.g., '{"location": "S'
+    tool_call_done: Optional[ToolCall] = None  # The fully formed ToolCall object
+    # usage: Optional[Dict[str, Any]] = None  # e.g., {"input_tokens": 10, ...}
+    final_metadata: Optional[Metadata] = None
+    error: Optional[str] = None
 
 
 class BaseProvider(ABC):
@@ -65,6 +86,8 @@ class BaseProvider(ABC):
     All provider implementations must inherit from this class and implement
     the `chat` and `get_context_window` methods.
     """
+
+    env_var: Optional[str] = None
 
     def __init__(self, model: str, **kwargs: Any):
         """
@@ -91,6 +114,22 @@ class BaseProvider(ABC):
 
         Returns:
             A ProviderResponse object containing the LLM's reply.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def stream_chat(
+        self, messages: List[Message], **kwargs: Any
+    ) -> Iterator[ProviderChunk]:
+        """
+        Sends a list of messages to the LLM and streams the response.
+
+        Args:
+            messages: A list of Message objects representing the conversation history.
+            **kwargs: Additional provider-specific parameters for the API call.
+
+        Yields:
+            ProviderChunk: An iterator of chunks representing the streaming response.
         """
         raise NotImplementedError
 

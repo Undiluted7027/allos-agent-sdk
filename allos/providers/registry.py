@@ -49,7 +49,7 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Optional[str]]] = {
         "base_url": "https://api.cohere.ai/compatibility/v1",
         "implementation": "chat_completions",
     },
-    "portkey": {  # ALPHA
+    "portkey": {
         "env_var": "PORTKEY_API_KEY",
         "base_url": "https://api.portkey.ai/v1/",
         "provider": "openai",
@@ -159,14 +159,18 @@ class ProviderRegistry:
 
     @classmethod
     def get_env_var_name(cls, provider_name: str) -> Optional[str]:
-        """Helper to get the expected env var name for a provider."""
+        """
+        Dynamically gets the expected env var name for a provider.
+        It checks aliases first, then the registered provider class itself.
+        """
+        # 1. Check if it's an alias with a specific env var
         if provider_name in OPENAI_COMPATIBLE_PROVIDERS:
-            return OPENAI_COMPATIBLE_PROVIDERS[provider_name]["env_var"]
+            return OPENAI_COMPATIBLE_PROVIDERS[provider_name].get("env_var")
 
-        # Hardcoded defaults for the native implementations
-        defaults = {
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "chat_completions": "OPENAI_API_KEY",  # Default fallback
-        }
-        return defaults.get(provider_name)
+        # 2. Check if it's a natively registered provider
+        if provider_name in _provider_registry:
+            provider_class = _provider_registry[provider_name]
+            return getattr(provider_class, "env_var", None)
+
+        # Return None if no specific variable is found.
+        return None

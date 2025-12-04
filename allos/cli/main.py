@@ -193,6 +193,7 @@ def print_tools(ctx, param, value):
     is_flag=True,
     help="Automatically approve all tool execution requests. Use with caution.",
 )
+@click.option("--stream", is_flag=True, help="Enable streaming of the response.")
 @click.argument("prompt", nargs=-1)  # Capture all remaining arguments as the prompt
 def main(
     verbose: bool,
@@ -206,6 +207,7 @@ def main(
     no_tools: bool,
     session_file: Optional[str],
     auto_approve: bool,
+    stream: bool,
     prompt: tuple,
 ):
     """
@@ -257,18 +259,32 @@ def main(
 
     # If all checks pass, proceed to run the agent.
     full_prompt = " ".join(prompt)
-    run_agent(
-        full_prompt,
-        provider,
-        model,
-        base_url,
-        api_key,
-        max_tokens,
-        list(tool_names),
-        no_tools,
-        session_file,
-        auto_approve,
-    )
+    if stream:
+        run_agent_stream(
+            full_prompt,
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            list(tool_names),
+            no_tools,
+            session_file,
+            auto_approve,
+        )
+    else:
+        run_agent(
+            full_prompt,
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            list(tool_names),
+            no_tools,
+            session_file,
+            auto_approve,
+        )
 
 
 # --- Helper Functions ---
@@ -467,3 +483,64 @@ def run_agent(
                 border_style="red",
             )
         )
+
+
+def run_agent_stream(
+    prompt: str,
+    provider: str,
+    model: Optional[str],
+    base_url: Optional[str],
+    api_key: Optional[str],
+    max_tokens: Optional[int],
+    tool_names: List[str],
+    no_tools: bool,
+    session_file: Optional[str],
+    auto_approve: bool,
+):
+    """Initializes and runs the agent in streaming mode, printing chunks to the console."""
+    model = _determine_model(provider, model)
+    if not _validate_api_key(provider, api_key):
+        return
+
+    console.print(f"[dim] Using {provider} with model {model} (streaming).[/dim]")
+    try:
+        agent = _initialize_agent(
+            provider,
+            model,
+            base_url,
+            api_key,
+            max_tokens,
+            tool_names,
+            no_tools,
+            session_file,
+            auto_approve,
+        )
+        if agent.config.auto_approve and not agent.config.no_tools:
+            console.print(
+                "[bold yellow]⚠️ Auto-approve is enabled. All tool executions will be approved automatically.[/bold yellow]"
+            )
+
+        # --- Render the stream to the console ---
+        console.print(Panel("Streaming Response", border_style="green"), end="")
+        # console.print("\n[bold assistant]Agent:[/] ", end="")
+
+        for chunk in agent.stream_run(prompt):
+            if chunk.content:
+                console.print(chunk.content, end="", style="blue")
+            elif chunk.tool_call_start:
+                console.print(
+                    f"\n[yellow]└─ Calling Tool: {chunk.tool_call_start['name']}(...)[/]"
+                )
+            elif chunk.error:
+                console.print(f"\n[bold red]Stream Error: {chunk.error}[/]")
+
+        console.print()  # Final newline
+
+        # --- Save Session if specified ---
+        if session_file:
+            agent.save_session(session_file)
+
+    except AllosError as e:
+        console.print(f"\n[bold red]An error occurred:[/] {e}")
+    except Exception as e:
+        console.print(f"\n[bold red]An unexpected error occurred:[/] {e}")

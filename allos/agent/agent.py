@@ -1,9 +1,21 @@
 # allos/agent/agent.py
 
 import json
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypedDict,
+    Union,
+    cast,
+)
 
 from rich.console import Console
 from rich.panel import Panel
@@ -11,12 +23,16 @@ from rich.syntax import Syntax
 
 from ..context import ConversationContext
 from ..providers import ProviderRegistry
-from ..providers.base import BaseProvider, ProviderResponse, ToolCall
+from ..providers.base import BaseProvider, ProviderChunk, ProviderResponse, ToolCall
+from ..providers.metadata import Metadata, ToolCallDetail, TurnLog, TurnTokensUsed
 from ..tools import ToolRegistry
 from ..tools.base import BaseTool, ToolPermission
 from ..utils.errors import AllosError, ContextWindowExceededError, ToolExecutionError
 from ..utils.logging import logger
+from ..utils.modality_counter import calculate_modality_usage
 from ..utils.token_counter import count_tokens
+
+ToolExecutionResult = Tuple[Dict[str, Any], ToolCallDetail]
 
 
 @dataclass
@@ -35,6 +51,15 @@ class AgentConfig:
     # api_key, exclude from repr for security logs (for providers like Together AI)
     api_key: Optional[str] = field(default=None, repr=False)
     # Provider-specific kwargs can be added here if needed in the future
+
+
+class CumulativeState(TypedDict):
+    all_tool_details: List[ToolCallDetail]
+    input_tokens: int
+    output_tokens: int
+    cost: float
+    last_metadata: Optional[Metadata]
+    turn_history: List[Any]
 
 
 class Agent:
@@ -134,11 +159,36 @@ class Agent:
             Panel(f"[bold user]User:[/] {prompt}", title="Input", border_style="cyan")
         )
 
+        # Initialize cumulative tracking
+        cumulative_state: CumulativeState = {
+            "all_tool_details": [],
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost": 0.0,
+            "last_metadata": None,
+            "turn_history": [],
+        }
+
         for i in range(self.config.max_iterations):
             logger.debug(f"Starting agent iteration {i + 1}")
+            turn_start_time = time.time()
 
             # 1. Get LLM response based on the CURRENT full context
             llm_response = self._get_llm_response()
+
+            turn_duration_ms = int((time.time() - turn_start_time) * 1000)
+
+            # Track this turn in history
+            self._record_turn(
+                turn_number=i + 1,
+                metadata=llm_response.metadata,
+                tool_calls=llm_response.tool_calls,
+                duration_ms=turn_duration_ms,
+                cumulative_state=cumulative_state,
+            )
+
+            # Accumulate usage state
+            self._accumulate_usage_stats(llm_response.metadata, cumulative_state)
 
             # 2. Add the assistant's thinking/action to the context. This is now part of the history.
             self.context.add_assistant_message(
@@ -156,20 +206,311 @@ class Agent:
                         border_style="green",
                     )
                 )
+                self._finalize_run_metadata(cumulative_state)
                 return final_answer
             # 4. If there are tool calls, execute them.
-            tool_results = self._execute_tool_calls(llm_response.tool_calls)
+            tool_execution_results = self._execute_tool_calls(llm_response.tool_calls)
 
             # 5. Add the tool results to the context.
-            for tool_call, result in zip(llm_response.tool_calls, tool_results):
+            for tool_call, (result, tool_detail) in zip(
+                llm_response.tool_calls, tool_execution_results
+            ):
+                cumulative_state["all_tool_details"].append(tool_detail)
                 self.context.add_tool_result_message(tool_call.id, json.dumps(result))
 
             # The loop will now continue with the tool results in the context.
 
         # If loop finishes, it means max iterations were reached
+        self._finalize_run_metadata(cumulative_state)
         exhausted_message = "Agent reached maximum iterations without a final answer."
         self.console.print(Panel(exhausted_message, title="Error", border_style="red"))
         raise AllosError(exhausted_message)
+
+    def _record_turn(
+        self,
+        turn_number: int,
+        metadata: Metadata,
+        tool_calls: List[ToolCall],
+        duration_ms: int,
+        cumulative_state: CumulativeState,
+    ) -> None:
+        """Records a turn in the turn history."""
+        turn_log = TurnLog(
+            turn_number=turn_number,
+            model_used=metadata.model.model_id,
+            content_type="tool_calls" if tool_calls else "text_response",
+            tokens_used=TurnTokensUsed(
+                input_tokens=metadata.usage.input_tokens,
+                output_tokens=metadata.usage.output_tokens,
+            ),
+            duration_ms=duration_ms,
+            tools_called=[tc.name for tc in tool_calls],
+            stop_reason=metadata.quality_signals.finish_reason,
+        )
+        cumulative_state["turn_history"].append(turn_log)
+
+    def _finalize_run_metadata(self, cumulative_state: CumulativeState) -> None:
+        """Creates aggregate metadata and stores it as instance variable."""
+        if cumulative_state["last_metadata"]:
+            self.last_run_metadata: Optional[Metadata] = (
+                self._create_aggregate_metadata(
+                    cumulative_state["last_metadata"],
+                    cumulative_state["all_tool_details"],
+                    cumulative_state["turn_history"],
+                    cumulative_state["input_tokens"],
+                    cumulative_state["output_tokens"],
+                    cumulative_state["cost"],
+                )
+            )
+        else:
+            self.last_run_metadata = None
+
+    def _create_aggregate_metadata(
+        self,
+        base_metadata: Metadata,
+        all_tool_details: List[ToolCallDetail],
+        turn_history: List[TurnLog],
+        total_input_tokens: int,
+        total_output_tokens: int,
+        total_cost: float,
+    ) -> Metadata:
+        """Creates aggregated metadata for entire agentic run."""
+        from copy import deepcopy
+
+        aggregate = deepcopy(base_metadata)
+
+        # Update turns
+        aggregate.turns.total_turns = len(turn_history)
+        aggregate.turns.turn_history = turn_history
+        aggregate.turns.max_turns_reached = (
+            len(turn_history) >= self.config.max_iterations
+        )
+
+        # Update tool calls
+        aggregate.tools.total_tool_calls = len(all_tool_details)
+        aggregate.tools.tool_calls = all_tool_details
+        # aggregate.tools.tool_calls = [
+        #     ToolCallDetail(
+        #         tool_call_id=tc.id,
+        #         tool_name=tc.name,
+        #         arguments=tc.arguments,
+        #     )
+        #     for tc in all_tool_calls
+        # ]
+
+        # Update usage
+        aggregate.usage.total_tokens = total_input_tokens + total_output_tokens
+        aggregate.usage.input_tokens = total_input_tokens
+        aggregate.usage.output_tokens = total_output_tokens
+
+        if aggregate.usage.estimated_cost:
+            aggregate.usage.estimated_cost.total_usd = total_cost
+
+        return aggregate
+
+    def stream_run(self, prompt: str) -> Iterator[ProviderChunk]:
+        """
+        Runs the agentic loop in a streaming fashion, yielding chunks back to the caller.
+        """
+        self.context.add_user_message(prompt)
+        # Initialize cumulative tracking across all iterations
+        cumulative_state: CumulativeState = {
+            "all_tool_details": [],
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost": 0.0,
+            "last_metadata": None,
+            "turn_history": [],
+        }
+
+        for i in range(self.config.max_iterations):
+            logger.debug(f"Starting streaming agent iteration {i + 1}")
+            self.console.print("[dim]🧠 Thinking (streaming)...[/dim]")
+
+            turn_start_time = time.time()
+
+            # Process a single streaming iteration
+            iteration_result = yield from self._process_streaming_iteration(
+                cumulative_state,
+                turn_start_time,
+            )
+
+            turn_duration_ms = int((time.time() - turn_start_time) * 1000)
+
+            # --- Construct and store the TurnLog for this iteration ---
+            last_meta: Optional[Metadata] = cumulative_state.get("last_metadata")
+            if last_meta:
+                last_meta.latency.time_to_first_token_ms = iteration_result.get(
+                    "ttft_ms"
+                )
+                turn_log = TurnLog(
+                    turn_number=i + 1,
+                    model_used=last_meta.model.model_id,
+                    content_type=(
+                        "tool_calls"
+                        if iteration_result["tool_calls"]
+                        else "text_response"
+                    ),
+                    tokens_used=TurnTokensUsed(
+                        input_tokens=last_meta.usage.input_tokens,
+                        output_tokens=last_meta.usage.output_tokens,
+                    ),
+                    duration_ms=turn_duration_ms,
+                    tools_called=[tc.name for tc in iteration_result["tool_calls"]],
+                    stop_reason=last_meta.quality_signals.finish_reason,
+                )
+                cumulative_state["turn_history"].append(turn_log)
+
+            # Update context with iteration results
+            self._update_context_after_streaming(
+                iteration_result["content"], iteration_result["tool_calls"]
+            )
+
+            # If no tools were called, we're done
+            if not iteration_result["tool_calls"]:
+                yield from self._yield_final_aggregate_metadata(cumulative_state)
+                return
+
+            # Execute tools and prepare for next iteration
+            self._execute_and_record_tools(
+                iteration_result["tool_calls"], cumulative_state
+            )
+
+        # If loop finishes, we've exceeded max iterations
+        raise AllosError("Agent reached maximum iterations without a final answer.")
+
+    def _process_streaming_iteration(
+        self,
+        cumulative_state: CumulativeState,
+        turn_start_time: float,
+    ) -> Generator[ProviderChunk, None, Dict[str, Any]]:
+        """
+        Processes a single streaming iteration, yielding chunks and accumulating state.
+
+        Args:
+            cumulative_state: TypedDict tracking cumulative stats across all iterations.
+            turn_start_time: Time when the turn started.
+
+        Yields:
+            ProviderChunk: Chunks from the provider stream.
+
+        Returns:
+            Dict containing accumulated content and tool_calls from this iteration.
+        """
+        accumulated_content: List[str] = []
+        iteration_tool_calls: List[ToolCall] = []
+
+        # TTFT Calculation State
+        time_to_first_token_ms: Optional[int] = None
+        first_chunk_received = False
+
+        # Get streaming response from provider
+        stream = self._get_provider_stream()
+
+        # Process each chunk from the stream
+        for chunk in stream:
+            # Calculate TTFT on first content chunk
+            if not first_chunk_received and chunk.content:
+                time_to_first_token_ms = int((time.time() - turn_start_time) * 1000)
+                first_chunk_received = True
+
+            # Accumulate chunk data
+            if chunk.content:
+                accumulated_content.append(chunk.content)
+
+            if chunk.tool_call_done:
+                iteration_tool_calls.append(chunk.tool_call_done)
+                # cumulative_state["all_tool_details"].append(chunk.tool_call_done)
+
+            if chunk.final_metadata:
+                self._update_chunk_metadata(chunk, iteration_tool_calls)
+                self._accumulate_usage_stats(chunk.final_metadata, cumulative_state)
+                yield chunk
+            else:
+                yield chunk
+
+            if chunk.error:
+                raise AllosError(f"Streaming provider error: {chunk.error}")
+
+        # Return iteration results
+        return {
+            "content": "".join(accumulated_content),
+            "tool_calls": iteration_tool_calls,
+            "ttft_ms": time_to_first_token_ms,
+        }
+
+    def _get_provider_stream(self) -> Iterator[ProviderChunk]:
+        """Gets the streaming iterator from the provider with configured parameters."""
+        chat_kwargs: Dict[str, Any] = {}
+        if self.config.max_tokens:
+            chat_kwargs["max_tokens"] = self.config.max_tokens
+        if self.tools:
+            chat_kwargs["tools"] = self.tools
+
+        return self.provider.stream_chat(
+            messages=self.context.messages[:], **chat_kwargs
+        )
+
+    def _update_chunk_metadata(
+        self, chunk: ProviderChunk, tool_calls: List[ToolCall]
+    ) -> None:
+        """Updates chunk metadata with tool call information for this iteration."""
+        if chunk.final_metadata:
+            chunk.final_metadata.tools.total_tool_calls = len(tool_calls)
+            chunk.final_metadata.tools.tool_calls = [
+                ToolCallDetail(
+                    tool_call_id=tc.id,
+                    tool_name=tc.name,
+                    arguments=tc.arguments,
+                )
+                for tc in tool_calls
+            ]
+
+    def _accumulate_usage_stats(
+        self, metadata: Metadata, cumulative_state: CumulativeState
+    ) -> None:
+        """Accumulates token usage and cost statistics across iterations."""
+        cumulative_state["last_metadata"] = metadata
+        cumulative_state["input_tokens"] += metadata.usage.input_tokens
+        cumulative_state["output_tokens"] += metadata.usage.output_tokens
+
+        if metadata.usage.estimated_cost:
+            cumulative_state["cost"] += metadata.usage.estimated_cost.total_usd
+
+    def _update_context_after_streaming(
+        self, content: str, tool_calls: List[ToolCall]
+    ) -> None:
+        """Updates conversation context with streaming iteration results."""
+        self.context.add_assistant_message(
+            content=content if content else None,
+            tool_calls=tool_calls,
+        )
+
+    def _yield_final_aggregate_metadata(
+        self, cumulative_state: CumulativeState
+    ) -> Iterator[ProviderChunk]:
+        """Creates and yields final aggregate metadata if tool calls were made."""
+        if cumulative_state["last_metadata"]:  # and cumulative_state["all_tool_calls"]:
+            final_aggregate = self._create_aggregate_metadata(
+                cumulative_state["last_metadata"],
+                cumulative_state["all_tool_details"],
+                cumulative_state["turn_history"],
+                cumulative_state["input_tokens"],
+                cumulative_state["output_tokens"],
+                cumulative_state["cost"],
+            )
+            yield ProviderChunk(final_metadata=final_aggregate)
+
+    def _execute_and_record_tools(
+        self, tool_calls: List[ToolCall], cumulative_state: CumulativeState
+    ) -> None:
+        """Executes tool calls and records results in context."""
+        tool_execution_results = self._execute_tool_calls(tool_calls)
+
+        # Store enriched tool details and add results to context
+        for tool_call, (result, tool_detail) in zip(tool_calls, tool_execution_results):
+            cumulative_state["all_tool_details"].append(tool_detail)
+            self.context.add_tool_result_message(tool_call.id, json.dumps(result))
 
     def _get_llm_response(self) -> ProviderResponse:
         """Sends the current context to the provider and gets a response."""
@@ -193,6 +534,13 @@ class Agent:
                 f"Please start a new session."
             )
             raise ContextWindowExceededError(error_msg)
+        # --- Pre-Computation Step (Future) ---
+        # This step would analyze the input for multi-model content.
+        # The result of this can be passed to MetadataBuilder later.
+        modality_details = calculate_modality_usage(  # noqa: F841
+            self.context.messages[:]
+        )
+        # `modality_details` would then be stored and injected into the metadata object when it's built.
 
         logger.debug(
             f"Context size check OK. Estimated tokens: {estimated_tokens}/{context_window}"
@@ -214,9 +562,11 @@ class Agent:
         # DO NOT modify context here. The run loop is responsible for that.
         return response
 
-    def _execute_tool_calls(self, tool_calls: List[ToolCall]) -> List[dict]:
+    def _execute_tool_calls(
+        self, tool_calls: List[ToolCall]
+    ) -> List[ToolExecutionResult]:
         """Executes a list of tool calls after checking permissions."""
-        results = []
+        results: List[ToolExecutionResult] = []
         for tool_call in tool_calls:
             tool_name = tool_call.name
             tool_args = tool_call.arguments
@@ -229,6 +579,10 @@ class Agent:
                 Panel(panel_content, title="Tool Call Requested", border_style="yellow")
             )
 
+            tool_start_time = time.time()
+            status = "success"
+            result_dict = {}
+
             try:
                 tool = ToolRegistry.get_tool(tool_name)
 
@@ -238,11 +592,10 @@ class Agent:
 
                 # Validate and execute
                 tool.validate_arguments(tool_args)
-                result = tool.execute(**tool_args)
-                results.append(result)
+                result_dict = tool.execute(**tool_args)
 
                 result_syntax = Syntax(
-                    json.dumps(result, indent=2),
+                    json.dumps(result_dict, indent=2),
                     "json",
                     theme="monokai",
                     line_numbers=False,
@@ -256,11 +609,21 @@ class Agent:
                 )
 
             except (AllosError, Exception) as e:
-                error_result = {"status": "error", "message": str(e)}
-                results.append(error_result)
+                status = "error"
+                result_dict = {"status": "error", "message": str(e)}
                 self.console.print(
                     Panel(str(e), title=f"Tool Error: {tool_name}", border_style="red")
                 )
+            execution_time_ms = int((time.time() - tool_start_time) * 1000)
+
+            tool_detail = ToolCallDetail(
+                tool_call_id=tool_call.id,
+                tool_name=tool_call.name,
+                arguments=tool_call.arguments,
+                execution_time_ms=execution_time_ms,
+                status=status,
+            )
+            results.append((result_dict, tool_detail))
 
         return results
 

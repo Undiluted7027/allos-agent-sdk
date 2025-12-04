@@ -5,12 +5,13 @@ from unittest.mock import patch
 
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import ProviderResponse, ToolCall
+from allos.providers.metadata import Metadata
 
 
 @patch("rich.console.Console.input", return_value="y")  # Auto-approve all tool calls
 @patch("allos.agent.agent.ProviderRegistry.get_provider")
 def test_multi_turn_tool_chaining_workflow(
-    mock_get_provider, mock_input, work_dir: Path
+    mock_get_provider, mock_input, work_dir: Path, mock_metadata: Metadata
 ):
     """
     Tests a complete agent workflow involving multiple turns and tool chaining.
@@ -27,11 +28,14 @@ def test_multi_turn_tool_chaining_workflow(
 
     # Define the sequence of LLM responses
     # Turn 1: LLM decides to list the directory
-    response1 = ProviderResponse(tool_calls=[ToolCall("1", "list_directory", {})])
+    response1 = ProviderResponse(
+        tool_calls=[ToolCall("1", "list_directory", {})], metadata=mock_metadata
+    )
 
     # Turn 2: After seeing the files, LLM decides to read 'instructions.txt'
     response2 = ProviderResponse(
-        tool_calls=[ToolCall("2", "read_file", {"path": "instructions.txt"})]
+        tool_calls=[ToolCall("2", "read_file", {"path": "instructions.txt"})],
+        metadata=mock_metadata,
     )
 
     # Turn 3: After reading the instructions, LLM decides to write 'app.py'
@@ -42,17 +46,26 @@ def test_multi_turn_tool_chaining_workflow(
                 "write_file",
                 {"path": "app.py", "content": "print('Hello from chained tool!')"},
             )
-        ]
+        ],
+        metadata=mock_metadata,
     )
 
     # Turn 4: After writing the file, LLM decides to execute it
     response4 = ProviderResponse(
-        tool_calls=[ToolCall("4", "shell_exec", {"command": "python app.py"})]
+        tool_calls=[ToolCall("4", "shell_exec", {"command": "python app.py"})],
+        metadata=mock_metadata,
     )
 
     # Turn 5: After executing, LLM gives the final answer
     response5 = ProviderResponse(
-        content="I have created and executed the script as instructed. The output was 'Hello from chained tool!'."
+        content="I have created and executed the script as instructed. The output was 'Hello from chained tool!'.",
+        metadata=mock_metadata,
+    )
+
+    # Turn 5: After executing, LLM gives the final answer
+    response5 = ProviderResponse(
+        content="I have created and executed the script as instructed. The output was 'Hello from chained tool!'.",
+        metadata=mock_metadata,
     )
 
     mock_provider.chat.side_effect = [

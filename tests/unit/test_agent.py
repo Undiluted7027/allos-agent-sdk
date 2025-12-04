@@ -6,6 +6,7 @@ import pytest
 
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import ProviderResponse, ToolCall
+from allos.providers.metadata import Metadata
 from allos.tools.base import ToolPermission
 from allos.utils.errors import AllosError, ContextWindowExceededError
 
@@ -33,10 +34,12 @@ class TestAgent:
         assert agent.provider == mock_get_provider.return_value
         assert len(agent.tools) == 2
 
-    def test_run_simple_chat(self, mock_get_provider):
+    def test_run_simple_chat(self, mock_get_provider, mock_metadata: Metadata):
         """Test a simple run with no tool calls."""
         mock_provider = mock_get_provider.return_value
-        mock_provider.chat.return_value = ProviderResponse(content="Final Answer")
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Final Answer", metadata=mock_metadata
+        )
 
         config = AgentConfig(provider_name="test", model="test")
         agent = Agent(config)
@@ -49,7 +52,11 @@ class TestAgent:
 
     @patch("allos.agent.agent.Agent._check_tool_permission", return_value=True)
     def test_run_with_one_tool_call(
-        self, mock_check_permission, mock_get_provider, mock_get_tool
+        self,
+        mock_check_permission,
+        mock_get_provider,
+        mock_get_tool,
+        mock_metadata: Metadata,
     ):
         """Test a run that involves a single tool call and then a final answer."""
         mock_provider = mock_get_provider.return_value
@@ -58,9 +65,12 @@ class TestAgent:
         mock_tool.execute.return_value = {"status": "success", "results": "found"}
 
         tool_call_response = ProviderResponse(
-            tool_calls=[ToolCall("1", "search", {"query": "allos"})]
+            tool_calls=[ToolCall("1", "search", {"query": "allos"})],
+            metadata=mock_metadata,
         )
-        final_answer_response = ProviderResponse(content="The answer is Allos.")
+        final_answer_response = ProviderResponse(
+            content="The answer is Allos.", metadata=mock_metadata
+        )
         mock_provider.chat.side_effect = [tool_call_response, final_answer_response]
 
         config = AgentConfig(provider_name="test", model="test", tool_names=["search"])
@@ -74,11 +84,13 @@ class TestAgent:
         # Context: user, assistant (tool_call), user (tool_result), assistant (final)
         assert len(agent.context) == 4
 
-    def test_max_iterations_reached(self, mock_get_provider, mock_get_tool):
+    def test_max_iterations_reached(
+        self, mock_get_provider, mock_get_tool, mock_metadata: Metadata
+    ):
         """Test that the agent stops and raises an error if max_iterations is reached."""
         mock_provider = mock_get_provider.return_value
         mock_provider.chat.return_value = ProviderResponse(
-            tool_calls=[ToolCall("1", "fake_tool", {})]
+            tool_calls=[ToolCall("1", "fake_tool", {})], metadata=mock_metadata
         )
 
         config = AgentConfig(provider_name="test", model="test", max_iterations=3)
@@ -125,7 +137,11 @@ class TestAgent:
 
     @patch("allos.agent.agent.Agent._check_tool_permission", return_value=False)
     def test_tool_execution_fails_on_permission_denied(
-        self, mock_check_permission, mock_get_provider, mock_get_tool
+        self,
+        mock_check_permission,
+        mock_get_provider,
+        mock_get_tool,
+        mock_metadata: Metadata,
     ):
         """Test that a tool call is skipped if permission is denied."""
         mock_provider = mock_get_provider.return_value
@@ -133,10 +149,12 @@ class TestAgent:
         mock_tool.name = "denied_tool"
 
         # The LLM asks to use the tool
-        llm_response = ProviderResponse(tool_calls=[ToolCall("1", "denied_tool", {})])
+        llm_response = ProviderResponse(
+            tool_calls=[ToolCall("1", "denied_tool", {})], metadata=mock_metadata
+        )
         # The LLM provides a final answer in the next turn
         final_answer_response = ProviderResponse(
-            content="Okay, I will not use the tool."
+            content="Okay, I will not use the tool.", metadata=mock_metadata
         )
         mock_provider.chat.side_effect = [llm_response, final_answer_response]
 
@@ -258,10 +276,14 @@ class TestAgent:
         # Ensure the provider's chat method was never called
         mock_provider.chat.assert_not_called()
 
-    def test_run_passes_max_tokens_to_provider(self, mock_get_provider):
+    def test_run_passes_max_tokens_to_provider(
+        self, mock_get_provider, mock_metadata: Metadata
+    ):
         """Test that max_tokens is passed to provider.chat."""
         mock_provider = mock_get_provider.return_value
-        mock_provider.chat.return_value = ProviderResponse(content="Answer")
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Answer", metadata=mock_metadata
+        )
 
         config = AgentConfig(provider_name="test", model="test", max_tokens=50)
         agent = Agent(config)

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import ProviderResponse, ToolCall
+from allos.providers.metadata import Metadata
 
 # --- File Tool Integration Tests ---
 
@@ -46,7 +47,9 @@ def test_file_tools_integration_workflow(work_dir: Path):
 
 
 @patch("rich.console.Console.input", return_value="y")
-def test_shell_exec_with_permission_granted(mock_input, work_dir: Path):
+def test_shell_exec_with_permission_granted(
+    mock_input, work_dir: Path, mock_metadata: Metadata
+):
     """Tests running shell_exec when the user grants permission."""
     config = AgentConfig(
         provider_name="openai", model="test", tool_names=["shell_exec"]
@@ -57,10 +60,13 @@ def test_shell_exec_with_permission_granted(mock_input, work_dir: Path):
         # --- FIX: Use side_effect to provide a sequence of responses ---
         # Turn 1: LLM requests the tool.
         response1 = ProviderResponse(
-            tool_calls=[ToolCall("1", "shell_exec", {"command": "echo 'Success'"})]
+            tool_calls=[ToolCall("1", "shell_exec", {"command": "echo 'Success'"})],
+            metadata=mock_metadata,
         )
         # Turn 2: After the tool succeeds, LLM gives a final answer.
-        response2 = ProviderResponse(content="The command was successful.")
+        response2 = ProviderResponse(
+            content="The command was successful.", metadata=mock_metadata
+        )
         mock_chat.side_effect = [response1, response2]
 
         agent.run("test")
@@ -81,7 +87,9 @@ def test_shell_exec_with_permission_granted(mock_input, work_dir: Path):
 
 
 @patch("rich.console.Console.input", return_value="n")  # Deny permission
-def test_shell_exec_with_permission_denied(mock_input, work_dir: Path):
+def test_shell_exec_with_permission_denied(
+    mock_input, work_dir: Path, mock_metadata: Metadata
+):
     """Tests that the agent recovers when the user denies permission."""
     config = AgentConfig(
         provider_name="openai", model="test", tool_names=["shell_exec"]
@@ -92,10 +100,13 @@ def test_shell_exec_with_permission_denied(mock_input, work_dir: Path):
         # --- FIX: Use side_effect for a smarter mock ---
         # Turn 1: LLM requests the tool.
         response1 = ProviderResponse(
-            tool_calls=[ToolCall("1", "shell_exec", {"command": "echo 'Failure'"})]
+            tool_calls=[ToolCall("1", "shell_exec", {"command": "echo 'Failure'"})],
+            metadata=mock_metadata,
         )
         # Turn 2: After permission is denied, LLM sees the error and gives a text response.
-        response2 = ProviderResponse(content="I cannot proceed without permission.")
+        response2 = ProviderResponse(
+            content="I cannot proceed without permission.", metadata=mock_metadata
+        )
         mock_chat.side_effect = [response1, response2]
 
         agent.run("test")

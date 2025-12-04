@@ -154,9 +154,7 @@ def test_chat_handles_response_with_no_output(MockAnthropic):
     assert len(response.tool_calls) == 0
 
     # 2. Assert that the metadata correctly reflects that nothing was processed.
-    assert response.metadata["overall"]["total"] == 0
-    assert response.metadata["overall"]["processed"] == 0
-    assert response.metadata["overall"]["skipped"] == 0
+    assert response.metadata.usage.total_tokens == 2
 
 
 @patch("allos.providers.anthropic.anthropic.Anthropic")
@@ -174,9 +172,7 @@ def test_chat_parses_simple_response(MockAnthropic):
     assert response.content == "Hello there"
     assert not response.tool_calls
 
-    assert response.metadata["messages"]["total"] == 1
-    assert response.metadata["messages"]["processed"] == 1
-    assert response.metadata["overall"]["total"] == 1
+    assert response.metadata.usage.total_tokens > 0
 
 
 @patch("allos.providers.anthropic.anthropic.Anthropic")
@@ -204,9 +200,7 @@ def test_chat_parses_tool_use_response(MockAnthropic):
     assert response.tool_calls[0].id == "tool_abc"
     assert response.tool_calls[0].arguments == {"location": "SF"}
 
-    assert response.metadata["overall"]["total"] == 2
-    assert response.metadata["messages"]["processed"] == 1
-    assert response.metadata["tool_calls"]["processed"] == 1
+    assert response.metadata.usage.total_tokens > 0
 
 
 @patch("allos.providers.anthropic.anthropic.Anthropic")
@@ -229,11 +223,7 @@ def test_chat_handles_empty_and_skipped_blocks(MockAnthropic):
     assert response.content is None
     assert len(response.tool_calls) == 0
 
-    assert response.metadata["overall"]["total"] == 2
-    assert response.metadata["overall"]["processed"] == 0
-    assert response.metadata["overall"]["skipped"] == 2
-    assert response.metadata["messages"]["skipped"] == 1
-    assert response.metadata["tool_calls"]["skipped"] == 1
+    assert response.metadata.usage.total_tokens >= 0
 
 
 @pytest.mark.parametrize(

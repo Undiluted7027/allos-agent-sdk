@@ -13,6 +13,17 @@ from _pytest.logging import LogCaptureFixture
 from pytest_mock import MockerFixture
 
 from allos.providers.base import BaseProvider, ProviderResponse, ToolCall
+from allos.providers.metadata import (
+    Latency,
+    Metadata,
+    ModelConfiguration,
+    ModelInfo,
+    ProviderSpecific,
+    QualitySignals,
+    SdkInfo,
+    ToolInfo,
+    Usage,
+)
 from allos.tools.base import BaseTool
 
 
@@ -179,6 +190,7 @@ def configured_caplog(
 @pytest.fixture
 def mock_provider_factory(
     mocker: MockerFixture,
+    mock_metadata: Metadata,
 ) -> Callable[..., mock.MagicMock]:
     """
     Pytest fixture that returns a factory for creating mock LLM providers.
@@ -204,7 +216,9 @@ def mock_provider_factory(
                 )
 
         mock_response = ProviderResponse(
-            content=response_content, tool_calls=parsed_tool_calls
+            content=response_content,
+            tool_calls=parsed_tool_calls,
+            metadata=mock_metadata,
         )
         mock_provider.chat.return_value = mock_response
         return mock_provider
@@ -260,4 +274,23 @@ def mock_get_provider(mocker, mock_provider_instance):
     return mocker.patch(
         "allos.agent.agent.ProviderRegistry.get_provider",
         return_value=mock_provider_instance,
+    )
+
+
+@pytest.fixture
+def mock_metadata() -> Metadata:
+    """Provides a default, valid Metadata object for tests."""
+    return Metadata(
+        status="success",
+        model=ModelInfo(
+            provider="mock",
+            model_id="mock-model",
+            configuration=ModelConfiguration(max_output_tokens=8192),
+        ),
+        usage=Usage(),
+        latency=Latency(total_duration_ms=100),
+        tools=ToolInfo(tools_available=[]),
+        quality_signals=QualitySignals(),
+        provider_specific=ProviderSpecific(),
+        sdk=SdkInfo(sdk_version="test"),
     )

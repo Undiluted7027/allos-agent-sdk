@@ -2,7 +2,8 @@
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import openai
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
@@ -10,9 +11,16 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
 from ..utils.logging import logger
-from .base import BaseProvider, Message, MessageRole, ProviderResponse, ToolCall
+from .base import (
+    BaseProvider,
+    Message,
+    MessageRole,
+    ProviderChunk,
+    ProviderResponse,
+    ToolCall,
+)
+from .metadata import MetadataBuilder
 from .registry import provider
-from .utils import _init_metadata
 
 
 @provider("chat_completions")
@@ -27,6 +35,10 @@ class ChatCompletionsProvider(BaseProvider):
 
     To use with a 3rd party service, simply provide the `base_url` and the appropriate `api_key`.
     """
+
+    # This is a fallback variable. This provider automatically selects the env_var
+    # based on --provider / -p flag in CLI and provider argument to AgentConfig.
+    env_var = "OPENAI_API_KEY"
 
     def __init__(
         self,
@@ -141,21 +153,14 @@ class ChatCompletionsProvider(BaseProvider):
         return chat_tools
 
     @staticmethod
-    def _parse_response(response: ChatCompletion) -> ProviderResponse:
+    def _parse_response(
+        response: ChatCompletion,
+    ) -> Tuple[Optional[str], List[ToolCall]]:
         """
         Parses the ChatCompletion response object into an Allos ProviderResponse.
         """
         choice = response.choices[0]
         message: ChatCompletionMessage = choice.message
-
-        # --- Metadata ---
-        # Chat Completions API doesn't give itemized breakdown like Responses API,
-        # so we infer simple counts.
-        metadata: Dict[str, Any] = _init_metadata(1)  # 1 choice processed
-        metadata["overall"]["processed"] = 1
-        metadata["response_id"] = response.id
-        if response.usage:
-            metadata["usage"] = response.usage.model_dump()
 
         # --- Content ---
         content = message.content
@@ -164,8 +169,6 @@ class ChatCompletionsProvider(BaseProvider):
         tool_calls = []
         if message.tool_calls:
             for tc in message.tool_calls:
-                metadata["tool_calls"]["total"] += 1
-
                 # Check for specific tool type to satisfy type checkers and runtime safety
                 if tc.type == "function":
                     try:
@@ -173,20 +176,15 @@ class ChatCompletionsProvider(BaseProvider):
                         tool_calls.append(
                             ToolCall(id=tc.id, name=tc.function.name, arguments=args)
                         )
-                        metadata["tool_calls"]["processed"] += 1
                     except json.JSONDecodeError as e:
                         logger.warning(
                             f"Failed to decode arguments for tool '{tc.function.name}': {e}"
                         )
-                        metadata["tool_calls"]["skipped"] += 1
                 else:
                     # Skip 'custom' or other unknown types
                     logger.debug(f"Skipping unsupported tool type: {tc.type}")
-                    metadata["tool_calls"]["skipped"] += 1
 
-        return ProviderResponse(
-            content=content, tool_calls=tool_calls, metadata=metadata
-        )
+        return content, tool_calls
 
     def chat(
         self,
@@ -207,10 +205,32 @@ class ChatCompletionsProvider(BaseProvider):
 
         if tools:
             api_kwargs["tools"] = self._convert_tools(tools)
+            # Store original tools for metadata
+            metadata_tools = tools
+        else:
+            metadata_tools = []
+
+        start_time = time.time()
 
         try:
             response = self.client.chat.completions.create(**api_kwargs)
-            return self._parse_response(response)
+
+            # Manually inject the original tools list into the kwargs for the metadata builder
+            builder_kwargs = api_kwargs.copy()
+            builder_kwargs["tools"] = metadata_tools
+            builder = MetadataBuilder(
+                provider_name="chat_completions",
+                request_kwargs=builder_kwargs,
+                start_time=start_time,
+            )
+            metadata = builder.with_response_obj(response).build()
+            content, tool_calls = self._parse_response(response)
+
+            return ProviderResponse(
+                content=content,
+                tool_calls=tool_calls,
+                metadata=metadata,
+            )
 
         except (
             openai.RateLimitError,
@@ -236,6 +256,151 @@ class ChatCompletionsProvider(BaseProvider):
             raise ProviderError(
                 f"API error: {e.message}", provider="chat_completions"
             ) from e
+
+    def stream_chat(
+        self,
+        messages: List[Message],
+        tools: Optional[List[BaseTool]] = None,
+        **kwargs: Any,
+    ) -> Iterator[ProviderChunk]:
+        """Sends a request to the /v1/chat/completions endpoint."""
+
+        chat_messages = self._convert_messages(messages)
+        api_kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": chat_messages,
+            "stream": True,
+            "stream_options": {
+                "include_usage": True
+            },  # Request usage data in the final chunk
+            **kwargs,
+        }
+
+        if tools:
+            api_kwargs["tools"] = self._convert_tools(tools)
+            metadata_tools = tools
+        else:
+            metadata_tools = []
+
+        builder_kwargs = api_kwargs.copy()
+        builder_kwargs["tools"] = metadata_tools
+
+        start_time = time.time()
+        _api_context = {
+            "builder_kwargs": builder_kwargs,
+            "start_time": start_time,
+            "tool_calls_state": [],
+        }
+        try:
+            stream = self.client.chat.completions.create(**api_kwargs)
+
+            for chunk in stream:
+                yield from self._dispatch_chat_chunk(chunk, _api_context)
+
+        except (openai.APIError, openai.APIConnectionError) as e:
+            raise ProviderError(
+                f"Streaming error: {e}", provider="chat_completions"
+            ) from e
+
+    def _dispatch_chat_chunk(self, chunk, _api_context):
+        # Skip chunks without choices (e.g., final usage-only chunk)
+        if not chunk.choices:
+            if chunk.usage:
+                yield from self._handle_final_usage_chunk(chunk, _api_context)
+            return
+
+        delta = chunk.choices[0].delta
+
+        if delta.content:
+            yield ProviderChunk(content=delta.content)
+
+        if delta.tool_calls:
+            yield from self._handle_tool_call_delta(delta.tool_calls, _api_context)
+
+        # Only process tool calls when the reason indicates completion of that step.
+        if chunk.choices[0].finish_reason == "tool_calls":
+            yield from self._handle_tool_calls_completion(_api_context)
+
+    def _handle_tool_call_delta(self, tool_call_deltas, _api_context):
+        in_progress_tool_calls = _api_context["tool_calls_state"]
+
+        for tc_delta in tool_call_deltas:
+            index = tc_delta.index
+
+            # Ensure list is long enough
+            while len(in_progress_tool_calls) <= index:
+                in_progress_tool_calls.append({})
+
+            state = in_progress_tool_calls[index]
+
+            # First chunk for a tool call, initialize it: includes id + function name
+            if tc_delta.id:
+                state.update(
+                    {
+                        "id": tc_delta.id,
+                        "type": tc_delta.type,
+                        "function": {
+                            "name": tc_delta.function.name,
+                            "arguments": "",
+                        },
+                    }
+                )
+                yield ProviderChunk(
+                    tool_call_start={
+                        "id": tc_delta.id,
+                        "name": tc_delta.function.name,
+                        "index": index,
+                    }
+                )
+
+            # Subsequent chunks with agument deltas: accumulate arguments
+            if tc_delta.function and tc_delta.function.arguments:
+                state["function"]["arguments"] += tc_delta.function.arguments
+                yield ProviderChunk(tool_call_delta=tc_delta.function.arguments)
+
+    def _handle_tool_calls_completion(self, _api_context):
+        """
+        Handles the completion of a tool-calling turn.
+        Yields the final tool_call_done chunks and clears the state.
+        """
+        in_progress_tool_calls = _api_context["tool_calls_state"]
+        for state in in_progress_tool_calls:
+            try:
+                parsed_args = json.loads(state["function"]["arguments"])
+                tool_call = ToolCall(
+                    id=state["id"],
+                    name=state["function"]["name"],
+                    arguments=parsed_args,
+                )
+                yield ProviderChunk(tool_call_done=tool_call)
+            except (json.JSONDecodeError, KeyError) as e:
+                yield ProviderChunk(error=f"Failed to parse tool arguments: {e}")
+
+        # Clear the state to prepare for the next turn or the final metadata chunk.
+        in_progress_tool_calls.clear()
+
+    def _handle_final_usage_chunk(self, chunk, _api_context):
+        """
+        Handles the very last chunk of the stream which contains only usage stats.
+        This is the single source of truth for building the final metadata.
+        """
+        synthetic = {
+            "id": chunk.id,
+            "model": chunk.model,
+            "status": "completed",
+            "usage": chunk.usage,
+            "choices": [],
+            "created": int(time.time()),
+            "object": "chat.completion",
+        }
+        builder = MetadataBuilder(
+            provider_name="chat_completions",
+            request_kwargs=_api_context["builder_kwargs"],
+            start_time=_api_context["start_time"],
+        )
+        valid_response = openai.types.chat.ChatCompletion.model_validate(synthetic)
+        metadata = builder.with_response_obj(valid_response).build()
+        yield ProviderChunk(final_metadata=metadata)
 
     def get_context_window(self) -> int:
         """

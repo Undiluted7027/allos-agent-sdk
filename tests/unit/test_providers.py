@@ -11,6 +11,17 @@ from allos.providers.base import (
     MessageRole,
     ProviderResponse,
 )
+from allos.providers.metadata import (
+    Latency,
+    Metadata,
+    ModelConfiguration,
+    ModelInfo,
+    ProviderSpecific,
+    QualitySignals,
+    SdkInfo,
+    ToolInfo,
+    Usage,
+)
 from allos.providers.registry import ProviderRegistry, _provider_registry, provider
 from allos.utils.errors import ConfigurationError
 
@@ -23,7 +34,26 @@ class DummyProvider(BaseProvider):
         super().__init__(model=model, api_key=api_key)
 
     def chat(self, messages: list[Message], **kwargs) -> ProviderResponse:
-        return ProviderResponse(content="dummy response")
+        return ProviderResponse(
+            content="dummy response",
+            metadata=Metadata(
+                status="success",
+                model=ModelInfo(
+                    provider="mock",
+                    model_id="mock-model",
+                    configuration=ModelConfiguration(max_output_tokens=100),
+                ),
+                usage=Usage(),
+                latency=Latency(total_duration_ms=100),
+                tools=ToolInfo(tools_available=[]),
+                quality_signals=QualitySignals(),
+                provider_specific=ProviderSpecific(),
+                sdk=SdkInfo(sdk_version="test"),
+            ),
+        )
+
+    def stream_chat(self, messages, **kwargs):
+        yield from []  # A simple generator implementation
 
     def get_context_window(self) -> int:
         """A dummy implementation for the abstract method."""
@@ -43,8 +73,8 @@ class TestProviderBase:
         assert msg.content == "Hello"
         assert msg.tool_calls == []
 
-    def test_provider_response_dataclass(self):
-        resp = ProviderResponse(content="World")
+    def test_provider_response_dataclass(self, mock_metadata: Metadata):
+        resp = ProviderResponse(content="World", metadata=mock_metadata)
         assert resp.content == "World"
         assert resp.tool_calls == []
 
@@ -70,6 +100,9 @@ class TestProviderBase:
 
             def get_context_window(self) -> int:
                 return super().get_context_window()  # type: ignore # Call the abstract method
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []  # A simple generator implementation
 
         provider = PartiallyImplementedProvider(model="test")
         with pytest.raises(NotImplementedError):
@@ -104,6 +137,9 @@ class TestProviderRegistry:
 
             def get_context_window(self):
                 return 100
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []  # A simple generator implementation
 
     def teardown_method(self):
         """Restore the original registry state."""
@@ -153,14 +189,14 @@ class TestProviderRegistry:
             in str(excinfo.value)
         )
 
-    def test_provider_registration(self):
+    def test_provider_registration(self, mock_metadata: Metadata):
         """Test that the @provider decorator correctly registers a class."""
         assert "test_provider" not in ProviderRegistry.list_providers()
 
         @provider("test_provider")
         class TestProvider(BaseProvider):
             def chat(self, messages: list[Message], **kwargs) -> ProviderResponse:
-                return ProviderResponse(content="test")
+                return ProviderResponse(content="test", metadata=mock_metadata)
 
         assert "test_provider" in ProviderRegistry.list_providers()
 
