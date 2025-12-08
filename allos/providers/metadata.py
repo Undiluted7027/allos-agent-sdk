@@ -1,5 +1,23 @@
 # allos/providers/metadata.py
 
+"""Defines the comprehensive, standardized metadata schema for the Allos SDK.
+
+This module is the cornerstone of the SDK's observability features. It uses Pydantic
+`BaseModel` classes to create a rich, structured schema for capturing detailed
+information about every LLM interaction. This includes metrics on token usage,
+cost, latency, tool calls, and agentic turns.
+
+The primary components are:
+ - A series of Pydantic models that compose the final `Metadata` object.
+ - A `MetadataBuilder` class, which acts as a factory to reliably construct the
+   `Metadata` object from the raw, often inconsistent, response objects of
+   various LLM providers.
+
+This structured metadata is attached to every `ProviderResponse` and is essential
+for logging, debugging, performance analysis, and cost tracking of agents built
+with the Allos SDK.
+"""
+
 import json
 import time
 import uuid
@@ -22,6 +40,8 @@ _STATIC_PRICING = {
 
 
 class ModelConfiguration(BaseModel):
+    """Stores the configuration parameters used for the model invocation."""
+
     # Not working as of now
     temperature: Optional[float] = None
     max_tokens: Optional[int] = Field(None, alias="max_output_tokens")
@@ -33,6 +53,8 @@ class ModelConfiguration(BaseModel):
 
 
 class ModelInfo(BaseModel):
+    """Contains details about the large language model that was used."""
+
     provider: str
     model_id: str
     model_name: Optional[str] = None
@@ -43,6 +65,8 @@ class ModelInfo(BaseModel):
 
 # --- Models for Multi-Modal Details (Future) ---
 class ImageDetail(BaseModel):
+    """Represents metadata for a single image in a multi-modal request."""
+
     format: Optional[str] = None
     resolution: Optional[str] = None
     size_bytes: Optional[int] = None
@@ -50,12 +74,16 @@ class ImageDetail(BaseModel):
 
 
 class MultiModalDetails(BaseModel):
+    """Aggregates details for all multi-modal inputs in a request."""
+
     images: List[ImageDetail] = []
     audio_clips: List[Any] = []  # Placeholder for future models
     video_clips: List[Any] = []  # Placeholder for future models
 
 
 class CacheUsage(BaseModel):
+    """Records metrics related to the provider's caching features."""
+
     # Not working as of now
     cache_read_tokens: int = 0
     cache_hit_rate: float = 0.0
@@ -63,6 +91,11 @@ class CacheUsage(BaseModel):
 
 
 class EstimatedCost(BaseModel):
+    """Details the estimated cost of the API call in USD.
+
+    Costs are calculated based on a static pricing table within this module.
+    """
+
     total_usd: float = 0.0
     input_cost_usd: float = 0.0
     output_cost_usd: float = 0.0
@@ -76,6 +109,12 @@ class EstimatedCost(BaseModel):
 
 
 class Usage(BaseModel):
+    """Aggregates all token usage metrics for the API call.
+
+    This includes input, output, and total token counts, as well as embedded
+    cost and cache usage information.
+    """
+
     total_tokens: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -87,6 +126,8 @@ class Usage(BaseModel):
 
 
 class Latency(BaseModel):
+    """Captures timing and performance metrics for the API call."""
+
     total_duration_ms: int
     time_to_first_token_ms: Optional[int] = None
     # Future
@@ -98,6 +139,18 @@ class Latency(BaseModel):
 
 
 class ToolCallDetail(BaseModel):
+    """Provides a detailed record of a single tool call requested by the LLM.
+
+    Attributes:
+        tool_call_id: The unique identifier for the tool call.
+        tool_name: The name of the tool that was called.
+        arguments: The arguments the model provided for the tool.
+        execution_time_ms: The time taken by the agent to execute the tool.
+                           This field is populated by the Agent, not the provider.
+        status: The execution status ('success' or 'error'). This field is
+                populated by the Agent, not the provider.
+    """
+
     tool_call_id: str
     tool_name: str
     arguments: Dict[str, Any]
@@ -107,6 +160,8 @@ class ToolCallDetail(BaseModel):
 
 
 class ToolInfo(BaseModel):
+    """Aggregates information about all tools involved in the interaction."""
+
     tools_available: List[str]
     total_tool_calls: int = 0
     tool_calls: List[ToolCallDetail] = []
@@ -115,11 +170,19 @@ class ToolInfo(BaseModel):
 
 
 class TurnTokensUsed(BaseModel):
+    """A simple breakdown of token usage within a single agentic turn."""
+
     input_tokens: int
     output_tokens: int
 
 
 class TurnLog(BaseModel):
+    """Represents a single, complete iteration of the agentic loop.
+
+    A turn consists of the agent sending a request to the LLM and processing
+    the response (which could be a final answer or a tool call).
+    """
+
     turn_number: int
     timestamp: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
@@ -133,6 +196,8 @@ class TurnLog(BaseModel):
 
 
 class TurnsInfo(BaseModel):
+    """Aggregates metadata for a multi-turn agentic run."""
+
     total_turns: int = 0
     max_turns_reached: bool = False
     turn_history: List[TurnLog] = []
@@ -140,6 +205,8 @@ class TurnsInfo(BaseModel):
 
 # Models for Errors, Warnings, and Cache (Future)
 class ErrorDetail(BaseModel):
+    """Records a single error that occurred during the interaction."""
+
     error_code: str
     error_message: str
     source: str
@@ -150,24 +217,32 @@ class ErrorDetail(BaseModel):
 
 
 class WarningDetail(BaseModel):
+    """Records a single warning that occurred during the interaction."""
+
     warning_code: str
     warning_message: str
     severity: str
 
 
 class RetryInfo(BaseModel):
+    """Contains information about any retry attempts made during the API call."""
+
     retry_count: int
     retry_reasons: List[str]
     backoff_strategy: str
 
 
 class ErrorsAndWarnings(BaseModel):
+    """A container for all errors, warnings, and retry information."""
+
     errors: List[ErrorDetail] = []
     warnings: List[WarningDetail] = []
     retries: Optional[RetryInfo] = None
 
 
 class CacheInfo(BaseModel):
+    """Provides details about the cache status for the request."""
+
     cache_enabled: bool = False
     cache_hit: bool = False
     cache_type: Optional[str] = None
@@ -176,6 +251,12 @@ class CacheInfo(BaseModel):
 
 
 class QualitySignals(BaseModel):
+    """Captures signals about the quality and nature of the LLM's response.
+
+    This includes information like why the model stopped generating tokens
+    (finish reason) or whether it refused to answer the prompt.
+    """
+
     finish_reason: Optional[str] = None
     refusal_detected: bool = False
     response_truncated: bool = False
@@ -187,6 +268,8 @@ class QualitySignals(BaseModel):
 
 
 class ProviderSpecificOpenAI(BaseModel):
+    """Container for metadata fields unique to OpenAI's API response."""
+
     # Not working as of now
     system_fingerprint: Optional[str] = None
     # Future
@@ -194,6 +277,8 @@ class ProviderSpecificOpenAI(BaseModel):
 
 
 class ProviderSpecific(BaseModel):
+    """A namespace for provider-specific metadata fields."""
+
     openai: Optional[ProviderSpecificOpenAI] = None
     # Future
     anthropic: Optional[Any] = None
@@ -203,6 +288,8 @@ class ProviderSpecific(BaseModel):
 
 
 class SdkInfo(BaseModel):
+    """Contains information about the Allos SDK version that made the request."""
+
     sdk_version: str
     # Future
     sdk_language: str = "python"
@@ -211,6 +298,15 @@ class SdkInfo(BaseModel):
 
 
 class Metadata(BaseModel):
+    """The top-level, comprehensive metadata object for an LLM interaction.
+
+    This class serves as the single, standardized record for an entire agentic
+    turn or a single provider call. It aggregates all other models in this
+
+    module to provide a complete picture of the request's configuration,
+    performance, usage, cost, and outcome.
+    """
+
     request_id: str = Field(default_factory=lambda: f"req_{uuid.uuid4().hex[:16]}")
     timestamp: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
@@ -231,11 +327,28 @@ class Metadata(BaseModel):
 
 
 class MetadataBuilder:
-    """Builds the comprehensive metadata object from a provider response."""
+    """A factory for constructing the `Metadata` object from a provider's response.
+
+    This class implements the builder pattern to abstract away the complexity
+    and inconsistency of different LLM providers' response formats. It provides a
+    standardized way to parse a raw API response object and build the rich,
+    structured `Metadata` object defined in this module.
+
+    The typical usage involves instantiating the builder with request-time info,
+    using the `.with_response_obj()` method to add the response, and then
+    calling `.build()` to get the final object.
+    """
 
     def __init__(
         self, provider_name: str, request_kwargs: Dict[str, Any], start_time: float
     ):
+        """Initializes the MetadataBuilder.
+
+        Args:
+            provider_name: The name of the provider (e.g., 'openai').
+            request_kwargs: The dictionary of arguments sent to the provider.
+            start_time: The `time.time()` timestamp from before the API call.
+        """
         self._provider_name = provider_name
         self._request_kwargs = request_kwargs
         self._start_time = start_time
@@ -243,10 +356,33 @@ class MetadataBuilder:
         self._response_obj: Optional[Any] = None
 
     def with_response_obj(self, response_obj: Any) -> "MetadataBuilder":
+        """Sets the raw provider response object to be processed.
+
+        This method enables a fluent call chain.
+
+        Args:
+            response_obj: The response object returned by the provider's SDK.
+
+        Returns:
+            The `MetadataBuilder` instance for method chaining.
+        """
         self._response_obj = response_obj
         return self
 
     def build(self) -> Metadata:
+        """Constructs and returns the final `Metadata` object.
+
+        This method orchestrates the parsing of the raw response object by calling
+        various private `_build_*` helper methods, each responsible for a
+        specific part of the metadata schema.
+
+        Returns:
+            The fully populated `Metadata` object.
+
+        Raises:
+            ValueError: If a response object has not been set via
+                        `.with_response_obj()` before calling build.
+        """
         if not self._response_obj:
             raise ValueError("A response object must be provided to build metadata.")
 
@@ -287,6 +423,7 @@ class MetadataBuilder:
         )
 
     def _build_model_info(self, model_id: str) -> ModelInfo:
+        """Builds the `ModelInfo` part of the metadata."""
         model_version = None
         model_id_str = str(model_id) if model_id else "unknown"
         try:  # Best-effort parsing of version from ID like 'gpt-4o-2024-08-06'
@@ -307,8 +444,12 @@ class MetadataBuilder:
         )
 
     def _build_usage_info(self, model_id: str, usage_obj: Any) -> Usage:
-        # Handle both Responses API (input_tokens/output_tokens) and
-        # Chat Completions API (prompt_tokens/completion_tokens)
+        """Builds the `Usage` part of the metadata.
+
+        This method is designed to handle multiple common response formats, such as
+        OpenAI's Responses API (`input_tokens`/`output_tokens`) and Chat Completions
+        API (`prompt_tokens`/`completion_tokens`), for maximum compatibility.
+        """
         input_tokens_raw = getattr(usage_obj, "input_tokens", None)
         if input_tokens_raw is None:
             input_tokens_raw = getattr(usage_obj, "prompt_tokens", None)
@@ -360,6 +501,10 @@ class MetadataBuilder:
     def _calculate_cost(
         self, model_id: str, input_tokens: int, output_tokens: int
     ) -> Optional[EstimatedCost]:
+        """Calculates the estimated cost based on the static pricing table.
+
+        Returns `None` if the model is not found in the pricing table.
+        """
         provider_prices = _STATIC_PRICING.get(self._provider_name, {})
         model_key = next((key for key in provider_prices if key in model_id), None)
 
@@ -377,11 +522,13 @@ class MetadataBuilder:
         )
 
     def _build_latency_info(self) -> Latency:
+        """Builds the `Latency` part of the metadata."""
         return Latency(
             total_duration_ms=int((self._end_time - self._start_time) * 1000)
         )
 
     def _build_tool_info(self) -> ToolInfo:
+        """Builds the `ToolInfo` part of the metadata from the response."""
         tools_available = [t.name for t in self._request_kwargs.get("tools", [])]
         tool_calls = []
         if hasattr(self._response_obj, "output") and self._response_obj.output:  # type: ignore
@@ -414,6 +561,7 @@ class MetadataBuilder:
         )
 
     def _build_quality_signals(self, status: str) -> QualitySignals:
+        """Builds the `QualitySignals` part of the metadata."""
         refusal = False
         status_str = str(status) if status else "unknown"
         if hasattr(self._response_obj, "output") and self._response_obj.output:  # type: ignore
@@ -440,6 +588,7 @@ class MetadataBuilder:
         )
 
     def _build_provider_specific(self) -> ProviderSpecific:
+        """Builds the `ProviderSpecific` part of the metadata."""
         # In a real scenario, this would be extracted from HTTP headers.
         # For now, we are leaving it as a placeholder.
         system_fingerprint_raw = getattr(self._response_obj, "system_fingerprint", None)
@@ -452,6 +601,7 @@ class MetadataBuilder:
         )
 
     def _build_sdk_info(self) -> SdkInfo:
+        """Builds the `SdkInfo` part of the metadata."""
         from allos import __version__
 
         return SdkInfo(sdk_version=__version__)

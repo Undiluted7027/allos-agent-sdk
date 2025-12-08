@@ -1,4 +1,4 @@
-# allos/utils/modality_counter.py
+# allos/utils/modality_counter.py  # noqa: D100
 
 from typing import Any, Dict, List
 
@@ -6,8 +6,8 @@ from ..providers.base import Message
 
 
 def calculate_modality_usage(messages: List[Message]) -> Dict[str, Any]:
-    """
-    Inspects a list of messages before an API call to calculate multi-modal usage.
+    """Inspects a list of messages before an API call to calculate multi-modal usage.
+
     This is a placeholder for a future, more complex implementation.
 
     In an actual implementation, this function should:

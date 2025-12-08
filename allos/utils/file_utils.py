@@ -12,11 +12,13 @@ DEFAULT_MAX_FILE_SIZE = 1_000_000  # 1 MB
 
 
 def is_safe_path(base_dir: Path, target_path_str: Union[str, Path]) -> bool:
-    """
-    Securely verify that a target path stays within a trusted base directory,
-    even in the presence of symlinks or traversal attempts.
+    """Securely verify that a target path stays within a trusted base directory.
 
-    Works across Linux, macOS, and Windows.
+    This check is designed to be robust against path traversal attacks (e.g.,
+    using '..') and unsafe symlinks by fully resolving the real path before
+    comparison. It works reliably across different operating systems, including
+    Linux, macOS, and Windows. It also explicitly checks for null bytes to
+    prevent injection vulnerabilities.
 
     Args:
         base_dir: The root directory that is considered safe.
@@ -46,8 +48,7 @@ def is_safe_path(base_dir: Path, target_path_str: Union[str, Path]) -> bool:
 def safe_read_file(
     path: str, base_dir: str, max_size: int = DEFAULT_MAX_FILE_SIZE
 ) -> str:
-    """
-    Reads a file after validating the path is safe and the file is not too large.
+    """Reads a file after validating the path is safe and the file is not too large.
 
     Args:
         path: The relative path to the file.
@@ -93,8 +94,7 @@ def safe_read_file(
 def safe_write_file(
     path: str, content: str, base_dir: str, append_mode: bool = False
 ) -> None:
-    """
-    Writes content to a file after validating the path is safe.
+    """Writes content to a file after validating the path is safe.
 
     Args:
         path: The relative path to the file.

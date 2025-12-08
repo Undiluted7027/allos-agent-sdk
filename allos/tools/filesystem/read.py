@@ -1,7 +1,23 @@
 # allos/tools/filesystem/read.py
 
-"""
-A tool for allowing the agent to read files, with optional support for specific line ranges.
+"""Implements a tool for safely reading the contents of a file.
+
+This module provides the `FileReadTool`, another essential "sensory" capability
+that allows an agent to gather detailed information from its local file
+environment. It is the primary means for an agent to inspect code, read data,
+or review the output of its own work.
+
+Key design considerations for this tool include:
+ - Security: It is built upon the `safe_read_file` utility, which enforces
+   strict path validation to prevent traversal attacks. This ensures the agent
+   can only read files within its designated working directory.
+ - Flexibility: The tool supports reading an entire file or specifying a
+   precise range of lines, allowing for both broad inspection and focused data
+   extraction.
+ - Safety by Default: As a read-only, non-destructive operation, this tool
+   defaults to `ToolPermission.ALWAYS_ALLOW`. This provides a frictionless
+   experience for the agent when it needs to gather information without
+   requiring constant user intervention.
 """
 
 from typing import Any, Dict, Optional
@@ -54,8 +70,7 @@ class FileReadTool(BaseTool):
         self,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Executes the file read operation.
+        """Executes the file read operation.
 
         Args:
             **kwargs: Must contain 'path', and may optionally contain
@@ -115,8 +130,7 @@ class FileReadTool(BaseTool):
         inclusive: bool,
         total_lines: int,
     ) -> tuple[int, int]:
-        """
-        Compute 0-based slice indices for the requested line range.
+        """Compute 0-based slice indices for the requested line range.
 
         Args:
             start_line: 1-based start line (optional)

@@ -1,8 +1,15 @@
 # allos/utils/__init__.py
 
-"""
-The `utils` module provides common utilities for the Allos SDK,
-including error handling, logging, secure file operations, and token counting.
+"""Provides common, cross-cutting utilities for the Allos SDK.
+
+This package serves as a foundational layer for the entire SDK, containing a
+collection of helper modules that address common concerns such as error handling,
+secure file operations, logging, and token counting.
+
+By centralizing these utilities, the module promotes code reuse, enforces
+consistent behavior (e.g., standardized error types), and enhances the overall
+robustness and security of the framework. It is designed to have no circular
+dependencies on the higher-level agent, provider, or tool modules.
 """
 
 from .errors import (

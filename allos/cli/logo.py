@@ -1,8 +1,6 @@
 # allos/cli/logo.py
 
-"""
-Contains the ASCII art logo and banner for the Allos Agent SDK CLI.
-"""
+"""Contains the ASCII art logo and banner for the Allos Agent SDK CLI."""
 
 from .. import __version__
 

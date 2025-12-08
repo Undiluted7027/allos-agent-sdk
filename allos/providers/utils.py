@@ -1,7 +1,5 @@
 # allos/providers/utils.py
-"""
-Utility functions that are common across LLM providers.
-"""
+"""Utility functions that are common across LLM providers."""
 
 
 def _init_metadata(total_items: int) -> dict[str, dict[str, int]]:

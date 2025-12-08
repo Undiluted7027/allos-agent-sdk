@@ -1,5 +1,25 @@
 # allos/providers/anthropic.py
 
+"""Provides the concrete implementation for interacting with Anthropic's Messages API.
+
+This module contains the `AnthropicProvider`, a subclass of `BaseProvider`, which
+acts as a translator between the Allos SDK's standardized data structures
+(e.g., `Message`, `ToolCall`) and the specific JSON format required by the
+Anthropic API (for models like Claude 3).
+
+Key responsibilities of this provider include:
+ - Managing the connection and authentication with the Anthropic API.
+ - Formatting outgoing messages, including the special handling of system prompts
+   and multi-block content for assistant turns (text and tool use).
+ - Parsing incoming responses from Anthropic, including text and tool call
+   requests, into the standard `ProviderResponse` format.
+ - Handling Anthropic-specific API errors and wrapping them in the SDK's
+   generic `ProviderError` for consistent error handling.
+
+The `@provider("anthropic")` decorator automatically registers this implementation
+with the `ProviderRegistry`, making it available for use by the `Agent`.
+"""
+
 import json
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -7,6 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import anthropic
 from anthropic.types import Message as AnthropicMessage
 from anthropic.types import TextBlock, ToolUseBlock
+from pydantic import ValidationError
 
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
@@ -34,13 +55,35 @@ MODEL_CONTEXT_WINDOWS = {
 
 @provider("anthropic")
 class AnthropicProvider(BaseProvider):
-    """
-    An Allos provider for interacting with the Anthropic Messages API.
+    """An Allos provider for interacting with the Anthropic Messages API (Claude).
+
+    This class implements the `BaseProvider` interface to connect the Allos Agent
+    with Anthropic's language models. It handles the translation of messages and
+    tools, API authentication, and error handling specific to the Anthropic SDK.
+
+    Authentication is handled automatically by the underlying `anthropic` library,
+    which primarily looks for the `ANTHROPIC_API_KEY` environment variable.
+
+    Attributes:
+        client (anthropic.Anthropic): The authenticated Anthropic API client instance.
     """
 
     env_var = "ANTHROPIC_API_KEY"
 
     def __init__(self, model: str, api_key: Optional[str] = None, **kwargs: Any):
+        """Initializes the AnthropicProvider and its API client.
+
+        Args:
+            model: The specific Anthropic model ID to use (e.g., 'claude-3-haiku-20240307').
+            api_key: An optional Anthropic API key. If not provided, the `anthropic`
+                     library's default behavior (e.g., reading from the
+                     `ANTHROPIC_API_KEY` environment variable) will be used.
+            **kwargs: Additional keyword arguments to pass directly to the
+                      `anthropic.Anthropic` client constructor.
+
+        Raises:
+            ProviderError: If the `anthropic.Anthropic` client fails to initialize.
+        """
         super().__init__(model, **kwargs)
         try:
             self.client = anthropic.Anthropic(api_key=api_key, **kwargs)
@@ -53,9 +96,27 @@ class AnthropicProvider(BaseProvider):
     def _convert_to_anthropic_messages(
         messages: List[Message],
     ) -> Tuple[Optional[str], List[Dict[str, Any]]]:
-        """
-        Converts a list of Allos Messages into the format expected by the
-        Anthropic Messages API, separating the system prompt.
+        """Converts a list of Allos Messages into the Anthropic Messages API format.
+
+        This static helper method performs the critical translation from the SDK's
+        generic `Message` format to the specific structure required by Anthropic,
+        which includes separating the system prompt and handling multi-block content.
+
+        Key transformations:
+        - The first message, if it has a `SYSTEM` role, is extracted and returned
+          separately to be used as the `system` parameter in the API call.
+        - `ASSISTANT` messages containing both text and tool calls are converted
+          into a single message with a list of `text` and `tool_use` content blocks.
+        - `TOOL` messages are converted into a user-role message containing a
+          `tool_result` content block.
+
+        Args:
+            messages: A list of `allos.providers.base.Message` objects.
+
+        Returns:
+            A tuple containing:
+            - An optional string for the system prompt.
+            - A list of dictionaries formatted for the Anthropic API's `messages` parameter.
         """
         system_prompt = None
         anthropic_messages: List[Dict[str, Any]] = []
@@ -152,7 +213,19 @@ class AnthropicProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> ProviderResponse:
-        """Sends a request to the Anthropic Messages API."""
+        """Sends a request to the Anthropic Messages API.
+
+        Args:
+            messages: A list of messages forming the conversation.
+            tools: An optional list of tools available for the agent.
+            **kwargs: Additional provider-specific parameters.
+
+        Returns:
+            ProviderResponse: An Allos ProviderResponse object containing the LLM's reply, tool calls, and detailed metadata.
+
+        Raises:
+            ProviderError: If the API call fails due to connection issues, authentication errors, rate limits, or other API-side errors.
+        """
         system_prompt, anthropic_messages = self._convert_to_anthropic_messages(
             messages
         )
@@ -229,6 +302,29 @@ class AnthropicProvider(BaseProvider):
             ) from e
 
     def stream_chat(self, messages, tools=None, **kwargs):
+        """Sends a request to the Anthropic Messages API and streams the response.
+
+        This method handles two types of errors:
+        1. Pre-stream errors (e.g., authentication, invalid request) will raise a
+           ProviderError synchronously.
+        2. In-stream errors (e.g., failed data parsing, metadata generation) will
+           be yielded as a ProviderChunk with the 'error' field populated, allowing
+           for graceful termination of the stream by the caller.
+
+        Args:
+            messages: A list of messages forming the conversation.
+            tools: An optional list of tools available for the agent.
+            **kwargs: Additional provider-specific parameters.
+
+        Yields:
+            Iterator[ProviderChunk]: An iterator of `ProviderChunk` objects. Each
+                                     chunk can contain text content, tool call
+                                     information, final usage metadata, or an error
+                                     message if a failure occurs during stream processing.
+
+        Raises:
+            ProviderError: If a fatal API error occurs before the stream begins.
+        """
         api_kwargs, _ = self._build_api_kwargs(messages, tools, kwargs)
         builder_kwargs = self._build_builder_kwargs(api_kwargs, tools)
         state = self._init_stream_state()
@@ -340,26 +436,40 @@ class AnthropicProvider(BaseProvider):
             return ProviderChunk(error=f"Failed to parse tool arguments: {e}")
 
     def _finalize_stream(self, state, builder_kwargs, start_time):
-        # Create a usage object with proper attributes
-        usage_obj = type("Usage", (), state["final_usage"])()
+        """Builds and yields the final metadata chunk after the stream is complete.
 
-        synthetic_response = {
-            "id": state["response_id"],
-            "model": state["model_id"],
-            "status": "completed",
-            "usage": usage_obj,
-        }
+        Catches and gracefully handles any validation or data processing errors
+        during this final step.
+        """
+        try:
+            # Create a usage object with proper attributes
+            usage_obj = type("Usage", (), state["final_usage"])()
 
-        builder = MetadataBuilder(
-            provider_name="anthropic",
-            request_kwargs=builder_kwargs,
-            start_time=start_time,
-        )
+            synthetic_response = {
+                "id": state["response_id"],
+                "model": state["model_id"],
+                "status": "completed",
+                "usage": usage_obj,
+            }
 
-        metadata = builder.with_response_obj(
-            type("obj", (object,), synthetic_response)()
-        ).build()
-        return ProviderChunk(final_metadata=metadata)
+            builder = MetadataBuilder(
+                provider_name="anthropic",
+                request_kwargs=builder_kwargs,
+                start_time=start_time,
+            )
+
+            metadata = builder.with_response_obj(
+                type("obj", (object,), synthetic_response)()
+            ).build()
+            return ProviderChunk(final_metadata=metadata)
+        except (ValidationError, ValueError, TypeError, AttributeError) as e:
+            logger.error(
+                f"Error building final metadata for Anthropic stream: {e}",
+                exc_info=True,
+            )
+            yield ProviderChunk(
+                error="Internal error: Failed to process final stream metadata."
+            )
 
 
 def _process_anthropic_message(block: TextBlock, text_accumulator: List[str]) -> None:
@@ -372,7 +482,6 @@ def _process_anthropic_tool_use(
     block: ToolUseBlock, tool_calls: List[ToolCall]
 ) -> None:
     """Processes a tool_use block from the Anthropic response."""
-
     tool_id = getattr(block, "id", None)
     tool_name = getattr(block, "name", None)
 

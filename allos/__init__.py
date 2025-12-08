@@ -1,7 +1,6 @@
 # allos/__init__.py
 
-"""
-Allos Agent SDK: The LLM-Agnostic Agentic Framework.
+"""Allos Agent SDK: The LLM-Agnostic Agentic Framework.
 
 This is the main entry point for the `allos` package.
 It exposes the primary components for building and running AI agents.

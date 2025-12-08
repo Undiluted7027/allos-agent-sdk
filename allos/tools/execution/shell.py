@@ -1,5 +1,25 @@
 # allos/tools/execution/shell.py
 
+"""Implements a tool for executing shell commands with a strong focus on security.
+
+This module provides the `ShellExecuteTool`, which allows an agent to run commands
+in a subprocess on the host system. This is a powerful capability that enables
+the agent to interact with system utilities, manage files, and run scripts.
+
+To mitigate the significant risks associated with shell access, this tool
+incorporates several critical safety measures:
+ - Command Parsing: Uses `shlex.split` to safely parse command strings,
+   preventing command injection vulnerabilities where a single argument could be
+   interpreted as multiple commands.
+ - Dangerous Command Blocklist: Maintains a list of high-risk commands
+   (e.g., `rm`, `sudo`, `mkfs`) that are explicitly forbidden from execution.
+ - Non-Interactive Execution: Commands are run in a non-interactive session
+   with a timeout, preventing them from hanging or prompting for user input.
+ - Permission Control: The tool defaults to `ToolPermission.ASK_USER`,
+   requiring explicit user consent before any command is executed, unless
+   overridden by the agent's configuration.
+"""
+
 import shlex
 import subprocess
 from typing import Any, Dict
@@ -57,8 +77,7 @@ class ShellExecuteTool(BaseTool):
     ]
 
     def execute(self, **kwargs: Any) -> Dict[str, Any]:
-        """
-        Executes the shell command.
+        """Executes the shell command.
 
         Args:
             **kwargs: Must contain 'command' and may optionally contain 'timeout'.

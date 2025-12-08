@@ -1,8 +1,6 @@
 # allos/tools/registry.py
 
-"""
-A registry for discovering and instantiating tool classes.
-"""
+"""A registry for discovering and instantiating tool classes."""
 
 from typing import Dict, List, Type
 
@@ -14,8 +12,7 @@ _tool_registry: Dict[str, Type[BaseTool]] = {}
 
 
 def tool(cls: Type[BaseTool]) -> Type[BaseTool]:
-    """
-    A class decorator to register a new tool.
+    """A class decorator to register a new tool.
 
     Usage:
         @tool
@@ -34,14 +31,11 @@ def tool(cls: Type[BaseTool]) -> Type[BaseTool]:
 
 
 class ToolRegistry:
-    """
-    A factory class for creating tool instances.
-    """
+    """A factory class for creating tool instances."""
 
     @classmethod
     def get_tool(cls, name: str) -> BaseTool:
-        """
-        Get an instance of a registered tool.
+        """Get an instance of a registered tool.
 
         Args:
             name: The name of the tool (e.g., "read_file").
@@ -60,14 +54,10 @@ class ToolRegistry:
 
     @classmethod
     def list_tools(cls) -> List[str]:
-        """
-        List the names of all registered tools.
-        """
+        """List the names of all registered tools."""
         return sorted(_tool_registry.keys())
 
     @classmethod
     def get_all_tools(cls) -> List[BaseTool]:
-        """
-        Get instances of all registered tools.
-        """
+        """Get instances of all registered tools."""
         return [cls.get_tool(name) for name in cls.list_tools()]

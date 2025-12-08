@@ -1,5 +1,28 @@
 # allos/tools/filesystem/edit.py
 
+"""Implements a tool for performing a controlled, atomic file editing operation.
+
+This module provides the `FileEditTool`, which gives an agent the capability to
+make a precise, targeted modification to a file. It is designed not as a
+general-purpose text editor, but as a safe and predictable find-and-replace
+utility, ideal for tasks like updating a configuration value or correcting a
+specific line of code.
+
+The tool's design philosophy prioritizes safety and predictability over flexibility:
+ - Strict Uniqueness Constraint: The tool is intentionally designed to only
+   succeed if the target string (`find_string`) appears exactly once in the file.
+   This prevents accidental, widespread changes and forces the agent to be highly
+   specific, making the operation more predictable and less error-prone.
+ - Atomic Operation: The tool reads the entire file into memory, performs the
+   replacement, and then writes the modified content back. This ensures that
+   the file is never left in a partially modified or corrupted state.
+ - Path Security: It inherits the security of the core file utilities,
+   preventing the agent from editing files outside its designated working directory.
+ - Default User-Approval: As a file modification tool, it defaults to
+   `ToolPermission.ASK_USER`, ensuring a human operator must approve potentially
+   destructive changes.
+"""
+
 from typing import Any, Dict, cast
 
 from ...utils.errors import FileOperationError
@@ -41,8 +64,7 @@ class FileEditTool(BaseTool):
     ]
 
     def execute(self, **kwargs: Any) -> Dict[str, Any]:
-        """
-        Executes the file edit operation.
+        """Executes the file edit operation.
 
         Args:
             **kwargs: Must contain 'path', 'find_string', and 'replace_with'.

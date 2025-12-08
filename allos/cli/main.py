@@ -1,4 +1,45 @@
 # allos/cli/main.py
+r"""Defines the main command-line interface (CLI) entry point for the Allos SDK.
+
+This module serves as the "front door" for the entire application when used from
+a terminal. It uses the `click` library to create a rich, self-documenting CLI
+with a full suite of options, arguments, and flags.
+
+Its primary responsibility is to parse all user-provided command-line arguments,
+translate them into a valid `AgentConfig`, and then dispatch the execution to the
+appropriate handler—either a one-shot run, a streaming run, or an interactive
+REPL session.
+
+Key Responsibilities:
+ - Defining all CLI options (`--provider`, `--model`, `--tool`, etc.) and arguments.
+ - Handling informational flags that provide data and exit immediately, such as
+   `--list-providers`, `--active-providers`, and `--list-tools`.
+ - Parsing user input to configure and initialize the `Agent`.
+ - Dispatching execution to the correct handler:
+    - `interactive.start_interactive_session` for the REPL mode (`-i`).
+    - `run_agent` for standard, synchronous execution.
+    - `run_agent_stream` for streaming responses (`--stream`).
+ - Implementing user-experience safety nets, such as confirming single-word
+   prompts to prevent accidental execution of typos.
+ - Setting up the global logging level based on the `--verbose` flag.
+
+Usage Examples:
+    # Run a simple, one-shot prompt with default settings (OpenAI).
+    $ allos "Create a Python file named app.py that prints 'Hello, World!'."
+
+    # Start an interactive chat session.
+    $ allos -i
+
+    # Use a different provider and model, specifying a tool and enabling auto-approve.
+    $ allos -p anthropic -m claude-3-haiku-20240307 --tool write_file --auto-approve \\
+      "Write a short story about an AI and save it to story.txt"
+
+    # Run in streaming mode to see the response as it's generated.
+    $ allos --stream "Tell me a long and detailed story about a space explorer."
+
+    # List all available tools and their descriptions.
+    $ allos --list-tools
+"""
 
 import os
 from typing import List, Optional
@@ -28,8 +69,23 @@ console = Console()
 
 
 class RichHelpCommand(click.Command):
+    """A custom `click.Command` subclass to display a logo banner with the help message.
+
+    This class overrides the default `format_help` method to first print the
+    Allos SDK's ASCII art logo banner to the console before proceeding with the
+    standard help text provided by Click. This enhances the branding and user
+    experience of the CLI's help command (`--help`, `-h`).
+    """
+
     def format_help(self, ctx, formatter):
-        """Writes the help into the formatter."""
+        """Formats the help message, prepending the SDK's logo banner.
+
+        This is an override of the base `click.Command.format_help` method.
+
+        Args:
+            ctx: The click Context object.
+            formatter: The click HelpFormatter object.
+        """
         console.print(LOGO_BANNER, style="bold cyan")
         super().format_help(ctx, formatter)
 
@@ -54,6 +110,21 @@ KNOWN_FLAG_WORDS = {
 
 
 def print_providers(ctx, param, value):
+    """A callback function for the `--list-providers` CLI flag.
+
+    This function is triggered by Click when the `--list-providers` flag is used.
+    It fetches all registered provider names from the `ProviderRegistry`, formats
+    them into a `rich.panel.Panel`, prints the result to the console, and then
+    terminates the program.
+
+    The check `if not value or ctx.resilient_parsing:` prevents the callback from
+    running during shell completion activities.
+
+    Args:
+        ctx: The click Context object.
+        param: The click Parameter object that triggered the callback.
+        value: The value of the parameter; for a flag, this is `True` if present.
+    """
     if not value or ctx.resilient_parsing:
         return
     providers = ProviderRegistry.list_providers()
@@ -68,7 +139,25 @@ def print_providers(ctx, param, value):
 
 
 def print_active_providers(ctx, param, value):
-    """Prints a table of providers and their readiness status."""
+    """A callback for the `--active-providers` flag to show provider readiness.
+
+    This function is triggered by Click when the `--active-providers` flag is used.
+    It prints a `rich.table.Table` detailing each available provider and its
+    current configuration status. The status is determined by checking if the
+    required API key environment variable for each provider is set.
+
+    Possible statuses:
+     - "Ready": The required environment variable is set.
+     - "Missing Key": The required environment variable is not set.
+     - "Manual Config Required": The provider does not rely on a standard env var.
+
+    The program terminates after printing the table.
+
+    Args:
+        ctx: The click Context object.
+        param: The click Parameter object that triggered the callback.
+        value: The value of the parameter; for a flag, this is `True` if present.
+    """
     if not value or ctx.resilient_parsing:
         return
 
@@ -99,6 +188,21 @@ def print_active_providers(ctx, param, value):
 
 
 def print_tools(ctx, param, value):
+    """A callback function for the `--list-tools` CLI flag.
+
+    This function is triggered by Click when the `--list-tools` flag is used.
+    It fetches all registered tools from the `ToolRegistry`, formats their
+    name, permission level, and description into a `rich.panel.Panel`, prints
+    the result to the console, and then terminates the program.
+
+    The check `if not value or ctx.resilient_parsing:` prevents the callback from
+    running during shell completion activities.
+
+    Args:
+        ctx: The click Context object.
+        param: The click Parameter object that triggered the callback. (unused)
+        value: The value of the parameter; for a flag, this is `True` if present.
+    """
     if not value or ctx.resilient_parsing:
         return
     tools = ToolRegistry.get_all_tools()
@@ -210,8 +314,7 @@ def main(
     stream: bool,
     prompt: tuple,
 ):
-    """
-    🚀 Run an agent to execute a given PROMPT.
+    """🚀 Run an agent to execute a given PROMPT.
 
     Example: allos "Create a FastAPI hello world app"
     """
@@ -301,8 +404,8 @@ def _determine_model(provider: str, model: Optional[str]) -> str:
 
 
 def _validate_api_key(provider: str, api_key: Optional[str]) -> bool:
-    """
-    Checks if an API key is available.
+    """Checks if an API key is available.
+
     Returns True if valid, False if missing (and prints error).
     """
     if api_key:
@@ -431,7 +534,6 @@ def run_agent(
     auto_approve: bool,
 ):
     """The core logic for running the agent."""
-
     # --- Determine the model ---
     model = _determine_model(provider, model)
 

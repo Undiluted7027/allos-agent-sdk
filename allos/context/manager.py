@@ -1,8 +1,6 @@
 # allos/context/manager.py
 
-"""
-Manages the conversation context, which includes the history of messages.
-"""
+"""Manages the conversation context, which includes the history of messages."""
 
 import json
 from dataclasses import asdict, dataclass, field
@@ -13,8 +11,7 @@ from ..providers.base import Message, MessageRole, ToolCall
 
 @dataclass
 class ConversationContext:
-    """
-    A container for the messages in a conversation, serving as the agent's memory.
+    """A container for the messages in a conversation, serving as the agent's memory.
 
     This class provides methods to add messages, and to serialize/deserialize
     the entire conversation history for session management.

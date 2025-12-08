@@ -1,5 +1,22 @@
 # allos/providers/chat_completions.py
 
+"""Provides a versatile provider for any OpenAI-compatible Chat Completions API.
+
+This module is the key to the Allos SDK's broad compatibility. The
+`ChatCompletionsProvider` is not just for OpenAI's legacy API; it is the
+primary mechanism for connecting to a wide range of third-party services and
+local models that expose an OpenAI-compatible `/v1/chat/completions` endpoint.
+
+This includes, but is not limited to:
+ - Cloud services like Together AI, Groq, Mistral, Anyscale, and DeepSeek.
+ - API gateways and routers like OpenRouter and Portkey.
+ - Local models served via vLLM, TGI, or Ollama's compatibility mode.
+
+The provider handles the translation from the Allos SDK's standard format to
+the Chat Completions message and tool format (using `{"type": "function", ...}`),
+making these diverse backends seamlessly available to the `Agent`.
+"""
+
 import json
 import os
 import time
@@ -7,6 +24,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import openai
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from pydantic import ValidationError
 
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
@@ -25,15 +43,19 @@ from .registry import provider
 
 @provider("chat_completions")
 class ChatCompletionsProvider(BaseProvider):
-    """
-    A generic provider for the OpenAI Chat Completions API (/v1/chat/completions).
+    """A generic provider for the OpenAI Chat Completions API (/v1/chat/completions).
 
-    This provider is designed for:
-    1. Legacy OpenAI workflows.
-    2. OpenAI-Compatible APIs (Together AI, Anyscale, vLLM, LocalAI, etc.) that
-       do not yet support the newer Responses API.
+    This provider uses the standard `openai` Python library to communicate with
+    any API endpoint that conforms to the OpenAI Chat Completions specification.
+    It is the default choice for most third-party and local model providers.
 
-    To use with a 3rd party service, simply provide the `base_url` and the appropriate `api_key`.
+    To use with a compatible service, provide the service's `base_url` and the
+    appropriate `api_key` during initialization.
+
+    Attributes:
+        client (openai.OpenAI): The authenticated OpenAI client instance, potentially
+                                configured with a custom base URL.
+        base_url (Optional[str]): The custom base URL the client is pointed to.
     """
 
     # This is a fallback variable. This provider automatically selects the env_var
@@ -47,12 +69,18 @@ class ChatCompletionsProvider(BaseProvider):
         base_url: Optional[str] = None,
         **kwargs: Any,
     ):
-        """
+        """Initializes the ChatCompletionsProvider and its underlying OpenAI client.
+
         Args:
-            model: The model identifier (e.g., "gpt-4", "meta-llama/Llama-3-70b-chat").
-            api_key: The API key. Defaults to OPENAI_API_KEY env var if not set.
-            base_url: The API base URL (e.g., "https://api.together.xyz/v1").
-            **kwargs: Additional arguments for the OpenAI client.
+            model: The model identifier to use (e.g., "gpt-4", "meta-llama/Llama-3-70b-chat").
+            api_key: The API key for the service. If not provided, it falls back to the
+                     `OPENAI_API_KEY` environment variable.
+            base_url: The API base URL for the compatible service (e.g.,
+                      "https://api.together.xyz/v1").
+            **kwargs: Additional keyword arguments to pass to the `openai.OpenAI` client.
+
+        Raises:
+            ProviderError: If the `openai.OpenAI` client fails to initialize.
         """
         super().__init__(model, **kwargs)
         self.base_url = base_url
@@ -71,8 +99,21 @@ class ChatCompletionsProvider(BaseProvider):
 
     @staticmethod
     def _convert_messages(messages: List[Message]) -> List[Dict[str, Any]]:
-        """
-        Converts Allos messages to the Chat Completions `messages` array format.
+        """Converts a list of Allos Messages into the Chat Completions `messages` format.
+
+        This method translates the SDK's generic message structure into the specific
+        list of dictionaries required by the `/v1/chat/completions` endpoint.
+
+        Key transformations:
+        - `ASSISTANT` messages with tool calls are formatted with a `tool_calls`
+          list, where each tool call is explicitly typed as a `function`.
+        - `TOOL` messages are converted into distinct messages with `role: "tool"`.
+
+        Args:
+            messages: A list of `allos.providers.base.Message` objects.
+
+        Returns:
+            A list of dictionaries formatted for the Chat Completions API.
         """
         chat_messages = []
 
@@ -118,9 +159,16 @@ class ChatCompletionsProvider(BaseProvider):
 
     @staticmethod
     def _convert_tools(tools: List[BaseTool]) -> List[Dict[str, Any]]:
-        """
-        Converts Allos tools to the Chat Completions `tools` schema.
-        Note: This API uses the "external tagging" format (wrapped in "function").
+        """Converts Allos tools to the Chat Completions `tools` schema.
+
+        This method wraps each tool's definition inside the `{"type": "function",
+        "function": {...}}` structure required by the Chat Completions API.
+
+        Args:
+            tools: A list of `allos.tools.base.BaseTool` objects.
+
+        Returns:
+            A list of dictionaries formatted for the `tools` parameter of the API.
         """
         chat_tools = []
         for tool in tools:
@@ -156,8 +204,20 @@ class ChatCompletionsProvider(BaseProvider):
     def _parse_response(
         response: ChatCompletion,
     ) -> Tuple[Optional[str], List[ToolCall]]:
-        """
-        Parses the ChatCompletion response object into an Allos ProviderResponse.
+        """Parses a `ChatCompletion` response object into the standard Allos format.
+
+        This extracts the text content and any tool call requests from the API
+        response and converts them into a standard tuple of `(content, tool_calls)`.
+        It gracefully handles cases where tool argument JSON is malformed by logging
+        a warning and skipping the invalid tool call.
+
+        Args:
+            response: The `openai.types.chat.ChatCompletion` object from the API.
+
+        Returns:
+            A tuple containing:
+            - An optional string for the message content.
+            - A list of `allos.providers.base.ToolCall` objects.
         """
         choice = response.choices[0]
         message: ChatCompletionMessage = choice.message
@@ -192,8 +252,18 @@ class ChatCompletionsProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> ProviderResponse:
-        """
-        Sends a request to the /v1/chat/completions endpoint.
+        """Sends a request to the /v1/chat/completions endpoint.
+
+        Args:
+            messages: A list of Allos Message objects representing the conversation history.
+            tools: An optional list of Allos BaseTool objects for tool-calling.
+            **kwargs: Additional provider-specific parameters.
+
+        Returns:
+            An Allos ProviderResponse object containing the LLM's reply, tool calls, and detailed metadata.
+
+        Raises:
+            ProviderError: If the API call fails due to connection issues, authentication errors, rate limits, or other API-side errors.
         """
         chat_messages = self._convert_messages(messages)
 
@@ -263,8 +333,17 @@ class ChatCompletionsProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> Iterator[ProviderChunk]:
-        """Sends a request to the /v1/chat/completions endpoint."""
+        """Sends a request to the /v1/chat/completions endpoint and streams the response.
 
+        Yields:
+            Iterator[ProviderChunk]: An iterator of chunks representing the streaming
+                                    response. Chunks can contain content, tool
+                                    call information, final metadata, or an error
+                                    message in case of an in-stream failure.
+
+        Raises:
+            ProviderError: If a connection or API error occurs before the stream begins.
+        """
         chat_messages = self._convert_messages(messages)
         api_kwargs: Dict[str, Any] = {
             "model": self.model,
@@ -303,6 +382,16 @@ class ChatCompletionsProvider(BaseProvider):
             ) from e
 
     def _dispatch_chat_chunk(self, chunk, _api_context):
+        """Acts as a router for incoming stream chunks.
+
+        It inspects the chunk's `delta` and calls the appropriate handler function
+        for content, tool call deltas, or finalization. It also handles the final
+        usage-only chunk.
+
+        Args:
+            chunk: The `ChatCompletionChunk` object from the stream.
+            _api_context: A dictionary holding the state of the API call.
+        """
         # Skip chunks without choices (e.g., final usage-only chunk)
         if not chunk.choices:
             if chunk.usage:
@@ -322,6 +411,17 @@ class ChatCompletionsProvider(BaseProvider):
             yield from self._handle_tool_calls_completion(_api_context)
 
     def _handle_tool_call_delta(self, tool_call_deltas, _api_context):
+        """Processes and accumulates streaming deltas for tool calls.
+
+        This method manages the state of in-progress tool calls, creating them
+        when they first appear and appending argument deltas as they arrive in
+        subsequent chunks.
+
+        Args:
+            tool_call_deltas: The list of tool call deltas from a stream chunk.
+            _api_context: A dictionary holding the state of the API call, including
+                          the `tool_calls_state` list.
+        """
         in_progress_tool_calls = _api_context["tool_calls_state"]
 
         for tc_delta in tool_call_deltas:
@@ -359,9 +459,18 @@ class ChatCompletionsProvider(BaseProvider):
                 yield ProviderChunk(tool_call_delta=tc_delta.function.arguments)
 
     def _handle_tool_calls_completion(self, _api_context):
-        """
-        Handles the completion of a tool-calling turn.
-        Yields the final tool_call_done chunks and clears the state.
+        """Finalizes tool calls at the end of a tool-calling turn.
+
+        Triggered by a `finish_reason` of `tool_calls`, this method parses the
+        fully accumulated argument strings into JSON and yields the complete
+        `tool_call_done` chunks. It also clears the tool call state for the next turn.
+
+        Args:
+            _api_context: A dictionary holding the state of the API call.
+
+        Yields:
+            ProviderChunk: A `tool_call_done` chunk for each completed tool call,
+                           or an `error` chunk if JSON parsing fails.
         """
         in_progress_tool_calls = _api_context["tool_calls_state"]
         for state in in_progress_tool_calls:
@@ -380,32 +489,63 @@ class ChatCompletionsProvider(BaseProvider):
         in_progress_tool_calls.clear()
 
     def _handle_final_usage_chunk(self, chunk, _api_context):
+        """Handles the final usage chunk of the stream.
+
+        This method builds the definitive metadata object for the entire stream.
+        It gracefully handles potential data validation or processing errors
+        during metadata construction by yielding a final ProviderChunk with an
+        error field, ensuring the stream terminates cleanly.
         """
-        Handles the very last chunk of the stream which contains only usage stats.
-        This is the single source of truth for building the final metadata.
-        """
-        synthetic = {
-            "id": chunk.id,
-            "model": chunk.model,
-            "status": "completed",
-            "usage": chunk.usage,
-            "choices": [],
-            "created": int(time.time()),
-            "object": "chat.completion",
-        }
-        builder = MetadataBuilder(
-            provider_name="chat_completions",
-            request_kwargs=_api_context["builder_kwargs"],
-            start_time=_api_context["start_time"],
-        )
-        valid_response = openai.types.chat.ChatCompletion.model_validate(synthetic)
-        metadata = builder.with_response_obj(valid_response).build()
-        yield ProviderChunk(final_metadata=metadata)
+        try:
+            synthetic = {
+                "id": chunk.id,
+                "model": chunk.model,
+                "status": "completed",
+                "usage": chunk.usage,
+                "choices": [],
+                "created": int(time.time()),
+                "object": "chat.completion",
+            }
+            builder = MetadataBuilder(
+                provider_name="chat_completions",
+                request_kwargs=_api_context["builder_kwargs"],
+                start_time=_api_context["start_time"],
+            )
+
+            valid_response = ChatCompletion.model_validate(synthetic)
+
+            metadata = builder.with_response_obj(valid_response).build()
+            yield ProviderChunk(final_metadata=metadata)
+
+        except ValidationError as e:
+            # This occurs if the synthetic object fails Pydantic validation
+            logger.error(
+                f"Pydantic validation failed while building final metadata chunk: {e}",
+                exc_info=True,
+            )
+            yield ProviderChunk(
+                error="Internal error: Failed to validate final stream metadata."
+            )
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            # This occurs if the MetadataBuilder fails for other reasons
+            logger.error(
+                f"Data processing error while building final metadata chunk: {e}",
+                exc_info=True,
+            )
+            yield ProviderChunk(
+                error="Internal error: Failed to process final stream metadata."
+            )
 
     def get_context_window(self) -> int:
-        """
-        Returns context window. Since this class supports arbitrary models via base_url,
-        we default to a safe 4k but check for known OpenAI models.
+        """Returns the context window size for the configured model.
+
+        It first checks for known OpenAI model identifiers (e.g., "gpt-4o") that
+        have hardcoded context window sizes. If the model is not found in the
+        known list, which is common for third-party compatible APIs, it returns a
+        conservative default of 4096 tokens.
+
+        Returns:
+            An integer representing the context window size in tokens.
         """
         # Known OpenAI models map
         known_windows = {

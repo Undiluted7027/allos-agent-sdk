@@ -1,5 +1,23 @@
 # allos/tools/filesystem/directory.py
 
+"""Implements a tool for safely listing the contents of a directory.
+
+This module provides the `ListDirectoryTool`, a fundamental "sensory" capability
+that allows an agent to perceive its local file environment. By listing files
+and subdirectories, the agent can navigate the filesystem, verify the existence
+of files before reading them, or confirm the output of other tools.
+
+Key design considerations for this tool include:
+ - Security: It is built upon the SDK's safe path utilities, ensuring the
+   agent cannot list directories outside of its designated working area, thus
+   preventing path traversal attacks.
+ - Flexibility: It supports both recursive and non-recursive listing, as
+   well as the option to show hidden (dot) files.
+ - Safety: As a read-only operation, it is considered safe and is granted
+   `ToolPermission.ALWAYS_ALLOW` by default, reducing the need for user
+   prompts during simple inspection tasks.
+"""
+
 from pathlib import Path
 from typing import Any, Dict
 
@@ -47,8 +65,7 @@ class ListDirectoryTool(BaseTool):
     ]
 
     def execute(self, **kwargs: Any) -> Dict[str, Any]:
-        """
-        Executes the directory listing operation.
+        """Executes the directory listing operation.
 
         Args:
             **kwargs: May contain 'path', 'recursive', and 'show_hidden'.

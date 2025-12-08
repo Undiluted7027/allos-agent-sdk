@@ -1,5 +1,23 @@
 # allos/providers/openai.py
 
+"""Provides the concrete implementation for OpenAI's modern `/v1/responses` API.
+
+This module contains the `OpenAIProvider`, a specific and optimized implementation
+for interacting with OpenAI's newer, more structured Responses API. It should be
+the preferred provider for all native OpenAI models (e.g., GPT-4o, GPT-4-Turbo).
+
+It is distinct from the `ChatCompletionsProvider`, which is designed for broader
+compatibility with older OpenAI APIs and third-party services.
+
+Key responsibilities of this provider include:
+ - Translating Allos messages into the structured `input` list format required by
+   the Responses API, including `function_call` and `function_call_output` items.
+ - Parsing the structured `output` list from an OpenAI `Response` object.
+ - Handling the event-based streaming protocol specific to the Responses API.
+ - Managing authentication and wrapping OpenAI-specific errors in the standard
+   `ProviderError` for consistent handling by the agent.
+"""
+
 import json
 import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple
@@ -10,6 +28,7 @@ from openai.types.responses import (
     ResponseFunctionToolCall,
     ResponseOutputMessage,
 )
+from pydantic import ValidationError
 
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
@@ -38,16 +57,24 @@ MODEL_CONTEXT_WINDOWS = {
 
 @provider("openai")
 class OpenAIProvider(BaseProvider):
-    """
-    An Allos provider for interacting with the OpenAI API, specifically using the
-    new Responses API (`/v1/responses`).
+    """An Allos provider for OpenAI's modern `/v1/responses` API.
+
+    This class implements the `BaseProvider` interface to connect the Allos Agent
+    with OpenAI's language models via their most current API. It handles the
+    translation of messages and tools, API authentication, and error handling
+    specific to the `openai` Python library.
+
+    Authentication is handled automatically by the `openai` library, which primarily
+    looks for the `OPENAI_API_KEY` environment variable.
+
+    Attributes:
+        client (openai.OpenAI): The authenticated OpenAI API client instance.
     """
 
     env_var = "OPENAI_API_KEY"
 
     def __init__(self, model: str, api_key: Optional[str] = None, **kwargs: Any):
-        """
-        Initializes the OpenAIProvider.
+        """Initializes the OpenAIProvider.
 
         Args:
             model: The OpenAI model to use (e.g., 'gpt-4o').
@@ -67,13 +94,27 @@ class OpenAIProvider(BaseProvider):
     def _convert_to_openai_messages(
         messages: List[Message],
     ) -> Tuple[Optional[str], List[Dict[str, Any]]]:
-        """
-        Converts a list of Allos Messages into the format expected by the
-        OpenAI Responses API, separating the system prompt.
+        """Converts a list of Allos Messages into the OpenAI Responses API format.
+
+        This method performs the translation from the SDK's generic `Message`
+        format to the specific, structured list of items required by the
+        `/v1/responses` endpoint's `input` parameter.
+
+        Key transformations:
+        - The first `SYSTEM` message is extracted to be used as the `instructions`
+          parameter in the API call.
+        - `ASSISTANT` messages with text are converted to `role: "assistant"` items.
+        - `ASSISTANT` messages with tool calls are converted to `type: "function_call"` items.
+        - `TOOL` messages are converted to `type: "function_call_output"` items,
+          linking them to the original `function_call` via the `call_id`.
+
+        Args:
+            messages: A list of `allos.providers.base.Message` objects.
 
         Returns:
-            A tuple containing the instructions (system prompt) and the list of
-            input messages.
+            A tuple containing:
+            - An optional string for the `instructions` (system prompt).
+            - A list of dictionaries formatted for the `input` parameter.
         """
         instructions = None
         openai_messages = []
@@ -121,7 +162,14 @@ class OpenAIProvider(BaseProvider):
 
     @staticmethod
     def _convert_to_openai_tools(tools: List[BaseTool]) -> List[Dict[str, Any]]:
-        """Converts a list of Allos BaseTools into the OpenAI function tool format."""
+        """Converts Allos tools into the OpenAI function tool format.
+
+        Args:
+            tools: A list of `allos.tools.base.BaseTool` objects.
+
+        Returns:
+            A list of dictionaries formatted for the `tools` parameter of the API.
+        """
         openai_tools = []
         for tool in tools:
             properties = {}
@@ -159,7 +207,23 @@ class OpenAIProvider(BaseProvider):
     def _parse_openai_response(
         response: Response,
     ) -> Tuple[Optional[str], List[ToolCall]]:
-        """Parses the OpenAI Response object into an Allos ProviderResponse."""
+        """Parses an OpenAI `Response` object into the standard Allos format.
+
+        This method iterates through the `output` list of the `Response` object,
+        extracting text content from `message` items and tool call requests from
+        `function_call` items.
+
+        Args:
+            response: The `openai.types.responses.Response` object from the API.
+
+        Returns:
+            A tuple containing:
+            - An optional string for the message content.
+            - A list of `allos.providers.base.ToolCall` objects.
+
+        Raises:
+            ProviderError: If a tool call's arguments are not valid JSON.
+        """
         text_content: list[str] = []
         tool_calls: list[ToolCall] = []
 
@@ -180,8 +244,7 @@ class OpenAIProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> ProviderResponse:
-        """
-        Sends a request to the OpenAI Responses API.
+        """Sends a request to the OpenAI Responses API.
 
         Args:
             messages: A list of messages forming the conversation.
@@ -189,9 +252,11 @@ class OpenAIProvider(BaseProvider):
             **kwargs: Additional provider-specific parameters.
 
         Returns:
-            An Allos ProviderResponse object.
-        """
+            An Allos ProviderResponse object containing the LLM's reply, tool calls, and detailed metadata.
 
+        Raises:
+            ProviderError: If the API call fails due to connection issues, authentication errors, rate limits, or other API-side errors.
+        """
         instructions, input_messages = self._convert_to_openai_messages(messages)
 
         if "max_tokens" in kwargs:
@@ -267,8 +332,28 @@ class OpenAIProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> Iterator[ProviderChunk]:
-        """
-        Sends a request to the OpenAI Responses API and streams the response.
+        """Sends a request to the OpenAI Responses API and streams the response.
+
+        This method handles two types of errors:
+        1. Pre-stream errors (e.g., authentication, invalid request) will raise a
+           ProviderError synchronously.
+        2. In-stream errors (e.g., failed data parsing, metadata generation) will
+           be yielded as a ProviderChunk with the 'error' field populated, allowing
+           for graceful termination of the stream by the caller.
+
+        Args:
+            messages: A list of messages forming the conversation.
+            tools: An optional list of tools available for the agent.
+            **kwargs: Additional provider-specific parameters.
+
+        Yields:
+            Iterator[ProviderChunk]: An iterator of `ProviderChunk` objects. Each
+                                     chunk can contain text content, tool call
+                                     information, final usage metadata, or an error
+                                     message if a failure occurs during stream processing.
+
+        Raises:
+            ProviderError: If a fatal API error occurs before the stream begins.
         """
         instructions, input_messages = self._convert_to_openai_messages(messages)
 
@@ -311,11 +396,29 @@ class OpenAIProvider(BaseProvider):
             ) from e
 
     def get_context_window(self) -> int:
-        """Returns the context window size for the current model."""
+        """Returns the context window size for the current model.
+
+        It uses a hardcoded mapping of known OpenAI model identifiers to their
+        official context window sizes. For unknown models, it returns a
+        conservative default of 4096 tokens.
+
+        Returns:
+            An integer representing the context window size in tokens.
+        """
         return MODEL_CONTEXT_WINDOWS.get(self.model, 4096)  # Default to 4k if unknown
 
     # --- OpenAI Specific Streaming Utility Functions ---
     def _dispatch_event(self, event, tool_state, _api_call_context):
+        """Routes a streaming event to the appropriate handler method.
+
+        This acts as a central dispatcher for the event-based streaming protocol
+        of the OpenAI Responses API.
+
+        Args:
+            event: The event object from the OpenAI stream.
+            tool_state: A dictionary managing the state of in-progress tool calls.
+            _api_call_context: A dictionary holding the state of the API call.
+        """
         handlers = {
             "response.output_text.delta": self._handle_text_delta,
             "response.output_item.added": self._handle_tool_start,
@@ -330,9 +433,11 @@ class OpenAIProvider(BaseProvider):
             yield from handler(event, tool_state, _api_call_context)
 
     def _handle_text_delta(self, event, _state, _api_call_context):
+        """Handles the `response.output_text.delta` event."""
         yield ProviderChunk(content=event.delta)
 
     def _handle_tool_start(self, event, state, _api_call_context):
+        """Handles the `response.output_item.added` event for a function_call."""
         if event.item.type != "function_call":
             return
 
@@ -351,6 +456,7 @@ class OpenAIProvider(BaseProvider):
         )
 
     def _handle_tool_args_delta(self, event, state, _api_call_context):
+        """Handles the `response.function_call_arguments.delta` event."""
         if event.output_index not in state:
             return
 
@@ -358,6 +464,11 @@ class OpenAIProvider(BaseProvider):
         yield ProviderChunk(tool_call_delta=event.delta)
 
     def _handle_tool_done(self, event, state, _api_call_context):
+        """Handles the `response.output_item.done` event for a function_call.
+
+        This finalizes the tool call by parsing its arguments and yielding a
+        `tool_call_done` chunk.
+        """
         if event.item.type != "function_call":
             return
 
@@ -384,54 +495,72 @@ class OpenAIProvider(BaseProvider):
             del state[event.output_index]
 
     def _handle_completed(self, event, _state, api_call_context):
-        if event.response and event.response.usage:
-            final_response_obj = event.response
+        """Handles the final 'response.completed' event from the stream.
 
-            builder = MetadataBuilder(
-                provider_name="openai",
-                request_kwargs=api_call_context["builder_kwargs"],
-                start_time=api_call_context["start_time"],
-            )
-            metadata = builder.with_response_obj(final_response_obj).build()
+        Builds and yields the final metadata chunk. Catches and gracefully handles
+        any validation or data processing errors during this final step.
+        """
+        try:
+            if event.response and event.response.usage:
+                final_response_obj = event.response
 
-        if not metadata.tools.tool_calls and _state:
-            from .metadata import ToolCallDetail
+                builder = MetadataBuilder(
+                    provider_name="openai",
+                    request_kwargs=api_call_context["builder_kwargs"],
+                    start_time=api_call_context["start_time"],
+                )
+                metadata = builder.with_response_obj(final_response_obj).build()
 
-            logger.debug(
-                f"Response object missing tool calls. "
-                f"Extracting {len(_state)} from streaming state."
-            )
+            if not metadata.tools.tool_calls and _state:
+                from .metadata import ToolCallDetail
 
-            tool_calls_from_state = []
-            for call_state in _state.values():
-                try:
-                    parsed_args = json.loads(call_state.get("arguments", "{}"))
-                    tool_calls_from_state.append(
-                        ToolCallDetail(
-                            tool_call_id=call_state["id"],
-                            tool_name=call_state["name"],
-                            arguments=parsed_args,
+                logger.debug(
+                    f"Response object missing tool calls. "
+                    f"Extracting {len(_state)} from streaming state."
+                )
+
+                tool_calls_from_state = []
+                for call_state in _state.values():
+                    try:
+                        parsed_args = json.loads(call_state.get("arguments", "{}"))
+                        tool_calls_from_state.append(
+                            ToolCallDetail(
+                                tool_call_id=call_state["id"],
+                                tool_name=call_state["name"],
+                                arguments=parsed_args,
+                            )
                         )
-                    )
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.warning(f"Failed to parse tool call from state: {e}")
-                    continue
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Failed to parse tool call from state: {e}")
+                        continue
 
-            if tool_calls_from_state:
-                metadata.tools.tool_calls = tool_calls_from_state
-                metadata.tools.total_tool_calls = len(tool_calls_from_state)
-        logger.info(f"Response object has output: {hasattr(event.response, 'output')}")
-        if hasattr(event.response, "output"):
-            logger.info(f"Output items: {len(event.response.output or [])}")
-            for item in event.response.output or []:
-                logger.info(f"  - Item type: {item.type}")
+                if tool_calls_from_state:
+                    metadata.tools.tool_calls = tool_calls_from_state
+                    metadata.tools.total_tool_calls = len(tool_calls_from_state)
+            logger.info(
+                f"Response object has output: {hasattr(event.response, 'output')}"
+            )
+            if hasattr(event.response, "output"):
+                logger.info(f"Output items: {len(event.response.output or [])}")
+                for item in event.response.output or []:
+                    logger.info(f"  - Item type: {item.type}")
 
-        logger.info(f"Streaming state has {len(_state)} items")
-        logger.info(f"Built metadata has {metadata.tools.total_tool_calls} tool calls")
+            logger.info(f"Streaming state has {len(_state)} items")
+            logger.info(
+                f"Built metadata has {metadata.tools.total_tool_calls} tool calls"
+            )
 
-        yield ProviderChunk(final_metadata=metadata)
+            yield ProviderChunk(final_metadata=metadata)
+        except (ValidationError, ValueError, TypeError, AttributeError) as e:
+            logger.error(
+                f"Error building final metadata for OpenAI stream: {e}", exc_info=True
+            )
+            yield ProviderChunk(
+                error="Internal error: Failed to process final stream metadata."
+            )
 
     def _handle_error(self, event, _state, _api_call_context):
+        """Handles the `error` event, yielding a chunk with the error message."""
         yield ProviderChunk(error=f"API Error: {event.error.message}")
 
 
@@ -439,6 +568,14 @@ class OpenAIProvider(BaseProvider):
 
 
 def _process_message(item: ResponseOutputMessage, text_accumulator: list[str]) -> None:
+    """Parses a `ResponseOutputMessage` item from a non-streaming response.
+
+    Extracts text from the message's content parts and appends it to the accumulator.
+
+    Args:
+        item: The `ResponseOutputMessage` object.
+        text_accumulator: A list of strings to which the content will be added.
+    """
     if not getattr(item, "content", None):
         return
 
@@ -450,6 +587,18 @@ def _process_message(item: ResponseOutputMessage, text_accumulator: list[str]) -
 def _process_tool_call(
     item: ResponseFunctionToolCall, tool_calls: list[ToolCall]
 ) -> None:
+    """Parses a `ResponseFunctionToolCall` item from a non-streaming response.
+
+    Extracts the tool name, ID, and arguments, then creates a `ToolCall` object
+    and appends it to the `tool_calls` list.
+
+    Args:
+        item: The `ResponseFunctionToolCall` object.
+        tool_calls: The list to which the parsed `ToolCall` will be added.
+
+    Raises:
+        ProviderError: If the tool call's arguments are not valid JSON.
+    """
     call_id_ = getattr(item, "call_id", None)
     # id_ = getattr(item, "id", None)
     if not call_id_:

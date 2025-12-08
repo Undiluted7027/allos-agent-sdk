@@ -1,7 +1,24 @@
-# allos/tools/filesystem/read.py
+# allos/tools/filesystem/write.py
 
-"""
-A tool for allowing the agent to write or create files, with the crucial `ASK_USER` permission set.
+"""Implements a tool for creating, overwriting, or appending to files.
+
+This module provides the `FileWriteTool`, a powerful "action" capability that
+enables an agent to create artifacts, save its work, or modify its environment.
+It is the primary tool for tasks such as writing code, generating reports, or
+saving configuration files.
+
+Given that this tool can alter the filesystem, its design is centered on safety
+and user control:
+ - Functionality: It supports creating new files, completely overwriting
+   existing files, or appending content to the end of a file.
+ - Path Security: It uses the `safe_write_file` utility to ensure that all
+   write operations are strictly confined to the agent's designated working
+   directory, preventing the agent from modifying system files or other
+   sensitive data.
+ - Permission Control: As a potentially destructive operation, the tool
+   defaults to `ToolPermission.ASK_USER`. This acts as a critical safety check,
+   requiring explicit consent from a human operator before the agent can make
+   any changes to the filesystem.
 """
 
 from typing import Any, Dict
@@ -46,8 +63,7 @@ class FileWriteTool(BaseTool):
     ]
 
     def execute(self, **kwargs: Any) -> Dict[str, Any]:
-        """
-        Executes the file write operation.
+        """Executes the file write operation.
 
         Args:
             **kwargs: Must contain 'path' and 'content'.

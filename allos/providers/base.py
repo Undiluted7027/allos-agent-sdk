@@ -1,7 +1,6 @@
 # allos/providers/base.py
 
-"""
-Base classes and data structures for all LLM providers.
+"""Base classes and data structures for all LLM providers.
 
 This module defines the abstract interface that all provider implementations must follow,
 ensuring they are interchangeable within the Allos ecosystem.
@@ -35,8 +34,7 @@ class ToolCall:
 
 @dataclass
 class Message:
-    """
-    Represents a single message in a conversation.
+    """Represents a single message in a conversation.
 
     Attributes:
         role: The role of the message sender (system, user, assistant, or tool).
@@ -63,8 +61,8 @@ class ProviderResponse:
 
 @dataclass
 class ProviderChunk:
-    """
-    Represents a single chunk of data yielded from a streaming provider.
+    """Represents a single chunk of data yielded from a streaming provider.
+
     Only one of the fields should be populated per chunk.
     """
 
@@ -80,8 +78,7 @@ class ProviderChunk:
 
 
 class BaseProvider(ABC):
-    """
-    Abstract base class for all LLM providers.
+    """Abstract base class for all LLM providers.
 
     All provider implementations must inherit from this class and implement
     the `chat` and `get_context_window` methods.
@@ -90,8 +87,7 @@ class BaseProvider(ABC):
     env_var: Optional[str] = None
 
     def __init__(self, model: str, **kwargs: Any):
-        """
-        Initializes the provider.
+        """Initializes the provider.
 
         Args:
             model: The specific model to use (e.g., 'gpt-4', 'claude-3-opus-20240229').
@@ -102,8 +98,7 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def chat(self, messages: List[Message], **kwargs: Any) -> ProviderResponse:
-        """
-        Sends a list of messages to the LLM and gets a response.
+        """Sends a list of messages to the LLM and gets a response.
 
         This method must be implemented by all subclasses.
 
@@ -121,8 +116,7 @@ class BaseProvider(ABC):
     def stream_chat(
         self, messages: List[Message], **kwargs: Any
     ) -> Iterator[ProviderChunk]:
-        """
-        Sends a list of messages to the LLM and streams the response.
+        """Sends a list of messages to the LLM and streams the response.
 
         Args:
             messages: A list of Message objects representing the conversation history.
@@ -135,8 +129,7 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def get_context_window(self) -> int:
-        """
-        Retrieves the context window size for the provider's configured model.
+        """Retrieves the context window size for the provider's configured model.
 
         This method must be implemented by subclasses to report the maximum
         number of tokens the model can handle in a single context.
@@ -148,4 +141,14 @@ class BaseProvider(ABC):
         raise NotImplementedError
 
     def __repr__(self) -> str:
+        """Provides a formal, unambiguous string representation of the provider instance.
+
+        This representation is designed to be developer-friendly, closely resembling
+        a constructor call. It includes the specific provider's class name and the
+        model it is configured to use, making it invaluable for debugging, logging,
+        and interactive inspection.
+
+        Returns:
+            A string in the format 'ClassName(model='model_name')'.
+        """
         return f"{self.__class__.__name__}(model='{self.model}')"

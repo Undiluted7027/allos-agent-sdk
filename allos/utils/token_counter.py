@@ -12,8 +12,7 @@ CHARS_PER_TOKEN = 4
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
-    """
-    Counts the number of tokens in a given text string for a specific model.
+    """Counts the number of tokens in a given text string for a specific model.
 
     Uses `tiktoken` for supported models, otherwise falls back to a
     character-based approximation.
@@ -46,8 +45,7 @@ def count_tokens(text: str, model: str = "gpt-4") -> int:
 
 
 def truncate_text_by_tokens(text: str, max_tokens: int, model: str = "gpt-4") -> str:
-    """
-    Truncates text to a maximum number of tokens.
+    """Truncates text to a maximum number of tokens.
 
     Args:
         text: The text to truncate.

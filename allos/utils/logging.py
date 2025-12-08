@@ -13,6 +13,8 @@ logging.addLevelName(THOUGHT_LEVEL, "THOUGHT")
 
 
 class ThoughtLogger(logging.Logger):
+    """Custom logger with THOUGHT log level support."""
+
     def thought(self, message: str, *args: Any, **kwargs: Any) -> None:
         """Log a message with level THOUGHT."""
         if self.isEnabledFor(THOUGHT_LEVEL):
@@ -26,8 +28,7 @@ logger = cast(ThoughtLogger, logging.getLogger("allos"))
 
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
-    """
-    Set up logging for the SDK.
+    """Set up logging for the SDK.
 
     Args:
         level: The minimum log level to display (e.g., "DEBUG", "INFO").

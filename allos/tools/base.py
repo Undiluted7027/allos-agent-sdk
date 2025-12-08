@@ -1,7 +1,6 @@
 # allos/tools/base.py
 
-"""
-Base classes and data structures for all tools in the Allos SDK.
+"""Base classes and data structures for all tools in the Allos SDK.
 
 This module defines the abstract interface that all tool implementations must follow,
 ensuring they are interchangeable and can be correctly registered and utilized
@@ -26,8 +25,7 @@ class ToolPermission(str, Enum):
 
 @dataclass
 class ToolParameter:
-    """
-    Represents a single parameter for a tool.
+    """Represents a single parameter for a tool.
 
     Attributes:
         name: The name of the parameter.
@@ -43,8 +41,7 @@ class ToolParameter:
 
 
 class BaseTool(ABC):
-    """
-    Abstract base class for all tools.
+    """Abstract base class for all tools.
 
     All tool implementations must inherit from this class, define the required
     class attributes, and implement the `execute` method.
@@ -58,8 +55,7 @@ class BaseTool(ABC):
 
     @abstractmethod
     def execute(self, **kwargs: Any) -> Dict[str, Any]:
-        """
-        Executes the tool's logic with the given arguments.
+        """Executes the tool's logic with the given arguments.
 
         This method must be implemented by all subclasses.
 
@@ -74,8 +70,7 @@ class BaseTool(ABC):
         raise NotImplementedError
 
     def validate_arguments(self, arguments: Dict[str, Any]) -> None:
-        """
-        Validates the provided arguments against the tool's defined parameters.
+        """Validates the provided arguments against the tool's defined parameters.
 
         Raises:
             ToolError: If a required argument is missing or an argument
@@ -95,8 +90,7 @@ class BaseTool(ABC):
         # but for now, we rely on the LLM to provide correct types.
 
     def to_provider_format(self, provider: str) -> Dict[str, Any]:
-        """
-        Converts the tool definition to a provider-specific format.
+        """Converts the tool definition to a provider-specific format.
 
         Currently supports "openai" and "anthropic" formats.
 
@@ -139,4 +133,14 @@ class BaseTool(ABC):
         raise ValueError(f"Unsupported provider format requested: {provider}")
 
     def __repr__(self) -> str:
+        """Provides a formal, unambiguous string representation of the tool instance.
+
+        This representation is designed to be developer-friendly, closely resembling
+        a constructor call. It includes the specific tool's class name and its
+        registered `name`, making it invaluable for debugging, logging, and
+        interactive inspection of an agent's capabilities.
+
+        Returns:
+            A string in the format 'ClassName(name='tool_name')'.
+        """
         return f"{self.__class__.__name__}(name='{self.name}')"

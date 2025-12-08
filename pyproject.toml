@@ -99,6 +99,9 @@ dummy-variable-rgx = "^(_|dummy_)"
 select = ["E", "W", "F", "I", "C", "B"] # Standard flake8 set + isort, flake8-bugbear
 ignore = ["E501"] # Ignore line-too-long, handled by black
 
+# [tool.ruff.lint.pydocstyle]
+# convention = "google"
+
 [tool.mypy]
 python_version = "3.9"
 warn_return_any = true
@@ -112,9 +115,6 @@ dev = [
     "pytest-mock>=3.15.1",
     "twine>=6.2.0",
 ]
-
-[pytest]
-env_files = ".env"
 
 [tool.pytest.ini_options]
 addopts = "-v --cov=allos --cov-report=term-missing"

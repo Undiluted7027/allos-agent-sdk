@@ -1,7 +1,6 @@
 # allos/providers/registry.py
 
-"""
-A registry for discovering and instantiating LLM providers.
+"""A registry for discovering and instantiating LLM providers.
 
 This module uses a decorator-based pattern to allow provider implementations
 to register themselves automatically. The ProviderRegistry then acts as a
@@ -66,8 +65,7 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Optional[str]]] = {
 
 
 def provider(name: str):
-    """
-    A decorator to register a new provider class.
+    """A decorator to register a new provider class.
 
     Usage:
         @provider("openai")
@@ -87,14 +85,11 @@ def provider(name: str):
 
 
 class ProviderRegistry:
-    """
-    A factory class for creating LLM provider instances.
-    """
+    """A factory class for creating LLM provider instances."""
 
     @classmethod
     def get_provider(cls, name: str, **kwargs) -> BaseProvider:
-        """
-        Get an instance of a registered provider.
+        """Get an instance of a registered provider.
 
         Intelligently handles known OpenAI-compatible providers (like 'together', 'groq')
         by configuring the generic 'chat_completions' provider automatically.
@@ -105,8 +100,9 @@ class ProviderRegistry:
 
         Returns:
             An instance of the requested provider.
+
         Raises:
-            ConfigurationError: If the provider is not registered.
+            ConfigurationError: If the provider is not registered or an alias's implementation is missing.
         """
         implementation_class = None
         config_overrides = {}
@@ -150,17 +146,15 @@ class ProviderRegistry:
 
     @classmethod
     def list_providers(cls) -> List[str]:
-        """
-        List the names of all registered providers AND known aliases.
-        """
+        """List the names of all registered providers AND known aliases."""
         direct = list(_provider_registry.keys())
         aliases = list(OPENAI_COMPATIBLE_PROVIDERS.keys())
         return sorted(set(direct + aliases))
 
     @classmethod
     def get_env_var_name(cls, provider_name: str) -> Optional[str]:
-        """
-        Dynamically gets the expected env var name for a provider.
+        """Dynamically gets the expected env var name for a provider.
+
         It checks aliases first, then the registered provider class itself.
         """
         # 1. Check if it's an alias with a specific env var

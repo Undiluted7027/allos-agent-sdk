@@ -1,5 +1,29 @@
 # allos/cli/interactive.py
 
+"""Manages the interactive REPL (Read-Eval-Print Loop) session for the Allos CLI.
+
+This module provides the logic for the interactive chat mode, launched via the
+`--interactive` or `-i` flag from the main CLI entry point. It allows users to
+have a continuous, stateful conversation with an `Agent` directly from their
+terminal, making it ideal for development, debugging, and multi-step tasks.
+
+The primary entry point is the `start_interactive_session` function, which
+initializes the agent and handles the entire lifecycle of the REPL session.
+
+Key functionalities of this module include:
+ - Displaying a welcome banner and user instructions.
+ - Creating a new agent session based on CLI arguments.
+ - Loading a previous agent session from a specified file.
+ - Intelligently overriding a loaded session's configuration with any new
+   command-line arguments provided at launch (e.g., changing the model or
+   enabling auto-approve).
+ - Running the main input loop to capture and process user prompts.
+ - Gracefully handling agent errors and user interruptions (e.g., Ctrl+D, Ctrl+C)
+   without crashing the session.
+ - Saving the updated conversation context back to a session file upon exit,
+   ensuring persistence.
+"""
+
 from pathlib import Path
 from typing import Optional
 

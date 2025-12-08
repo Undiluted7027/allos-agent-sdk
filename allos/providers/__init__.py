@@ -1,8 +1,26 @@
 # allos/providers/__init__.py
 
-"""
-The `providers` module contains the abstraction layer and concrete implementations
-for interacting with various Large Language Model (LLM) providers.
+"""The foundation of the Allos SDK's LLM-agnostic architecture.
+
+This module provides the core abstraction layer that allows the `Agent` to
+interact with any supported Large Language Model (LLM) through a single,
+standardized interface. This decouples the agent's core logic from the specific
+implementation details of any given LLM provider.
+
+The architecture is designed to be pluggable and extensible:
+ - `BaseProvider`: An abstract class that defines the contract all provider
+   implementations must follow (e.g., `chat`, `stream_chat`).
+ - `ProviderRegistry`: A factory class that discovers and instantiates providers.
+ - `@provider` decorator: A simple mechanism for new provider classes to
+   register themselves with the registry automatically.
+ - Standardized Data Structures: Classes like `Message`, `ToolCall`, and
+   `ProviderResponse` ensure a consistent data format across all providers.
+
+A key design feature of this module is its handling of optional dependencies.
+Provider implementations (like `openai`, `anthropic`) are imported within
+`try...except` blocks. This allows the core Allos SDK to function even if the
+underlying third-party libraries (e.g., `openai`, `anthropic`) are not
+installed, preventing dependency errors and making the core framework lightweight.
 """
 
 # --- Side-effect imports to register the providers ---

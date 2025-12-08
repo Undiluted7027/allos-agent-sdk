@@ -1,4 +1,57 @@
 # allos/agent/agent.py
+"""Defines the core Agent class, the central orchestrator of the Allos SDK.
+
+This module contains the primary logic that drives the agentic behavior in the
+Allos SDK. It acts as the engine that connects the user's prompt to the
+Language Model (LLM), manages the conversation history, and orchestrates the
+execution of tools to fulfill complex tasks.
+
+The Agent operates on a reason-act loop, iteratively thinking, acting, and
+observing until it reaches a final answer or a set limit. It supports both
+synchronous (request-response) and streaming modes of operation.
+
+Key Classes:
+    - Agent: The main class that orchestrates the interaction between the user,
+             the LLM provider, and the available tools.
+    - AgentConfig: A dataclass that holds the configuration for an Agent
+                   instance, including the selected provider, model, tools,
+                   and operational parameters.
+
+Core Concepts:
+    The "Agentic Loop" implemented in the `run` method follows these steps:
+    1. A user prompt is added to the conversation context.
+    2. The entire conversation context is sent to the configured LLM provider.
+    3. The LLM's response is processed.
+        a. If it's a textual answer, the loop concludes and the answer is returned.
+        b. If it's a request to use one or more tools, the agent proceeds.
+    4. The agent checks for user permissions to run the requested tools.
+    5. If approved, the tools are executed with the arguments provided by the LLM.
+    6. The results of the tool executions are added back to the conversation context.
+    7. The loop repeats from step 2 with the updated context, allowing the agent
+       to reason about the new information.
+
+Example:
+    >>> from allos.agent import Agent, AgentConfig
+    >>>
+    >>> # Configure the agent to use OpenAI and the shell execution tool.
+    >>> # Ensure the OPENAI_API_KEY environment variable is set.
+    >>> config = AgentConfig(
+    ...     provider_name="openai",
+    ...     model="gpt-4o",
+    ...     tool_names=["shell_exec"],
+    ...     auto_approve=True  # Use with caution
+    ... )
+    >>>
+    >>> # Instantiate the agent with the configuration.
+    >>> agent = Agent(config=config)
+    >>>
+    >>> # Define a prompt that requires tool use.
+    >>> prompt = "What is the current date in UTC?"
+    >>>
+    >>> # Run the agent to get the final answer.
+    >>> final_answer = agent.run(prompt)
+    >>> print(final_answer)
+"""
 
 import json
 import time
@@ -54,6 +107,24 @@ class AgentConfig:
 
 
 class CumulativeState(TypedDict):
+    """A TypedDict for tracking the accumulated state across all turns in a single agent run.
+
+    This object aggregates metrics like token counts, costs, and a complete history
+    of tool calls and turns. It is initialized at the beginning of an agent run
+    and progressively updated after each iteration of the agentic loop.
+
+    Attributes:
+        all_tool_details: A list of all `ToolCallDetail` objects from every tool
+                          call in the run, including execution status and timing.
+        input_tokens: The cumulative count of input tokens sent to the provider.
+        output_tokens: The cumulative count of output tokens received from the provider.
+        cost: The total estimated cost in USD for the entire run.
+        last_metadata: The most recent `Metadata` object received from the provider.
+                       This is used as a base for building the final aggregate metadata.
+        turn_history: A list of `TurnLog` objects, recording the details of each
+                      iteration of the agentic loop.
+    """
+
     all_tool_details: List[ToolCallDetail]
     input_tokens: int
     output_tokens: int
@@ -63,9 +134,30 @@ class CumulativeState(TypedDict):
 
 
 class Agent:
-    """
-    The core agent class that orchestrates interactions between an LLM provider
-    and a set of tools.
+    """The core agent class that orchestrates interactions between an LLM and tools.
+
+    The Agent is the central engine of the Allos SDK. It manages the entire
+    lifecycle of a task, from receiving a user prompt to generating a final
+    response. It operates on a reason-act loop, allowing it to solve complex
+    problems by iteratively using tools to gather information and build towards
+    a solution.
+
+    The Agent is designed to be LLM-agnostic through the use of `Providers` and
+    can be equipped with various capabilities through `Tools`. Its behavior is
+    configured via an `AgentConfig` object.
+
+    Attributes:
+        config (AgentConfig): The configuration object that defines the agent's
+                              behavior, including the provider, model, and tools to use.
+        context (ConversationContext): The conversation history manager, which serves
+                                       as the agent's short-term memory.
+        console (Console): A rich Console object for formatted output.
+        provider (BaseProvider): The instantiated LLM provider client.
+        tools (List[BaseTool]): A list of instantiated tools available to the agent.
+        last_run_metadata (Optional[Metadata]): A comprehensive metadata object
+                                                detailing the metrics of the last
+                                                completed `run` or `stream_run`.
+                                                This is populated after a run finishes.
     """
 
     def __init__(
@@ -96,11 +188,13 @@ class Agent:
             self.tools = [ToolRegistry.get_tool(name) for name in config.tool_names]
 
     def save_session(self, filepath: Union[str, Path]) -> None:
-        """
-        Saves the agent's current state (config and context) to a JSON file.
+        """Saves the agent's current state (config and context) to a JSON file.
 
         Args:
             filepath: The path to the file where the session will be saved.
+
+        Raises:
+            AllosError: If the session fails to save due to an IO or Type error.
         """
         self.console.print(f"[dim]💾 Saving session to '{filepath}'...[/dim]")
         config_data = asdict(self.config)
@@ -119,8 +213,7 @@ class Agent:
 
     @classmethod
     def load_session(cls, filepath: Union[str, Path]) -> "Agent":
-        """
-        Loads an agent's state from a JSON file and returns a new Agent instance.
+        """Loads an agent's state from a JSON file and returns a new Agent instance.
 
         Args:
             filepath: The path to the session file to load.
@@ -143,14 +236,25 @@ class Agent:
             raise AllosError(f"Failed to load session from '{filepath}': {e}") from e
 
     def run(self, prompt: str) -> str:
-        """
-        Runs the agentic loop to process a user prompt.
+        """Runs the agentic loop to process a user prompt.
 
         Args:
             prompt: The user's initial prompt.
 
         Returns:
             The final textual response from the agent.
+
+        Raises:
+            ContextWindowExceededError: If the conversation history exceeds the
+            model's context window before execution.
+
+            ProviderError: If the underlying LLM provider returns an error.
+
+            ToolExecutionError: If a tool fails during execution and is not handled
+            internally.
+
+            AllosError: If the agent reaches its maximum iteration limit without
+            producing a final answer.
         """
         # The run method should always add the new prompt. If a user wants to continue,
         # they can manage the context object themselves.
@@ -309,8 +413,25 @@ class Agent:
         return aggregate
 
     def stream_run(self, prompt: str) -> Iterator[ProviderChunk]:
-        """
-        Runs the agentic loop in a streaming fashion, yielding chunks back to the caller.
+        """Runs the agentic loop in a streaming fashion, yielding chunks back to the caller.
+
+        Args:
+            prompt: The user's initial prompt.
+
+        Yields:
+            ProviderChunk: An iterator of chunks representing the streaming response. Chunks can contain content, tool call data, or final
+
+        Raises:
+            ContextWindowExceededError: If the conversation history exceeds the
+            model's context window before execution.
+
+            ProviderError: If the underlying LLM provider returns an error.
+
+            ToolExecutionError: If a tool fails during execution and is not handled
+            internally.
+
+            AllosError: If the agent reaches its maximum iteration limit without
+            producing a final answer.
         """
         self.context.add_user_message(prompt)
         # Initialize cumulative tracking across all iterations
@@ -384,8 +505,7 @@ class Agent:
         cumulative_state: CumulativeState,
         turn_start_time: float,
     ) -> Generator[ProviderChunk, None, Dict[str, Any]]:
-        """
-        Processes a single streaming iteration, yielding chunks and accumulating state.
+        """Processes a single streaming iteration, yielding chunks and accumulating state.
 
         Args:
             cumulative_state: TypedDict tracking cumulative stats across all iterations.
