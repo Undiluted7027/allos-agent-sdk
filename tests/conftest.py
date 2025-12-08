@@ -1,18 +1,21 @@
 # tests/conftest.py
 
+import json
 import logging
 import os
 import unittest.mock as mock
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Callable, Generator, Union
+from typing import Any, Callable, Generator, Union, cast
 
 import pytest
 from _pytest.logging import LogCaptureFixture
+from pydantic import BaseModel
 
 # Import this for better type hinting with the mocker fixture
 from pytest_mock import MockerFixture
 
-from allos.providers.base import BaseProvider, ProviderResponse, ToolCall
+from allos.providers.base import BaseProvider, Message, ProviderResponse, ToolCall
 from allos.providers.metadata import (
     Latency,
     Metadata,
@@ -25,6 +28,7 @@ from allos.providers.metadata import (
     Usage,
 )
 from allos.tools.base import BaseTool
+from allos.utils.token_counter import count_tokens
 
 
 def pytest_addoption(parser):
@@ -142,18 +146,18 @@ def pytest_collection_modifyitems(config, items):
     items[:] = selected
 
 
-@pytest.fixture(autouse=True)
-def mock_api_keys(monkeypatch):
-    """
-    Automatically mock API keys for all tests to bypass CLI checks.
-    Comment this function to use actual keys for E2E tests.
-    """
-    TEST_OPENAI_API_KEY = os.getenv("TEST_OPENAI_API_KEY", "test-openai-api-key")
-    TEST_ANTHROPIC_API_KEY = os.getenv(
-        "TEST_ANTHROPIC_API_KEY", "test-anthropic-api-key"
-    )
-    monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
-    monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
+# @pytest.fixture(autouse=True)
+# def mock_api_keys(monkeypatch):
+#     """
+#     Automatically mock API keys for all tests to bypass CLI checks.
+#     Comment this function to use actual keys for E2E tests.
+#     """
+#     TEST_OPENAI_API_KEY = os.getenv("TEST_OPENAI_API_KEY", "test-openai-api-key")
+#     TEST_ANTHROPIC_API_KEY = os.getenv(
+#         "TEST_ANTHROPIC_API_KEY", "test-anthropic-api-key"
+#     )
+#     monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
+#     monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
 
 
 @pytest.fixture
@@ -189,45 +193,58 @@ def configured_caplog(
 
 @pytest.fixture
 def mock_provider_factory(
-    mocker: MockerFixture,
-    mock_metadata: Metadata,
+    mocker: MockerFixture, mock_metadata_factory: Callable[..., Metadata]
 ) -> Callable[..., mock.MagicMock]:
     """
-    Pytest fixture that returns a factory for creating mock LLM providers.
-    This allows tests to simulate LLM responses without making real API calls.
+    Pytest fixture that returns a factory for creating mock LLM providers
+    that dynamically generate metadata.
     """
 
     def _create_mock_provider(
         response_content: str = "",
-        tool_calls: Union[list[dict[str, Any]], None] = None,
+        tool_calls: Union[list[ToolCall], None] = None,
     ) -> mock.MagicMock:
-        mock_provider: mock.MagicMock = mocker.MagicMock(spec=BaseProvider)
+        mock_provider = mocker.MagicMock(spec=BaseProvider)
 
-        # Create typed ToolCall objects for a more realistic mock
-        parsed_tool_calls = []
-        if tool_calls:
-            for i, tc in enumerate(tool_calls):
-                parsed_tool_calls.append(
-                    ToolCall(
-                        id=tc.get("id", f"call_{i}"),
-                        name=tc.get("name", "unknown_tool"),
-                        arguments=tc.get("arguments", {}),
-                    )
-                )
+        def chat_side_effect(
+            messages: list[Message], **kwargs: Any
+        ) -> ProviderResponse:
+            # 1. Calculate input tokens
+            input_text = " ".join([msg.content or "" for msg in messages])
+            input_tokens = count_tokens(input_text, model="gpt-4")
 
-        mock_response = ProviderResponse(
-            content=response_content,
-            tool_calls=parsed_tool_calls,
-            metadata=mock_metadata,
-        )
-        mock_provider.chat.return_value = mock_response
-        return mock_provider
+            # 2. Calculate output tokens from the mock response
+            output_content = response_content or ""
+            if tool_calls:
+                # Approximate tokens for tool calls
+                output_content += json.dumps([asdict(tc) for tc in tool_calls])
+            output_tokens = count_tokens(output_content, model="gpt-4")
+
+            # 3. Create the dynamic metadata
+            dynamic_metadata = mock_metadata_factory(
+                usage={
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "total_tokens": input_tokens + output_tokens,
+                }
+            )
+
+            # 4. Return the complete ProviderResponse
+            return ProviderResponse(
+                content=response_content,
+                tool_calls=tool_calls or [],
+                metadata=dynamic_metadata,
+            )
+
+        mock_provider.chat.side_effect = chat_side_effect
+        mock_provider.get_context_window.return_value = 32000
+        return cast(mock.MagicMock, mock_provider)
 
     return _create_mock_provider
 
 
 @pytest.fixture
-def mock_tool_factory(mocker: MockerFixture) -> Callable[..., mock.MagicMock]:
+def mock_tool_factory(mocker: MockerFixture) -> Callable[..., BaseTool]:
     """
     Pytest fixture that returns a factory for creating mock tools.
     This allows tests to simulate tool execution.
@@ -237,16 +254,56 @@ def mock_tool_factory(mocker: MockerFixture) -> Callable[..., mock.MagicMock]:
         name: str,
         result: Any,
         side_effect: Union[Exception, None] = None,
-    ) -> mock.MagicMock:
-        mock_tool: mock.MagicMock = mocker.MagicMock(spec=BaseTool)
+    ) -> BaseTool:
+        mock_tool = mocker.MagicMock(spec=BaseTool)
         mock_tool.name = name
         if side_effect:
             mock_tool.execute.side_effect = side_effect
         else:
             mock_tool.execute.return_value = result
-        return mock_tool
+        return cast(BaseTool, mock_tool)
 
     return _create_mock_tool
+
+
+@pytest.fixture
+def mock_metadata_factory() -> Callable[..., Metadata]:
+    """Provides a factory for creating a baseline, valid Metadata object for tests."""
+
+    def _create_metadata(**kwargs: Any) -> Metadata:
+        # Define the baseline structure with proper types
+        base_metadata: dict[str, Any] = {
+            "status": "success",
+            "model": ModelInfo(
+                provider="mock",
+                model_id="mock-model",
+                configuration=ModelConfiguration(max_output_tokens=8192),
+            ),
+            "usage": Usage(input_tokens=0, output_tokens=0, total_tokens=0),
+            "latency": Latency(total_duration_ms=100),
+            "tools": ToolInfo(tools_available=[]),
+            "quality_signals": QualitySignals(),
+            "provider_specific": ProviderSpecific(),
+            "sdk": SdkInfo(sdk_version="test"),
+        }
+
+        # Allow overriding any field
+        for key, value in kwargs.items():
+            # Special handling for nested Pydantic models
+            if (
+                key in base_metadata
+                and isinstance(base_metadata[key], BaseModel)
+                and isinstance(value, dict)
+            ):
+                original_model = cast(BaseModel, base_metadata[key])
+                updated_model = original_model.model_copy(update=value)
+                base_metadata[key] = updated_model
+            else:
+                base_metadata[key] = value
+
+        return Metadata(**base_metadata)
+
+    return _create_metadata
 
 
 @pytest.fixture

@@ -39,7 +39,7 @@ def test_chat_completions_real_simple_chat():
     ]
 
     response = provider.chat(messages, temperature=0)
-    assert "4" in response.content
+    assert response.content and "4" in response.content
 
 
 @pytest.mark.integration

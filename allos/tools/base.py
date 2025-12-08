@@ -74,20 +74,72 @@ class BaseTool(ABC):
 
         Raises:
             ToolError: If a required argument is missing or an argument
-                       has an incorrect type.
+                    has an incorrect type.
         """
+        self._check_required_arguments(arguments)
+        self._validate_and_coerce_types(arguments)
+
+    def _check_required_arguments(self, arguments: Dict[str, Any]) -> None:
+        """Check that all required arguments are provided."""
         required_params = {p.name for p in self.parameters if p.required}
         provided_args = set(arguments.keys())
-
         missing_args = required_params - provided_args
+
         if missing_args:
             raise ToolError(
                 f"Missing required arguments for tool '{self.name}': "
                 f"{', '.join(sorted(missing_args))}"
             )
 
-        # Basic type checking can be added here in the future if needed,
-        # but for now, we rely on the LLM to provide correct types.
+    def _validate_and_coerce_types(self, arguments: Dict[str, Any]) -> None:
+        """Validate and coerce argument types."""
+        param_map = {p.name: p for p in self.parameters}
+
+        for name, value in arguments.items():
+            if name not in param_map:
+                continue  # Allow extra arguments from LLMs
+
+            expected_type = param_map[name].type
+            coerced_value = self._coerce_type(value, expected_type)
+            arguments[name] = coerced_value
+
+            if not self._is_valid_type(coerced_value, expected_type):
+                raise ToolError(
+                    f"Invalid type for argument '{name}' in tool '{self.name}'. "
+                    f"Expected {expected_type}, but got {type(coerced_value).__name__}."
+                )
+
+    def _coerce_type(self, value: Any, expected_type: str) -> Any:
+        """Attempt to coerce value to expected type."""
+        if expected_type == "boolean" and isinstance(value, str):
+            return self._coerce_boolean(value)
+        if expected_type == "integer" and isinstance(value, str) and value.isdigit():
+            return int(value)
+        if expected_type == "number" and isinstance(value, str):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                pass
+        return value
+
+    def _coerce_boolean(self, value: str) -> Any:
+        """Coerce string to boolean."""
+        lower_val = value.lower()
+        if lower_val in ["true", "1"]:
+            return True
+        if lower_val in ["false", "0"]:
+            return False
+        return value
+
+    def _is_valid_type(self, value: Any, expected_type: str) -> bool:
+        """Check if value matches expected type."""
+        type_checks = {
+            "string": lambda v: isinstance(v, str),
+            "boolean": lambda v: isinstance(v, bool),
+            "integer": lambda v: isinstance(v, int),
+            "number": lambda v: isinstance(v, (int, float)),
+        }
+        return type_checks.get(expected_type, lambda v: True)(value)
 
     def to_provider_format(self, provider: str) -> Dict[str, Any]:
         """Converts the tool definition to a provider-specific format.
