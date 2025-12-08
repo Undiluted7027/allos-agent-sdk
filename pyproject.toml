@@ -97,11 +97,35 @@ line-length = 88
 # Allow unused arguments in function signatures.
 # This is useful for abstract methods that must match a signature.
 dummy-variable-rgx = "^(_|dummy_)"
-select = ["E", "W", "F", "I", "C", "B"] # Standard flake8 set + isort, flake8-bugbear
+select = ["E", "W", "F", "I", "C", "B", "D"] # Standard flake8 set + isort, flake8-bugbear
 ignore = ["E501"] # Ignore line-too-long, handled by black
 
-# [tool.ruff.lint.pydocstyle]
-# convention = "google"
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]  # Ignore docstring warnings in tests
+"allos/agent/base.py" = ["D"]
+"allos/cli/__init__.py" = ["D"]
+"allos/agent/context.py" = ["D"]
+"allos/agent/planner.py" = ["D"]
+"allos/agent/session.py" = ["D"]
+"allos/cli/commands.py" = ["D"]
+"allos/cli/output.py" = ["D"]
+"allos/config/*" = ["D"]
+"allos/context/cache.py" = ["D"]
+"allos/context/compactor.py" = ["D"]
+"allos/plugins/*" = ["D"]
+"allos/providers/cohere.py" = ["D"]
+"allos/providers/google.py" = ["D"]
+"allos/providers/ollama.py" = ["D"]
+"allos/providers/utils.py" = ["D"]
+"allos/templates/*" = ["D"]
+"allos/tools/mcp/*" = ["D"]
+"allos/tools/web/*" = ["D"]
+"allos/tools/permissions.py" = ["D"]
+"allos/tools/execution/python.py" = ["D"]
+
 
 [tool.mypy]
 python_version = "3.9"
