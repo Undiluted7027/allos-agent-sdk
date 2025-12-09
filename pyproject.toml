@@ -138,11 +138,12 @@ dev = [
     "build>=1.3.0",
     "pytest-dotenv>=0.5.2",
     "pytest-mock>=3.15.1",
+    "pytest-order>=1.3.0",
     "twine>=6.2.0",
 ]
 
 [tool.pytest.ini_options]
-addopts = "-v --cov=allos --cov-report=term-missing"
+# addopts = "-v --cov=allos --cov-report=term-missing"
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
     "e2e: marks tests as end-to-end tests",

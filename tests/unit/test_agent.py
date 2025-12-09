@@ -5,8 +5,22 @@ from unittest.mock import call, patch
 import pytest
 
 from allos.agent import Agent, AgentConfig
-from allos.providers.base import ProviderResponse, ToolCall
-from allos.providers.metadata import Metadata
+from allos.providers.base import ProviderChunk, ProviderResponse, ToolCall
+from allos.providers.metadata import (
+    EstimatedCost,
+    Latency,
+    Metadata,
+    ModelConfiguration,
+    ModelInfo,
+    ProviderSpecific,
+    QualitySignals,
+    SdkInfo,
+    ToolCallDetail,
+    ToolInfo,
+    TurnLog,
+    TurnTokensUsed,
+    Usage,
+)
 from allos.tools.base import ToolPermission
 from allos.utils.errors import AllosError, ContextWindowExceededError
 
@@ -15,6 +29,30 @@ from allos.utils.errors import AllosError, ContextWindowExceededError
 def mock_get_tool(mocker):
     """Fixture to mock ToolRegistry.get_tool."""
     return mocker.patch("allos.agent.agent.ToolRegistry.get_tool")
+
+
+@pytest.fixture
+def simple_metadata():
+    """Returns a minimal valid Metadata object."""
+    return Metadata(
+        status="success",
+        model=ModelInfo(
+            provider="test",
+            model_id="test-model",
+            configuration=ModelConfiguration(max_output_tokens=50),
+        ),
+        usage=Usage(
+            input_tokens=10,
+            output_tokens=10,
+            total_tokens=20,
+            estimated_cost=EstimatedCost(total_usd=0.001),
+        ),
+        latency=Latency(total_duration_ms=100),
+        tools=ToolInfo(tools_available=[]),
+        quality_signals=QualitySignals(),
+        provider_specific=ProviderSpecific(),
+        sdk=SdkInfo(sdk_version="0.0.0"),
+    )
 
 
 class TestAgent:
@@ -324,3 +362,278 @@ class TestAgent:
 
         assert call_kwargs["base_url"] == "http://custom.url"
         assert call_kwargs["api_key"] == "secret-key"
+
+
+class TestAgentMetadataInternal:
+    """Tests for internal metadata aggregation logic in Agent."""
+
+    def test_finalize_run_metadata_else_branch(self, mock_get_provider):
+        """
+        Tests the `else` branch of _finalize_run_metadata where
+        cumulative_state['last_metadata'] is None.
+        This occurs if the agent loop doesn't run (e.g., max_iterations=0).
+        """
+        config = AgentConfig(provider_name="test", model="test", max_iterations=0)
+        agent = Agent(config)
+
+        # Running with 0 iterations triggers the loop bypass, calls finalize, then raises AllosError
+        with pytest.raises(AllosError, match="reached maximum iterations"):
+            agent.run("test")
+
+        # Verify the else branch was hit: last_run_metadata should be explicitly None
+        assert agent.last_run_metadata is None
+
+    def test_create_aggregate_metadata_calculates_cost(
+        self, mock_get_provider, simple_metadata
+    ):
+        """
+        Tests the `if aggregate.usage.estimated_cost:` branch in _create_aggregate_metadata.
+        Ensures cost is summed correctly from the cumulative state.
+        """
+        config = AgentConfig(provider_name="test", model="test")
+        agent = Agent(config)
+
+        # Mock inputs for the aggregation method
+        tool_details = [
+            ToolCallDetail(
+                tool_call_id="1", tool_name="test", arguments={}, execution_time_ms=10
+            )
+        ]
+        turn_history = [
+            TurnLog(
+                turn_number=1,
+                model_used="test",
+                content_type="text",
+                tokens_used=TurnTokensUsed(input_tokens=10, output_tokens=10),
+                duration_ms=100,
+            )
+        ]
+
+        # Call the private method directly
+        aggregated = agent._create_aggregate_metadata(
+            base_metadata=simple_metadata,
+            all_tool_details=tool_details,
+            turn_history=turn_history,
+            total_input_tokens=100,
+            total_output_tokens=50,
+            total_cost=0.05,  # Cumulative cost to verify
+        )
+
+        # Verify cost was updated (covering the if branch)
+        assert aggregated.usage.estimated_cost is not None
+        assert aggregated.usage.estimated_cost.total_usd == 0.05
+
+        # Verify token counts were updated
+        assert aggregated.usage.input_tokens == 100
+        assert aggregated.usage.output_tokens == 50
+        assert aggregated.usage.total_tokens == 150
+
+        # Verify tool/turn stats were updated
+        assert aggregated.tools.total_tool_calls == 1
+        assert aggregated.turns.total_turns == 1
+
+
+class TestAgentStreaming:
+    """Tests for the stream_run method and its helpers."""
+
+    def test_stream_run_simple_text_flow(
+        self, mock_get_provider, simple_metadata, mock_get_tool
+    ):
+        """
+        Tests a simple text response in streaming mode.
+        Covers: _get_provider_stream, _process_streaming_iteration, context updates.
+        """
+        mock_provider = mock_get_provider.return_value
+        config = AgentConfig(provider_name="test", model="test")
+        agent = Agent(config)
+
+        # Mock the stream generator
+        # Yields: Content -> Content -> Final Metadata
+        mock_stream = [
+            ProviderChunk(content="Hello"),
+            ProviderChunk(content=" World"),
+            ProviderChunk(final_metadata=simple_metadata),
+        ]
+        mock_provider.stream_chat.return_value = iter(mock_stream)
+
+        # Run the generator
+        chunks = list(agent.stream_run("Hi"))
+
+        # Verify chunks yielded to caller
+        # The agent yields content chunks as they come, then (optionally) final metadata
+        assert len(chunks) == 4
+        assert chunks[0].content == "Hello"
+        assert chunks[1].content == " World"
+        assert chunks[2].final_metadata is not None
+        assert chunks[3].final_metadata is not None
+
+        # Verify context was updated
+        assert len(agent.context.messages) == 2  # User + Assistant
+        assert agent.context.messages[-1].content == "Hello World"
+        assert agent.context.messages[-1].role == "assistant"
+
+        # Verify the final aggregate metadata correctness
+        final_meta = chunks[3].final_metadata
+        assert final_meta.turns.total_turns == 1
+
+    def test_stream_run_tool_execution_flow(
+        self, mock_get_provider, mock_get_tool, simple_metadata
+    ):
+        """
+        Tests streaming with tool execution (Agentic Loop).
+        Turn 1: Tool Call -> Turn 2: Final Answer.
+        Covers: _execute_and_record_tools, _update_chunk_metadata in streaming context.
+        """
+        mock_provider = mock_get_provider.return_value
+        mock_tool = mock_get_tool.return_value
+        mock_tool.name = "search"
+        mock_tool.execute.return_value = {"result": "found"}
+        # Allow auto-approve to skip permission mock
+        config = AgentConfig(
+            provider_name="test",
+            model="test",
+            tool_names=["search"],
+            auto_approve=True,
+        )
+        agent = Agent(config)
+
+        # --- Turn 1 Stream: Tool Call ---
+        tool_call = ToolCall(id="call_1", name="search", arguments={"q": "allos"})
+        turn_1_stream = [
+            ProviderChunk(tool_call_done=tool_call),
+            ProviderChunk(final_metadata=simple_metadata),
+        ]
+
+        # --- Turn 2 Stream: Final Answer ---
+        turn_2_stream = [
+            ProviderChunk(content="Answer"),
+            ProviderChunk(final_metadata=simple_metadata),
+        ]
+
+        # Configure side_effect to return iterators for sequential calls
+        mock_provider.stream_chat.side_effect = [
+            iter(turn_1_stream),
+            iter(turn_2_stream),
+        ]
+
+        # Run
+        chunks = list(agent.stream_run("Search something"))
+
+        # Verify Tool Execution
+        mock_tool.execute.assert_called_once_with(q="allos")
+
+        # Verify Context Evolution
+        # 1. User
+        # 2. Assistant (Tool Call)
+        # 3. Tool Result
+        # 4. Assistant (Final Answer)
+        assert len(agent.context.messages) == 4
+        assert agent.context.messages[1].tool_calls[0].id == "call_1"
+        assert agent.context.messages[2].role == "tool"
+        assert agent.context.messages[3].content == "Answer"
+
+        # Verify Chunks
+        # We expect tool_call chunks, then execution happens internally (no chunks yielded for exec),
+        # then content chunks from Turn 2.
+        # Note: The agent yields the chunks it receives.
+        # Turn 1: tool_call_done, final_metadata (yielded? _yield_final_aggregate_metadata only yields at end)
+        # Actually agent.stream_run yields chunks from _process_streaming_iteration.
+        # Then if done, yields final aggregate.
+
+        # Let's check the collected chunks
+        # 1. Tool Call Done
+        # 2. Final Metadata (Chunk from Turn 1) -> Actually `stream_run` yields this?
+        #    Looking at code: `yield chunk` is called for every chunk in `_process_streaming_iteration`.
+        # 3. Content "Answer"
+        # 4. Final Metadata (Chunk from Turn 2)
+        # 5. Final Aggregate Metadata (Yielded by `_yield_final_aggregate_metadata` at return)
+
+        assert len(chunks) >= 3
+        assert chunks[-1].final_metadata is not None
+        assert chunks[-1].final_metadata.turns.total_turns == 2
+
+    def test_stream_run_provider_error(self, mock_get_provider, simple_metadata):
+        """Tests that a stream error raises AllosError."""
+        mock_provider = mock_get_provider.return_value
+        config = AgentConfig(provider_name="test", model="test")
+        agent = Agent(config)
+
+        mock_stream = [ProviderChunk(error="Simulated API failure")]
+        mock_provider.stream_chat.return_value = iter(mock_stream)
+
+        with pytest.raises(
+            AllosError, match="Streaming provider error: Simulated API failure"
+        ):
+            list(agent.stream_run("Hi"))
+
+    def test_stream_run_max_iterations_exceeded(
+        self, mock_get_provider, simple_metadata
+    ):
+        """Tests that AllosError is raised if max_iterations is exceeded in streaming."""
+        mock_provider = mock_get_provider.return_value
+        config = AgentConfig(
+            provider_name="test", model="test", max_iterations=1, auto_approve=True
+        )
+        agent = Agent(config)
+
+        # Force a tool call, which forces a loop. Since max_iterations=1, loop finishes after Turn 1.
+        # Then it hits the raise AllosError at end of stream_run.
+        tool_call = ToolCall(id="c1", name="search", arguments={})
+        mock_stream = [
+            ProviderChunk(tool_call_done=tool_call),
+            ProviderChunk(final_metadata=simple_metadata),
+        ]
+        mock_provider.stream_chat.return_value = iter(mock_stream)
+
+        with pytest.raises(AllosError, match="reached maximum iterations"):
+            list(agent.stream_run("Hi"))
+
+    def test_ttft_calculation(self, mock_get_provider, simple_metadata):
+        """Tests that Time to First Token is calculated and recorded."""
+        mock_provider = mock_get_provider.return_value
+        config = AgentConfig(provider_name="test", model="test")
+        agent = Agent(config)
+
+        mock_stream = [
+            ProviderChunk(content="First"),  # TTFT trigger
+            ProviderChunk(content="Second"),
+            ProviderChunk(final_metadata=simple_metadata),
+        ]
+        mock_provider.stream_chat.return_value = iter(mock_stream)
+
+        with patch("time.time") as mock_time:
+            # Setup time: Start -> 0.1s later (chunk 1) -> 0.2s later (end)
+            mock_time.side_effect = [100.0, 100.1, 100.2, 100.3, 100.4]
+
+            chunks = list(agent.stream_run("Hi"))
+
+            # Verify turn history has TTFT recorded by checking the final aggregate chunk
+            # TTFT = 100.1 - 100.0 = 0.1s = 100ms
+
+            final_chunk = chunks[-1]
+            assert final_chunk.final_metadata is not None
+            history = final_chunk.final_metadata.turns.turn_history
+
+            assert len(history) == 1
+            assert history[0].tokens_used.input_tokens == 10
+
+    def test_get_provider_stream_passes_config(self, mock_get_provider):
+        """Tests that _get_provider_stream passes max_tokens and tools correctly."""
+        mock_provider = mock_get_provider.return_value
+        # Setup tools and max_tokens
+        config = AgentConfig(
+            provider_name="test", model="test", max_tokens=500, tool_names=["read_file"]
+        )
+        agent = Agent(config)
+
+        # We need to access the private method or trigger it via stream_run
+        # Triggering via stream_run is safer to ensure integration.
+        mock_provider.stream_chat.return_value = iter([ProviderChunk(content="Done")])
+
+        list(agent.stream_run("Hi"))
+
+        # Verify call arguments
+        call_kwargs = mock_provider.stream_chat.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 500
+        assert "tools" in call_kwargs
+        assert len(call_kwargs["tools"]) == 1

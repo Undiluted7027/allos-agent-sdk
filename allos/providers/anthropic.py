@@ -467,7 +467,7 @@ class AnthropicProvider(BaseProvider):
                 f"Error building final metadata for Anthropic stream: {e}",
                 exc_info=True,
             )
-            yield ProviderChunk(
+            return ProviderChunk(
                 error="Internal error: Failed to process final stream metadata."
             )
 

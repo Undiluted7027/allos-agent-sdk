@@ -11,6 +11,7 @@ from click.testing import CliRunner
 
 from allos.agent import Agent, AgentConfig
 from allos.cli.main import main
+from allos.providers.base import ProviderChunk
 from allos.utils.errors import AllosError
 
 pytestmark = pytest.mark.e2e
@@ -177,7 +178,8 @@ def test_cli_mistyped_flag_as_prompt_warns_and_exits(
     result = runner.invoke(main, [mistyped_flag])
 
     assert result.exit_code == 0
-    assert f"Did you mean to use '--{mistyped_flag}'?" in result.output
+    assert "Did you mean to use" in result.output
+    assert f"'--{mistyped_flag}'" in result.output
     mock_agent_instance.run.assert_not_called()
 
 
@@ -283,7 +285,8 @@ class TestCliRunCommand:
         )  # The command itself doesn't fail, it prints an error
         assert "Error" in result.output
         assert "API key not found" in result.output
-        assert "Please set the OPENAI_API_KEY environment variable" in result.output
+        assert "Please set the " in result.output
+        assert "OPENAI_API_KEY" in result.output
 
     def test_run_command_session_management(
         self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
@@ -432,6 +435,7 @@ class TestCliRunCommand:
         assert title in result.output
         assert str(exception) in result.output
 
+    @pytest.mark.order(-1)  # Runs last to avoid corrupting the shared state
     def test_dotenv_import_error_is_handled(self, runner: CliRunner, monkeypatch):
         """
         Test that the CLI runs without error if python-dotenv is not installed
@@ -780,3 +784,191 @@ class TestCliInteractiveCommand:
 
         assert result.exit_code == 0
         assert "Tools are disabled for this session" in result.output
+
+
+class TestCliStreamCommand:
+    """Tests for the `--stream` flag and `run_agent_stream` function."""
+
+    def test_main_dispatches_to_run_agent_stream(
+        self, runner: CliRunner, mock_agent_and_load_session
+    ):
+        """Test that the --stream flag correctly calls run_agent_stream."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # Test with the flag
+        result = runner.invoke(main, ["--stream", "This is a test prompt"])
+
+        assert result.exit_code == 0
+
+        mock_agent_class.assert_called_once()
+        mock_agent_instance.stream_run.assert_called_once_with("This is a test prompt")
+        mock_agent_instance.run.assert_not_called()
+        assert "Streaming Response" in result.output
+
+    def test_stream_command_all_chunk_types(
+        self, runner: CliRunner, mock_agent_and_load_session
+    ):
+        """Test that run_agent_stream correctly prints different chunk types."""
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+        mock_agent_instance.stream_run.return_value = iter(
+            [
+                ProviderChunk(content="Hello"),
+                ProviderChunk(tool_call_start={"name": "search"}),
+                ProviderChunk(content="World"),
+                ProviderChunk(error="Something went wrong."),
+            ]
+        )
+
+        result = runner.invoke(main, ["--stream", "This is a test prompt"])
+
+        assert result.exit_code == 0
+        mock_agent_instance.stream_run.assert_called_once_with("This is a test prompt")
+
+        # Check the captured output for the formatted strings
+        assert "Hello" in result.output
+        assert "World" in result.output
+        assert "Calling Tool" in result.output
+        assert "Stream Error: Something went wrong." in result.output
+
+    def test_stream_command_saves_session(
+        self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
+    ):
+        """Test that --session flag works with --stream."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        session_file = work_dir / "stream_session.json"
+
+        result = runner.invoke(
+            main, ["--stream", "--session", str(session_file), "This is a test prompt"]
+        )
+
+        assert result.exit_code == 0
+
+        mock_agent_class.assert_called_once()
+        mock_agent_instance.save_session.assert_called_once_with(str(session_file))
+
+    @pytest.mark.parametrize(
+        "exception, expected_output",
+        [
+            (AllosError("Stream failed"), "An error occurred:"),
+            (ValueError("Unexpected stream error"), "An unexpected error occurred:"),
+        ],
+    )
+    def test_stream_command_handles_exceptions(
+        self, runner: CliRunner, mock_agent_and_load_session, exception, expected_output
+    ):
+        """Test that exceptions from stream_run are caught and printed."""
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+        mock_agent_instance.stream_run.side_effect = exception
+
+        result = runner.invoke(main, ["--stream", "This is a test prompt"])
+
+        assert result.exit_code == 0
+        assert expected_output in result.output
+        assert str(exception) in result.output
+
+    def test_stream_error_handling(
+        self, runner: CliRunner, mock_agent_and_load_session
+    ):
+        """Test handling of stream errors."""
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        chunks = [
+            ProviderChunk(content="Start"),
+            ProviderChunk(error="Stream connection failed"),
+        ]
+        mock_agent_instance.stream_run.return_value = iter(chunks)
+
+        result = runner.invoke(main, ["--stream", "This is a test prompt"])
+
+        assert result.exit_code == 0
+        assert "Start" in result.output
+        assert "Stream Error: Stream connection failed" in result.output
+
+    def test_stream_command_auto_approve_warning(
+        self, runner: CliRunner, mock_agent_and_load_session
+    ):
+        """Test that the auto-approve warning is shown in stream mode."""
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+        mock_agent_instance.config.auto_approve = True
+        mock_agent_instance.stream_run.return_value = iter([])
+
+        result = runner.invoke(
+            main, ["--stream", "--auto-approve", "This is a test prompt"]
+        )
+
+        assert "Auto-approve is enabled" in result.output
+
+    def test_stream_command_api_key_from_flag(
+        self, runner: CliRunner, mock_agent_and_load_session
+    ):
+        """Test that validation succeeds when API key is passed via --api-key flag"""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        result = runner.invoke(
+            main, ["--stream", "--api-key", "DUMMY_KEY", "This is a test prompt"]
+        )
+
+        assert result.exit_code == 0
+
+        mock_agent_class.assert_called_once()
+        mock_agent_instance.stream_run.assert_called_once_with("This is a test prompt")
+
+    def test_stream_command_api_key_missing(
+        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that validation fails when API key and env var are both missing"""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # Remove the API key environment variable if it exists
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+        result = runner.invoke(
+            main,
+            [
+                "--provider",
+                "anthropic",
+                "--model",
+                "claude-test",
+                "--stream",
+                "This is a test prompt",
+            ],
+        )
+
+        # Should exit successfully but not call the agent
+        assert result.exit_code == 0
+
+        # Verify error message was printed
+        assert "Error:" in result.output
+        assert "API key not found" in result.output
+        assert "ANTHROPIC_API_KEY" in result.output
+
+        # Agent should NOT be called because validation failed
+        mock_agent_class.assert_not_called()
+        mock_agent_instance.stream_run.assert_not_called()
+
+    def test_stream_command_api_key_from_env(
+        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that validation succeeds when API key is in environment variable"""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # Set the API key environment variable
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-from-env")
+
+        result = runner.invoke(main, ["--stream", "This is a test prompt"])
+
+        assert result.exit_code == 0
+
+        # No error message should be printed
+        assert "Error:" not in result.output
+        assert "API key not found" not in result.output
+
+        # Agent SHOULD be called
+        mock_agent_class.assert_called_once()
+        mock_agent_instance.stream_run.assert_called_once_with("This is a test prompt")

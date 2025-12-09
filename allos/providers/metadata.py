@@ -426,13 +426,9 @@ class MetadataBuilder:
         """Builds the `ModelInfo` part of the metadata."""
         model_version = None
         model_id_str = str(model_id) if model_id else "unknown"
-        try:  # Best-effort parsing of version from ID like 'gpt-4o-2024-08-06'
-            parts = model_id_str.split("-")
-            if len(parts) >= 4 and all(p.isdigit() for p in parts[-3:]):
-                model_version = "-".join(parts[-3:])
-        except (AttributeError, TypeError, ValueError):
-            # model_id wasn't a string or split/isdigit processing failed
-            model_version = None
+        parts = model_id_str.split("-")
+        if len(parts) >= 4 and all(p.isdigit() for p in parts[-3:]):
+            model_version = "-".join(parts[-3:])
 
         return ModelInfo(
             provider=self._provider_name,

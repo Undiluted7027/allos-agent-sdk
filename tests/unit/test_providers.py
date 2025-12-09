@@ -102,13 +102,16 @@ class TestProviderBase:
                 return super().get_context_window()  # type: ignore # Call the abstract method
 
             def stream_chat(self, messages, **kwargs):
-                yield from []  # A simple generator implementation
+                yield from super().stream_chat(messages, **kwargs)  # type: ignore
 
         provider = PartiallyImplementedProvider(model="test")
         with pytest.raises(NotImplementedError):
             provider.chat([])
         with pytest.raises(NotImplementedError):
             provider.get_context_window()
+        with pytest.raises(NotImplementedError):
+            # We must consume the generator to trigger the error
+            list(provider.stream_chat([]))
 
     def test_base_provider_repr(self):
         """Test the __repr__ string representation of the provider."""
@@ -362,3 +365,9 @@ class TestProviderInit:
         assert "anthropic" not in providers
         # But we expect 'ollama_compat' to be there as it's an alias
         assert "ollama_compat" in providers
+
+    def test_get_env_var_name_for_unknown_provider_returns_none(self):
+        """Test that get_env_var_name returns None for a completely unknown provider."""
+        # 'unknown_provider' is not an alias and not in the (cleared) registry
+        env_var = ProviderRegistry.get_env_var_name("unknown_provider")
+        assert env_var is None

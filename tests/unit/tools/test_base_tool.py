@@ -53,3 +53,41 @@ def test_argument_validation(args, should_pass):
     else:
         with pytest.raises(ToolError):
             tool.validate_arguments(args)
+
+
+class TestBaseToolCoercion:
+    def test_validate_and_coerce_ignores_extra_arguments(self):
+        """
+        Test that _validate_and_coerce_types ignores arguments not in the
+        tool's parameter map, covering the 'if name not in param_map' branch.
+        """
+        tool = ValidationTestTool()
+        arguments = {"req_str": "hello", "extra_arg": "this should be ignored"}
+        # This method modifies the dictionary in place
+        tool._validate_and_coerce_types(arguments)
+
+        # The method should complete without error and the extra arg should remain
+        assert "extra_arg" in arguments
+
+    def test_coerce_type_for_number_success(self):
+        """
+        Test the successful coercion of a string to a float for type 'number',
+        covering the 'if expected_type == "number"' try block.
+        """
+        tool = ValidationTestTool()  # Can use any tool instance
+        value = "123.45"
+        coerced = tool._coerce_type(value, "number")
+        assert isinstance(coerced, float)
+        assert coerced == 123.45
+
+    def test_coerce_type_for_number_failure(self):
+        """
+        Test that a non-numeric string for type 'number' is not coerced,
+        covering the except block.
+        """
+        tool = ValidationTestTool()
+        value = "not-a-float"
+        coerced = tool._coerce_type(value, "number")
+        # It should fail coercion and return the original string
+        assert isinstance(coerced, str)
+        assert coerced == "not-a-float"

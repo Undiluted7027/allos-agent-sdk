@@ -470,3 +470,338 @@ def test_assistant_message_with_content_and_tool_call_is_split(MockOpenAI):
         "name": "search",
         "arguments": '{"query": "allos sdk"}',
     }
+
+
+class TestOpenAIProviderStreaming:
+    @pytest.fixture
+    def provider(self):
+        with patch("allos.providers.openai.openai.OpenAI"):
+            provider = OpenAIProvider(model="gpt-4o")
+            yield provider
+
+    def test_stream_chat_simple_text(self, provider):
+        """Test a simple text stream with delta and completed events."""
+        mock_events = [
+            MagicMock(type="response.output_text.delta", delta="Hello"),
+            MagicMock(type="response.output_text.delta", delta=" World"),
+            MagicMock(
+                type="response.completed",
+                response=MagicMock(usage=MagicMock(input_tokens=10, output_tokens=5)),
+            ),
+        ]
+        provider.client.responses.create.return_value = iter(mock_events)
+
+        chunks = list(
+            provider.stream_chat([Message(role=MessageRole.USER, content="Hi")])
+        )
+
+        content = "".join(c.content for c in chunks if c.content)
+        assert content == "Hello World"
+
+        final_chunk = chunks[-1]
+        assert final_chunk.final_metadata is not None
+        assert final_chunk.final_metadata.usage.input_tokens == 10
+        assert final_chunk.final_metadata.usage.output_tokens == 5
+
+    def test_stream_chat_tool_call(self, provider):
+        """Test a stream that involves a tool call."""
+        # Create a properly configured mock for the 'item' in the events
+        item_mock = MagicMock()
+        item_mock.type = "function_call"
+        item_mock.call_id = "call_123"
+        item_mock.name = "get_weather"  # Explicitly set the name attribute as a string
+
+        mock_events = [
+            MagicMock(
+                type="response.output_item.added",
+                output_index=0,
+                item=item_mock,
+            ),
+            MagicMock(
+                type="response.function_call_arguments.delta",
+                output_index=0,
+                delta='{"location":',
+            ),
+            MagicMock(
+                type="response.function_call_arguments.delta",
+                output_index=0,
+                delta='"Boston"}',
+            ),
+            MagicMock(
+                type="response.output_item.done",
+                output_index=0,
+                item=item_mock,  # Reuse the same correctly configured mock
+            ),
+            MagicMock(
+                type="response.completed",
+                response=MagicMock(
+                    id="resp_123",
+                    model="gpt-4o",
+                    usage=MagicMock(input_tokens=20, output_tokens=30),
+                ),
+            ),
+        ]
+        provider.client.responses.create.return_value = iter(mock_events)
+
+        chunks = list(
+            provider.stream_chat(
+                [Message(role=MessageRole.USER, content="Weather?")],
+                tools=[DummyTool()],
+            )
+        )
+
+        tool_start_chunk = next(c for c in chunks if c.tool_call_start)
+        assert tool_start_chunk.tool_call_start["name"] == "get_weather"
+
+        tool_done_chunk = next(c for c in chunks if c.tool_call_done)
+        assert tool_done_chunk.tool_call_done.id == "call_123"
+        assert tool_done_chunk.tool_call_done.arguments == {"location": "Boston"}
+
+        final_chunk = chunks[-1]
+        assert final_chunk.final_metadata is not None
+        assert final_chunk.final_metadata.usage.total_tokens == 50
+
+    def test_stream_chat_pre_stream_api_error(self, provider):
+        """Test that ProviderError is raised for API errors before streaming."""
+        error = openai.APIError(
+            message="Test API Error", request=MagicMock(), body=None
+        )
+        provider.client.responses.create.side_effect = error
+
+        with pytest.raises(
+            ProviderError, match="OpenAI API error during streaming: Test API Error"
+        ):
+            list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+
+    def test_stream_handles_api_error_event(self, provider):
+        """Test the _handle_error helper for in-stream 'error' events."""
+        mock_events = [
+            MagicMock(type="error", error=MagicMock(message="In-stream failure"))
+        ]
+        provider.client.responses.create.return_value = iter(mock_events)
+
+        chunks = list(provider.stream_chat([]))
+
+        assert len(chunks) == 1
+        assert chunks[0].error == "API Error: In-stream failure"
+
+    def test_handle_tool_args_delta_with_unknown_index(self, provider):
+        """Test that a delta for an untracked tool call index is ignored."""
+        # This covers the 'if event.output_index not in state:' branch
+        state = {0: {"id": "call_0", "name": "tool_0", "arguments": ""}}
+        mock_event = MagicMock(
+            output_index=1, delta="ignored"
+        )  # Index 1 is not in state
+
+        # The generator should yield nothing and not raise an error
+        result = list(provider._handle_tool_args_delta(mock_event, state, {}))
+        assert not result
+
+    def test_handle_tool_done_with_unknown_index(self, provider):
+        """Test that a done event for an untracked tool call index is ignored."""
+        # This covers the 'if not call_state:' branch
+        state = {0: {"id": "call_0", "name": "tool_0", "arguments": ""}}
+        mock_event = MagicMock(
+            type="function_call", output_index=1
+        )  # Index 1 is not in state
+
+        # The generator should yield nothing and not raise an error
+        result = list(provider._handle_tool_done(mock_event, state, {}))
+        assert not result
+
+    def test_handle_tool_done_json_error(self, provider):
+        """Test that malformed JSON in tool arguments yields an error chunk."""
+        state = {0: {"id": "call_123", "name": "bad_tool", "arguments": "{bad_json"}}
+        mock_event = MagicMock(
+            type="function_call", output_index=0, item=MagicMock(type="function_call")
+        )
+
+        # The generator will yield an error and then the finally block runs.
+        chunks = list(provider._handle_tool_done(mock_event, state, {}))
+
+        assert len(chunks) == 1
+        error_chunk = chunks[0]
+        assert error_chunk.error is not None
+        assert "Failed to parse tool arguments for bad_tool" in error_chunk.error
+        # Also assert that the state was cleaned up by the 'finally' block
+        assert 0 not in state
+
+    def test_handle_completed_error(self, provider, configured_caplog, mocker):
+        """Test that errors during final metadata creation are handled."""
+        # This covers the 'except' block in _handle_completed
+        mock_event = MagicMock(
+            type="response.completed",
+            response=MagicMock(usage=MagicMock(input_tokens=10, output_tokens=5)),
+        )
+        api_call_context = {"builder_kwargs": {}, "start_time": 0}
+
+        # Patch the MetadataBuilder to force an exception
+        mocker.patch(
+            "allos.providers.openai.MetadataBuilder",
+            side_effect=AttributeError("Forced build error"),
+        )
+
+        # Consume the generator to get the yielded chunk
+        error_chunk = next(provider._handle_completed(mock_event, {}, api_call_context))
+
+        assert (
+            error_chunk.error
+            == "Internal error: Failed to process final stream metadata."
+        )
+        assert (
+            "Error building final metadata for OpenAI stream" in configured_caplog.text
+        )
+
+    def test_stream_chat_sends_instructions(self, provider):
+        """Test that a SYSTEM message is correctly passed as 'instructions'."""
+        # This covers the 'if instructions:' branch in stream_chat
+        provider.client.responses.create.return_value = iter(
+            []
+        )  # We only care about call args
+        messages = [
+            Message(role=MessageRole.SYSTEM, content="You are a test bot."),
+            Message(role=MessageRole.USER, content="Hi"),
+        ]
+
+        list(provider.stream_chat(messages))
+
+        provider.client.responses.create.assert_called_once()
+        call_kwargs = provider.client.responses.create.call_args.kwargs
+        assert "instructions" in call_kwargs
+        assert call_kwargs["instructions"] == "You are a test bot."
+
+    def test_handle_tool_start_ignores_non_function_call(self, provider):
+        """Test that _handle_tool_start ignores items that aren't function calls."""
+        # This covers the 'if event.item.type != "function_call":' branch
+        state = {}
+        mock_event = MagicMock(
+            type="response.output_item.added",
+            item=MagicMock(type="message"),  # Not a 'function_call'
+        )
+
+        # The generator should be empty and not modify the state
+        chunks = list(provider._handle_tool_start(mock_event, state, {}))
+        assert not chunks
+        assert not state
+
+    @pytest.mark.parametrize(
+        "state_to_test, description",
+        [
+            (
+                {0: {"id": "call_123", "name": "bad_tool", "arguments": "{bad_json"}},
+                "Test malformed JSON in arguments",
+            ),
+            (
+                {0: {"name": "bad_tool", "arguments": "{}"}},
+                "Test KeyError from missing 'id'",
+            ),
+        ],
+    )
+    def test_handle_completed_fallback_state_parsing_errors(
+        self, provider, configured_caplog, state_to_test, description
+    ):
+        """Test the error handling within the _handle_completed state fallback logic."""
+        # This covers the 'except (json.JSONDecodeError, KeyError)' branch
+        mock_event = MagicMock(
+            type="response.completed",
+            response=MagicMock(
+                id="resp_123",
+                model="gpt-4o",
+                output=None,  # No output to force fallback
+                usage=MagicMock(input_tokens=10, output_tokens=5),
+            ),
+        )
+        api_call_context = {"builder_kwargs": {}, "start_time": 0}
+
+        # The generator should yield one metadata chunk
+        chunks = list(
+            provider._handle_completed(mock_event, state_to_test, api_call_context)
+        )
+
+        assert len(chunks) == 1
+        metadata = chunks[0].final_metadata
+
+        # Assert that no tools were added due to the parsing error
+        assert metadata.tools.total_tool_calls == 0
+        assert not metadata.tools.tool_calls
+        assert "Failed to parse tool call from state" in configured_caplog.text
+
+    def test_handle_completed_fallback_to_state_for_tool_calls(
+        self, provider, configured_caplog
+    ):
+        """Test the fallback logic to extract tool calls from streaming state."""
+        # This covers the 'if not metadata.tools.tool_calls and _state:' branch
+        _state = {
+            0: {
+                "id": "call_123",
+                "name": "get_weather",
+                "arguments": '{"location": "Boston"}',
+            }
+        }
+        mock_event = MagicMock(
+            type="response.completed",
+            response=MagicMock(
+                id="resp_123",
+                model="gpt-4o",
+                output=None,  # No output to force fallback
+                usage=MagicMock(input_tokens=10, output_tokens=5),
+            ),
+        )
+        api_call_context = {"builder_kwargs": {"tools": [DummyTool()]}, "start_time": 0}
+
+        chunk = next(provider._handle_completed(mock_event, _state, api_call_context))
+
+        assert "Response object missing tool calls" in configured_caplog.text
+        metadata = chunk.final_metadata
+        assert metadata.tools.total_tool_calls == 1
+        assert metadata.tools.tool_calls[0].tool_call_id == "call_123"
+        assert metadata.tools.tool_calls[0].tool_name == "get_weather"
+
+    def test_handle_completed_logs_output_items(self, provider, configured_caplog):
+        """Test the debug logging loop for output items in _handle_completed."""
+        # This covers the 'for item in event.response.output or []:' loop
+
+        # Create more realistic mocks for the output items
+        message_item = MagicMock()
+        message_item.type = "message"
+
+        function_call_item = MagicMock()
+        function_call_item.type = "function_call"
+        function_call_item.call_id = "call_xyz"
+        function_call_item.name = "a_tool"
+        function_call_item.arguments = "{}"  # Must be a valid JSON string
+
+        mock_event = MagicMock(
+            type="response.completed",
+            response=MagicMock(
+                id="resp_123",
+                model="gpt-4o",
+                output=[message_item, function_call_item],
+                usage=MagicMock(input_tokens=10, output_tokens=5),
+            ),
+        )
+        api_call_context = {"builder_kwargs": {"tools": []}, "start_time": 0}
+
+        list(provider._handle_completed(mock_event, {}, api_call_context))
+
+        # Check that the build process didn't log an error
+        assert "Error building final metadata" not in configured_caplog.text
+
+        # Now check for the intended debug logs
+        assert "Output items: 2" in configured_caplog.text
+        assert "- Item type: message" in configured_caplog.text
+        assert "- Item type: function_call" in configured_caplog.text
+
+    def test_handle_tool_done_ignores_untracked_index(self, provider):
+        """Test that _handle_tool_done ignores an event with an untracked index."""
+        # This covers the 'if not call_state:' branch
+        state = {0: {"id": "call_0", "name": "tool_0", "arguments": "{}"}}
+        # Create an event for an index (e.g., 99) that is not in the state
+        mock_event = MagicMock(item=MagicMock(type="function_call"), output_index=99)
+
+        # Call the handler and consume the generator
+        result_chunks = list(provider._handle_tool_done(mock_event, state, {}))
+
+        # Assert that nothing was yielded and the original state is unchanged
+        assert not result_chunks
+        assert 0 in state  # The original call at index 0 should still be there

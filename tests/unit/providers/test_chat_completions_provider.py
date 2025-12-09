@@ -4,6 +4,15 @@ from unittest.mock import MagicMock, patch
 
 import openai
 import pytest
+from openai.types.chat import ChatCompletionChunk
+from openai.types.chat.chat_completion_chunk import (
+    Choice,
+    ChoiceDelta,
+    ChoiceDeltaToolCall,
+    ChoiceDeltaToolCallFunction,
+)
+from openai.types.completion_usage import CompletionUsage
+from pydantic import ValidationError
 
 from allos.providers.base import Message, MessageRole, ToolCall
 from allos.providers.chat_completions import ChatCompletionsProvider
@@ -305,3 +314,262 @@ def test_get_context_window(MockOpenAI, model_name, expected_window):
     """Test that get_context_window returns correct size for known and unknown models."""
     provider = ChatCompletionsProvider(model=model_name)
     assert provider.get_context_window() == expected_window
+
+
+class TestChatCompletionsProviderStreaming:
+    @pytest.fixture
+    def provider(self):
+        with patch("allos.providers.chat_completions.openai.OpenAI"):
+            provider = ChatCompletionsProvider(model="gpt-4")
+            yield provider
+
+    def test_stream_chat_simple_text(self, provider):
+        """Test a simple text stream."""
+        mock_chunks = [
+            ChatCompletionChunk(
+                id="1",
+                choices=[
+                    Choice(
+                        delta=ChoiceDelta(content="Hello"), finish_reason=None, index=0
+                    )
+                ],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                created=123,
+            ),
+            ChatCompletionChunk(
+                id="1",
+                choices=[
+                    Choice(
+                        delta=ChoiceDelta(content=" World"), finish_reason=None, index=0
+                    )
+                ],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                created=123,
+            ),
+            # Final usage chunk
+            ChatCompletionChunk(
+                id="1",
+                choices=[],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                usage=CompletionUsage(
+                    completion_tokens=5, total_tokens=15, prompt_tokens=10
+                ),
+                created=123,
+            ),
+        ]
+        provider.client.chat.completions.create.return_value = iter(mock_chunks)
+
+        chunks = list(
+            provider.stream_chat([Message(role=MessageRole.USER, content="Hi")])
+        )
+
+        content = "".join(c.content for c in chunks if c.content)
+        assert content == "Hello World"
+
+        final_chunk = chunks[-1]
+        assert final_chunk.final_metadata is not None
+        assert final_chunk.final_metadata.usage.input_tokens == 10
+        assert final_chunk.final_metadata.usage.output_tokens == 5
+
+    def test_stream_chat_tool_call(self, provider):
+        """Test a stream that involves a tool call."""
+        mock_chunks = [
+            # First chunk starts the tool call
+            ChatCompletionChunk(
+                id="2",
+                choices=[
+                    Choice(
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    id="call_123",
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name="get_weather", arguments=""
+                                    ),
+                                    type="function",
+                                )
+                            ]
+                        ),
+                        finish_reason=None,
+                        index=0,
+                    )
+                ],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                created=123,
+            ),
+            # Subsequent chunks add to arguments
+            ChatCompletionChunk(
+                id="2",
+                choices=[
+                    Choice(
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    function=ChoiceDeltaToolCallFunction(
+                                        arguments='{"location":'
+                                    ),
+                                    type="function",
+                                )
+                            ]
+                        ),
+                        finish_reason=None,
+                        index=0,
+                    )
+                ],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                created=123,
+            ),
+            ChatCompletionChunk(
+                id="2",
+                choices=[
+                    Choice(
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    function=ChoiceDeltaToolCallFunction(
+                                        arguments='"Boston"}'
+                                    ),
+                                    type="function",
+                                )
+                            ]
+                        ),
+                        finish_reason=None,
+                        index=0,
+                    )
+                ],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                created=123,
+            ),
+            # Finish reason chunk to finalize the tool call
+            ChatCompletionChunk(
+                id="2",
+                choices=[
+                    Choice(delta=ChoiceDelta(), finish_reason="tool_calls", index=0)
+                ],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                created=123,
+            ),
+            # Final usage chunk
+            ChatCompletionChunk(
+                id="2",
+                choices=[],
+                model="gpt-4",
+                object="chat.completion.chunk",
+                usage=CompletionUsage(
+                    prompt_tokens=20, completion_tokens=25, total_tokens=45
+                ),
+                created=123,
+            ),
+        ]
+        provider.client.chat.completions.create.return_value = iter(mock_chunks)
+
+        chunks = list(
+            provider.stream_chat(
+                [Message(role=MessageRole.USER, content="Weather?")],
+                tools=[DummyTool()],
+            )
+        )
+
+        tool_start_chunk = next(c for c in chunks if c.tool_call_start)
+        assert tool_start_chunk.tool_call_start["name"] == "get_weather"
+
+        tool_done_chunk = next(c for c in chunks if c.tool_call_done)
+        assert tool_done_chunk.tool_call_done.name == "get_weather"
+        assert tool_done_chunk.tool_call_done.arguments == {"location": "Boston"}
+
+        final_chunk = chunks[-1]
+        assert final_chunk.final_metadata is not None
+        assert final_chunk.final_metadata.usage.input_tokens == 20
+        assert final_chunk.final_metadata.usage.output_tokens == 25
+
+    def test_stream_chat_pre_stream_api_error(self, provider):
+        """Test that ProviderError is raised for API errors before the stream."""
+        error = openai.APIConnectionError(request=MagicMock())
+        provider.client.chat.completions.create.side_effect = error
+
+        with pytest.raises(ProviderError, match="Streaming error:"):
+            list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+
+    def test_stream_tool_call_completion_json_error(self, provider):
+        """Test that a JSON error in tool call arguments yields an error chunk."""
+        # This context will be used inside _handle_tool_calls_completion
+        _api_context = {
+            "tool_calls_state": [
+                {"id": "call_1", "function": {"name": "test", "arguments": "{bad_json"}}
+            ]
+        }
+
+        # Call the helper method directly
+        error_chunk = next(provider._handle_tool_calls_completion(_api_context))
+
+        assert error_chunk.error is not None
+        assert "Failed to parse tool arguments" in error_chunk.error
+
+    def test_handle_final_usage_chunk_validation_error(
+        self, provider, configured_caplog, mocker
+    ):
+        """Test that a Pydantic validation error during finalization yields an error chunk."""
+        valid_chunk = ChatCompletionChunk(
+            id="1",
+            model="openai-test",
+            object="chat.completion.chunk",
+            usage=CompletionUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+            created=123,
+            choices=[],
+        )
+        _api_context = {"builder_kwargs": {}, "start_time": 0}
+
+        # 2. Patch the internal `model_validate` call to force the error we want to test
+        mocker.patch(
+            "allos.providers.chat_completions.ChatCompletion.model_validate",
+            side_effect=ValidationError.from_exception_data(
+                title="Test ValidationError", line_errors=[]
+            ),
+        )
+
+        # 3. Consume the generator to get the chunk
+        error_chunk = next(
+            provider._handle_final_usage_chunk(valid_chunk, _api_context)
+        )
+
+        # 4. Assert the outcome
+        assert (
+            error_chunk.error
+            == "Internal error: Failed to validate final stream metadata."
+        )
+        assert "Pydantic validation failed" in configured_caplog.text
+
+    def test_handle_final_usage_chunk_processing_error(
+        self, provider, configured_caplog
+    ):
+        """Test that a generic processing error during finalization yields an error chunk."""
+        chunk_with_usage = ChatCompletionChunk(
+            id="1",
+            model="gpt-4",
+            object="chat.completion.chunk",
+            usage=CompletionUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+            choices=[],
+            created=123,
+        )
+        # Cause an error by providing bad builder_kwargs
+        _api_context = {"builder_kwargs": {"tools": [123]}, "start_time": 0}
+
+        error_chunk = next(
+            provider._handle_final_usage_chunk(chunk_with_usage, _api_context)
+        )
+
+        assert (
+            error_chunk.error
+            == "Internal error: Failed to process final stream metadata."
+        )
+        assert "Data processing error" in configured_caplog.text

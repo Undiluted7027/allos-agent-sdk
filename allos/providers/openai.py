@@ -511,46 +511,46 @@ class OpenAIProvider(BaseProvider):
                 )
                 metadata = builder.with_response_obj(final_response_obj).build()
 
-            if not metadata.tools.tool_calls and _state:
-                from .metadata import ToolCallDetail
+                if not metadata.tools.tool_calls and _state:
+                    from .metadata import ToolCallDetail
 
+                    logger.debug(
+                        f"Response object missing tool calls. "
+                        f"Extracting {len(_state)} from streaming state."
+                    )
+
+                    tool_calls_from_state = []
+                    for call_state in _state.values():
+                        try:
+                            parsed_args = json.loads(call_state.get("arguments", "{}"))
+                            tool_calls_from_state.append(
+                                ToolCallDetail(
+                                    tool_call_id=call_state["id"],
+                                    tool_name=call_state["name"],
+                                    arguments=parsed_args,
+                                )
+                            )
+                        except (json.JSONDecodeError, KeyError) as e:
+                            logger.warning(f"Failed to parse tool call from state: {e}")
+                            continue
+
+                    if tool_calls_from_state:
+                        metadata.tools.tool_calls = tool_calls_from_state
+                        metadata.tools.total_tool_calls = len(tool_calls_from_state)
                 logger.debug(
-                    f"Response object missing tool calls. "
-                    f"Extracting {len(_state)} from streaming state."
+                    f"Response object has output: {hasattr(event.response, 'output')}"
+                )
+                if hasattr(event.response, "output"):
+                    logger.debug(f"Output items: {len(event.response.output or [])}")
+                    for item in event.response.output or []:
+                        logger.debug(f"  - Item type: {item.type}")
+
+                logger.debug(f"Streaming state has {len(_state)} items")
+                logger.debug(
+                    f"Built metadata has {metadata.tools.total_tool_calls} tool calls"
                 )
 
-                tool_calls_from_state = []
-                for call_state in _state.values():
-                    try:
-                        parsed_args = json.loads(call_state.get("arguments", "{}"))
-                        tool_calls_from_state.append(
-                            ToolCallDetail(
-                                tool_call_id=call_state["id"],
-                                tool_name=call_state["name"],
-                                arguments=parsed_args,
-                            )
-                        )
-                    except (json.JSONDecodeError, KeyError) as e:
-                        logger.warning(f"Failed to parse tool call from state: {e}")
-                        continue
-
-                if tool_calls_from_state:
-                    metadata.tools.tool_calls = tool_calls_from_state
-                    metadata.tools.total_tool_calls = len(tool_calls_from_state)
-            logger.info(
-                f"Response object has output: {hasattr(event.response, 'output')}"
-            )
-            if hasattr(event.response, "output"):
-                logger.info(f"Output items: {len(event.response.output or [])}")
-                for item in event.response.output or []:
-                    logger.info(f"  - Item type: {item.type}")
-
-            logger.info(f"Streaming state has {len(_state)} items")
-            logger.info(
-                f"Built metadata has {metadata.tools.total_tool_calls} tool calls"
-            )
-
-            yield ProviderChunk(final_metadata=metadata)
+                yield ProviderChunk(final_metadata=metadata)
         except (ValidationError, ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Error building final metadata for OpenAI stream: {e}", exc_info=True
