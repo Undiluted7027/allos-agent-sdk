@@ -115,11 +115,11 @@ OpenAI Ecosystem:
 └── ChatCompletionsProvider (Chat Completions API) ← New, for OpenAI-compatible services
 
 Provider Implementations:
-├── OllamaProvider → Uses ollama Python library (native)
+├── OllamaProvider → Uses native ollama Python library (currently supported via ChatCompletions)
 ├── TogetherAIProvider → Extends ChatCompletionsProvider
 ├── AnyscaleProvider → Extends ChatCompletionsProvider
 ├── GoogleProvider → Uses google-generativeai library
-├── CohereProvider → Uses cohere library
+├── CohereProvider → Uses cohere library (currently supported via ChatCompletions)
 ├── BedrockProvider → Uses boto3
 └── AzureOpenAIProvider → Extends OpenAIProvider (Responses API)
 ```
@@ -291,6 +291,7 @@ agent = Agent(config)
   - Added `chat_completions` to test matrix.
 - [x] **Manual Verification (`manual_test_omnibus.py`)**
   - Validated complex multi-turn workflow across Groq, Mistral, Together, OpenAI, and Anthropic.
+- [x] **`tests/integration/test_system_integrity.py`**: Added cross-provider hydration tests ("Frankenstein Test") and parity tests.
 
 #### Documentation
 - [x] **`docs/providers/chat-completions.md`**

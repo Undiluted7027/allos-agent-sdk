@@ -619,6 +619,7 @@ class Agent:
                 cumulative_state["output_tokens"],
                 cumulative_state["cost"],
             )
+            self.last_run_metadata = final_aggregate
             yield ProviderChunk(final_metadata=final_aggregate)
 
     def _execute_and_record_tools(
