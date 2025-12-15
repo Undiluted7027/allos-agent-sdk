@@ -55,10 +55,5 @@ allos "Analyze this log file" \
   --session "analysis.json"
 ```
 
-> [!NOTE] Documentation In Progress
->
-> This page is currently under development and will be populated as the corresponding feature is implemented in the Allos SDK.
->
-> Our development is guided by our public roadmap. Please see the [Post MVP Roadmap](./../../POST_MVP_ROADMAP.md) for near-term features and the [Full Roadmap](./../../ROADMAP.md) for our long-term vision.
->
-> Thank you for your interest and patience!
+> [!NOTE] Coming Soon: File-Based Configuration
+Support for YAML/JSON configuration files (.allos/config.yaml) is planned for Phase 2.5 of the [roadmap](../../POST_MVP_ROADMAP.md). This will allow for persistent, project-level settings beyond environment variables.

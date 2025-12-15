@@ -35,3 +35,4 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 - **[Agent API](./reference/agent-api.md)**: Technical details of the `Agent` class.
 - **[Provider API](./reference/provider-api.md)**: Technical details of the provider abstraction layer.
 - **[Tool API](./reference/tool-api.md)**: Technical details of the tool abstraction layer.
+- **[Metadata API](./reference/metadata.md)**: Details on the standardized usage, cost, and latency metrics.

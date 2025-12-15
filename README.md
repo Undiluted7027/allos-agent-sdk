@@ -8,7 +8,7 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: Stable](https://img.shields.io/badge/status-Stable-brightgreen.svg)](./ROADMAP.md)
+[![Status: Post MVP Phase 2 Active](https://img.shields.io/badge/status-Phase%202%20Active-blue.svg)](./POST_MVP_ROADMAP.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./.github/CONTRIBUTING.md)
 [![codecov](https://codecov.io/gh/Undiluted7027/allos-agent-sdk/graph/badge.svg?token=DUZU3HSZDL)](https://codecov.io/gh/Undiluted7027/allos-agent-sdk)
 [![PyPI version](https://img.shields.io/pypi/v/allos-agent-sdk.svg)](https://pypi.org/project/allos-agent-sdk/)
@@ -105,6 +105,9 @@ export OPENAI_API_KEY="your_key_here"
 # Run a single task
 allos "Create a FastAPI hello world app in a file named main.py and then run it."
 
+# Run in streaming mode to see output instantly
+allos --stream "Write a long story about space exploration."
+
 # Start an interactive session for a conversation
 allos -i
 # >>> Create a file named 'app.py' with a simple Flask app.
@@ -120,15 +123,21 @@ allos -p anthropic -s my_project.json "Refactor the 'app.py' file to be more mod
 ```python
 from allos import Agent, AgentConfig
 
-# Configure for Together AI
-agent = Agent(AgentConfig(
-    provider_name="together",
-    model="meta-llama/Llama-3-70b-chat-hf",
-    tool_names=["read_file", "write_file"]
-))
+# Configure for Together AI (using the Universal Adapter)
+agent = Agent(
+    AgentConfig(
+        provider_name="openai",
+        model="gpt-4o",
+        tool_names=["read_file", "write_file"],
+    )
+)
 
+# Run the agent
 result = agent.run("Fix the bug in main.py and add tests")
 print(result)
+
+# Access detailed metrics
+print(f"Cost: ${agent.last_run_metadata.usage.estimated_cost.total_usd}")
 ```
 
 ### Provider Switching Example
@@ -154,11 +163,11 @@ agent_groq = Agent(AgentConfig(
     model="groq/compound",
 ))
 
-# Or use local models with Ollama Native (COMING SOON!)
+# Or use local models via compatibility layer
 agent_local = Agent(AgentConfig(
-    provider="ollama",
-    model="qwen2.5-coder",
-    tools=["read_file", "write_file"]
+    provider="ollama_compat",
+    model="mistral:latest",
+    no_tools=True
 ))
 
 # Same interface, different providers!
@@ -239,8 +248,8 @@ Allos supports a massive range of models through native integrations and a unive
 
 | Provider | Status | Models |
 |----------|--------|--------|
-| **OpenAI** | ✅ Ready | GPT-4o, GPT-4-turbo |
-| **Anthropic** | ✅ Ready | Claude 3.5 Sonnet, Haiku |
+| **OpenAI** | ✅ Ready | GPT-4o, GPT-5, GPT-5.2 |
+| **Anthropic** | ✅ Ready | Claude 4.5 Sonnet, Haiku |
 | **Groq** | ✅ Ready | Llama 3, Mixtral |
 | **Mistral** | ✅ Ready | Mistral Large, Small |
 | **Together AI** | ✅ Ready | Llama 3, Qwen, DeepSeek |
@@ -311,18 +320,20 @@ content_agent.run("Research AI trends and write a blog post")
 - **[Custom Tools](./docs/guides/custom-tools.md)** - Creating your own tools
 - **[CLI Reference](./docs/reference/cli-reference.md)** - Command-line options
 - **[API Reference](./docs/reference/agent-api.md)** - Python API documentation
-- **[Architecture](./docs/reference/initial-architecture-design.md)** - System design
+<!-- - **[Architecture](./docs/reference/initial-architecture-design.md)** - System design -->
 
 ## 🗺️ Roadmap
 
 ### ✅ Phase 1: MVP (Completed)
 - Core architecture, OpenAI/Anthropic support, CLI, Tools.
 
-See [POST_MVP_ROADMAP.md](./POST_MVP_ROADMAP.md) for detailed post-MVP timeline.
-
-### 🏗️ Phase 2: Enhanced Features (In Progress)
+### ✅ Phase 2: Feature 2.0 (Completed)
 - [x] **Universal Compatibility**: Support for Groq, Mistral, Together, etc.
+- [x] **Streaming**: Real-time token streaming.
+- [x] **Observability**: Standardized metadata schema.
 - [x] **CLI DX**: Active providers check, config flags.
+
+### 🏗️ Phase 2: Upcoming
 - [ ] **Native Ollama**: Advanced local model support.
 - [ ] Google Gemini support
 - [ ] Web search and fetch tools
@@ -340,6 +351,8 @@ See [POST_MVP_ROADMAP.md](./POST_MVP_ROADMAP.md) for detailed post-MVP timeline.
 - [ ] Advanced monitoring and observability
 - [ ] Cloud deployment support
 
+See [POST_MVP_ROADMAP.md](./POST_MVP_ROADMAP.md) for detailed timeline.
+
 ## 🚧 Known Limitations (MVP)
 
 The current MVP of the Allos Agent SDK is focused on providing a robust foundation. It intentionally excludes some advanced features that are planned for future releases:
@@ -355,14 +368,14 @@ Please see our full [ROADMAP.md](./ROADMAP.md) for more details on our plans for
 
 ## 🚦 Current Status
 
-**🟢 MVP Development Completed**
+**🟢 Stable Release (v0.0.1)**
 
-All major features for the MVP are implemented and tested.
-- ✅ **Providers:** OpenAI and Anthropic are fully supported.
-- ✅ **Tools:** Secure filesystem and shell tools are included.
-- ✅ **Agent Core:** The agentic loop, permissions, and session management are functional.
-- ✅ **CLI:** A polished and powerful CLI is the primary user interface.
-- ✅ **Python API:** The underlying Python API is stable and ready for use.
+All major features for the MVP and Phase 2.0 are implemented and tested.
+- ✅ **Providers:** 10+ providers supported.
+- ✅ **Streaming:** Full streaming support.
+- ✅ **Tools:** Secure filesystem and shell tools included.
+- ✅ **Agent Core:** Robust agentic loop with permissions.
+- ✅ **CLI:** Polished CLI with interactive mode.
 
 🎉 **MVP Released**
 

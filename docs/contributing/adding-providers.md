@@ -10,7 +10,7 @@ Create a new file in `allos/providers/nexusai.py`.
 
 ## Step 2: Implement the Provider Class
 
-Inside the new file, create a class that inherits from `BaseProvider` and implement the required abstract methods.
+Inside the new file, create a class that inherits from `BaseProvider` and implement the required abstract methods: `chat`, `stream_chat`, and `get_context_window`.
 
 ```python
 # allos/providers/nexusai.py
@@ -49,6 +49,24 @@ class NexusAIProvider(BaseProvider):
         except nexusai.APIError as e:
             # 4. Handle provider-specific errors and wrap them in ProviderError.
             raise ProviderError(f"NexusAI API error: {e}", "nexusai") from e
+
+    def stream_chat(self, messages: List[Message], **kwargs: Any) -> Iterator[ProviderChunk]:
+        """
+        Main method to interact with the NexusAI API (Streaming).
+        """
+        nexus_messages = self._convert_messages(messages)
+
+        try:
+            # Assume the client supports a streaming method
+            stream = self.client.stream(model=self.model, messages=nexus_messages)
+
+            for event in stream:
+                # Convert provider events to Allos ProviderChunks
+                if event.token:
+                    yield ProviderChunk(content=event.token)
+                elif event.is_done:
+                    # In a real implementation, you would build the final metadata here
+                    yield ProviderChunk(final_metadata=None)
 
     def get_context_window(self) -> int:
         """

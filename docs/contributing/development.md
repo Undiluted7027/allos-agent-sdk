@@ -17,7 +17,7 @@ git clone https://github.com/YourUsername/allos-agent-sdk.git
 cd allos-agent-sdk
 ```
 
-## 3. Run the Setup Script
+## 3. Run the Setup Script (Recommended)
 
 We provide a convenient script that automates the entire setup process.
 
@@ -71,5 +71,29 @@ To verify your setup is working correctly, run the test suite.
 ```
 
 For more details, see the [Testing Guide](./testing.md).
+
+---
+
+## Manual Setup (Alternative)
+
+If you prefer to configure your environment manually without the script, you can use the following commands:
+
+1.  **Install Dependencies:**
+    ```bash
+    uv sync --all-extras --dev
+    source .venv/bin/activate
+    ```
+
+2.  **Install Pre-commit Hooks:**
+    ```bash
+    pre-commit install
+    ```
+
+3.  **Setup Environment Variables:**
+    ```bash
+    cp .env.example .env
+    # Edit .env with your keys
+    ```
+
 
 You are now ready to start developing!

@@ -13,6 +13,9 @@ This is the abstract base class that all provider implementations must inherit f
 #### `chat(messages: List[Message], **kwargs) -> ProviderResponse`
 This method must be implemented by all providers. It takes a list of `Message` objects and returns a `ProviderResponse`. Provider-specific options (like `tools` or `temperature`) can be passed as keyword arguments.
 
+#### `stream_chat(messages: List[Message], **kwargs) -> Iterator[ProviderChunk]`
+This method must be implemented by all providers to support streaming. It yields `ProviderChunk` objects, allowing the agent to react to tokens as they are generated.
+
 #### `get_context_window() -> int`
 This method must be implemented by all providers. It should return an integer representing the maximum context window size (in tokens) for the configured model.
 
@@ -69,3 +72,15 @@ The standardized object returned by every provider's `.chat()` method.
 - `content: Optional[str]` - The text content of the model's response.
 - `tool_calls: List[ToolCall]` - A list of any tool calls requested by the model.
 - `metadata: dict[str, Any]` - A dictionary containing provider-specific information and processing metrics from the API call.
+
+### `ProviderChunk`
+
+The standardized object yielded by every provider's `.stream_chat()` method. Only one field is typically populated per chunk.
+
+**`allos.providers.base.ProviderChunk`**
+- `content: Optional[str]` - A text delta (partial content).
+- `tool_call_start: Optional[Dict[str, Any]]` - Info indicating a tool call has started (name, id).
+- `tool_call_delta: Optional[str]` - Partial JSON string for tool arguments.
+- `tool_call_done: Optional[ToolCall]` - The fully assembled `ToolCall` object (yielded when parsing is complete).
+- `final_metadata: Optional[Metadata]` - The final usage/cost metadata yielded at the very end of the stream.
+- `error: Optional[str]` - An error message if the stream fails mid-transmission.

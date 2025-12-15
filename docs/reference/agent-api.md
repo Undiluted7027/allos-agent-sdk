@@ -35,6 +35,13 @@ Starts the agentic loop with a given user prompt. The agent will interact with i
 - **Raises:**
     - `AllosError`: If `max_iterations` is reached.
 
+#### `stream_run(prompt: str) -> Iterator[ProviderChunk]`
+Runs the agentic loop in streaming mode. This allows you to process the LLM's response token-by-token as it is generated. It handles tool execution automatically in the background between stream chunks.
+- **Arguments:**
+    - `prompt` (str): The high-level task or question.
+- **Returns:**
+    - `Iterator[ProviderChunk]`: An iterator yielding chunks of data (text content, tool call status, or errors). See [Provider API](./provider-api.md) for `ProviderChunk` details.
+
 #### `save_session(filepath: str | Path) -> None`
 Serializes the agent's `AgentConfig` and its entire `ConversationContext` to a JSON file.
 > [!NOTE] Security

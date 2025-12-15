@@ -18,20 +18,28 @@ rm -f "$SESSION_FILE" "cli_demo.py"
 
 # --- 1. GROQ (The Ideator) ---
 # Testing: --no-tools, alias provider
-echo -e "\n[1/5] GROQ: Generating Idea (--no-tools)..."
-allos "Give me ONE simple Python automation idea involving file manipulation. Just the idea." \
-  --provider groq \
-  --model "llama-3.1-8b-instant" \
-  --no-tools \
-  --session "$SESSION_FILE"
+if [ -z "$GROQ_API_KEY" ]; then
+    echo -e "\n[1/5] GROQ: Skipping (GROQ_API_KEY not found)"
+else
+    echo -e "\n[1/5] GROQ: Generating Idea (--no-tools)..."
+    allos "Give me ONE simple Python automation idea involving file manipulation. Just the idea." \
+      --provider groq \
+      --model "llama-3.1-8b-instant" \
+      --no-tools \
+      --session "$SESSION_FILE"
+fi
 
 # --- 2. MISTRAL (The Planner) ---
 # Testing: Provider switching, session loading
-echo -e "\n[2/5] MISTRAL: Creating Plan..."
-allos "Create a step-by-step implementation plan for that idea." \
-  --provider mistral \
-  --model "mistral-small-latest" \
-  --session "$SESSION_FILE"
+if [ -z "$MISTRAL_API_KEY" ]; then
+    echo -e "\n[2/5] MISTRAL: Skipping (MISTRAL_API_KEY not found)"
+else
+    echo -e "\n[2/5] MISTRAL: Creating Plan..."
+    allos "Create a step-by-step implementation plan for that idea." \
+      --provider mistral \
+      --model "mistral-small-latest" \
+      --session "$SESSION_FILE"
+fi
 
 # --- 3. TOGETHER AI (The Coder) ---
 # Testing: Explicit 'chat_completions' provider, manual base-url, manual api-key
@@ -45,33 +53,48 @@ allos "Write the Python code for this plan. Do not execute it." \
 
 # --- 4. OPENAI (The Executor) ---
 # Testing: Max tokens, Tools enabled (default), Auto-approve
-echo -e "\n[4/5] OPENAI: Executing Code (--max-tokens, --auto-approve)..."
-allos "Save that code to 'cli_demo.py' and execute it. Report the output." \
-  --provider openai \
-  --model "gpt-4o" \
-  --max-tokens 2000 \
-  --auto-approve \
-  --session "$SESSION_FILE" \
-  --tool "write_file" \
-  --verbose
+if [ -z "$TOGETHER_API_KEY" ]; then
+    echo -e "\n[3/5] TOGETHER: Skipping (TOGETHER_API_KEY not found)"
+else
+    echo -e "\n[4/5] OPENAI: Executing Code (--max-tokens, --auto-approve)..."
+    allos "Save that code to 'cli_demo.py' and execute it. Report the output." \
+      --provider openai \
+      --model "gpt-4o" \
+      --max-tokens 2000 \
+      --auto-approve \
+      --session "$SESSION_FILE" \
+      --tool "write_file" \
+      --verbose
+fi
 
 # --- 5. ANTHROPIC: The Reviewer (Testing Native Provider & Max Tokens) ---
 # We switch to Claude to review the output. This tests the Anthropic provider
 # correctly handling a context populated by OpenAI tools.
-echo -e "\n[5/5] ANTHROPIC: Reviewing Output (Native Provider) ..."
-allos "Analyze the output of the script execution. Did it work as expected? Be brief." \
-  --provider anthropic \
-  --model "claude-3-haiku-20240307" \
-  --session "$SESSION_FILE" \
-  --max-tokens 1000 \
-  --verbose
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo -e "\n[4/5] OPENAI: Skipping (OPENAI_API_KEY not found)"
+else
+    echo -e "\n[5/5] ANTHROPIC: Reviewing Output (Native Provider) ..."
+    allos "Analyze the output of the script execution. Did it work as expected? Be brief." \
+      --provider anthropic \
+      --model "claude-3-haiku-20240307" \
+      --session "$SESSION_FILE" \
+      --max-tokens 1000 \
+      --verbose
+fi
 
 # --- Verification ---
-if [ -f "cli_demo.py" ]; then
-    echo -e "\n✅ SUCCESS: 'cli_demo.py' exists."
-    rm "cli_demo.py" "$SESSION_FILE"
-    exit 0
+# Only check verification if OpenAI ran (since it creates the file)
+if [ -n "$OPENAI_API_KEY" ]; then
+    if [ -f "cli_demo.py" ]; then
+        echo -e "\n✅ SUCCESS: 'cli_demo.py' exists."
+        rm "cli_demo.py" "$SESSION_FILE"
+        exit 0
+    else
+        echo -e "\n❌ FAILURE: 'cli_demo.py' was not created."
+        exit 1
+    fi
 else
-    echo -e "\n❌ FAILURE: 'cli_demo.py' was not created."
-    exit 1
+    echo -e "\n⚠️  Skipped verification (OpenAI key required for execution step)"
+    rm -f "$SESSION_FILE"
+    exit 0
 fi

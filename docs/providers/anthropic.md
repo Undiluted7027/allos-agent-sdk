@@ -16,11 +16,14 @@ ANTHROPIC_API_KEY="sk-ant-..."
 Use the `ProviderRegistry` to get an instance of the Anthropic provider.
 
 ```python
-from allos.providers import ProviderRegistry
+from allos import Agent, AgentConfig
 
-anthropic_provider = ProviderRegistry.get_provider(
-    "anthropic", model="claude-3-5-sonnet-20240620"
+config = AgentConfig(
+    provider_name="anthropic",
+    model="claude-3-5-sonnet-20240620"
 )
+
+agent = Agent(config)
 ```
 
 ## Supported Models

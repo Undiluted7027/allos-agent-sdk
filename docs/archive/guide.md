@@ -1,3 +1,20 @@
+> [!CAUTION]
+> **ARCHIVED DOCUMENT: HISTORICAL ARTIFACT**
+>
+> This document represents the **initial planning and design phase** of the Allos SDK (pre-MVP). It has been preserved for historical context only.
+>
+> **The actual codebase has significantly diverged from this design.**
+> Key differences include:
+> - **Metadata**: The SDK now uses a strict Pydantic `Metadata` schema, not simple dictionaries.
+> - **Streaming**: The SDK fully supports streaming via `ProviderChunk`, which is absent here.
+> - **Providers**: The base class interface and methods (`supports_tool_calling`, etc.) are different.
+> - **Utils**: Utility function names and logging implementations (now using `rich`) have changed.
+>
+> **For current, accurate documentation, please refer to:**
+> - [Agent API Reference](../reference/agent-api.md)
+> - [Provider API Reference](../reference/provider-api.md)
+> - [Tool API Reference](../reference/tool-api.md)
+
 # Allos Agent SDK - MVP Implementation Guide
 
 > **Goal**: Build a working, provider-agnostic agentic SDK in 6-8 weeks
