@@ -108,6 +108,7 @@ def test_active_providers_command(runner: CliRunner, monkeypatch):
     assert "anthropic" in result.output
     # ollama_compat should be Manual Config
     assert "ollama_compat" in result.output
+    assert "ollama" in result.output
     assert "Manual Config Required" in result.output
 
 
@@ -785,6 +786,26 @@ class TestCliInteractiveCommand:
         assert result.exit_code == 0
         assert "Tools are disabled for this session" in result.output
 
+    @patch("allos.cli.interactive._run_repl_loop")
+    def test_interactive_exits_when_api_key_missing(
+        self, mock_repl, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that interactive mode exits early when API key validation fails."""
+        mock_agent_class = mock_agent_and_load_session["class_interactive"]
+
+        # Remove API key from environment
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        result = runner.invoke(main, ["--provider", "openai", "--interactive"])
+
+        assert result.exit_code == 0
+        assert "API key not found" in result.output
+        assert "OPENAI_API_KEY" in result.output
+
+        # Agent should not be initialized, REPL should not start
+        mock_agent_class.assert_not_called()
+        mock_repl.assert_not_called()
+
 
 class TestCliStreamCommand:
     """Tests for the `--stream` flag and `run_agent_stream` function."""
@@ -972,3 +993,311 @@ class TestCliStreamCommand:
         # Agent SHOULD be called
         mock_agent_class.assert_called_once()
         mock_agent_instance.stream_run.assert_called_once_with("This is a test prompt")
+
+
+# Add these to tests/e2e/test_cli.py
+
+
+class TestActiveProvidersCommand:
+    """Tests for the --active-providers command."""
+
+    def test_active_providers_ollama_with_env_var_set(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test that Ollama shows custom URL when OLLAMA_HOST is set."""
+        # Set the OLLAMA_HOST environment variable
+        monkeypatch.setenv("OLLAMA_HOST", "http://custom-ollama:11434")
+
+        # Mock ollama_running to return True
+        with patch("allos.cli.main.ollama_running", return_value=True):
+            result = runner.invoke(main, ["--active-providers"])
+
+        assert result.exit_code == 0
+        assert "OLLAMA_HOST (Set)" in result.output
+        assert "Ready" in result.output
+
+    def test_active_providers_ollama_not_running(self, runner: CliRunner, monkeypatch):
+        """Test that Ollama shows 'not running' when server is down."""
+        # Ensure OLLAMA_HOST is not set (will use default)
+        monkeypatch.delenv("OLLAMA_HOST", raising=False)
+
+        # Mock ollama_running to return False
+        with patch("allos.cli.main.ollama_running", return_value=False):
+            result = runner.invoke(main, ["--active-providers"])
+
+        assert result.exit_code == 0
+        assert "ollama" in result.output
+        assert "Ollama not running" in result.output
+
+    def test_active_providers_ollama_with_env_var_but_not_running(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test Ollama status when env var is set but server is not running."""
+        monkeypatch.setenv("OLLAMA_HOST", "http://localhost:9999")
+
+        with patch("allos.cli.main.ollama_running", return_value=False):
+            result = runner.invoke(main, ["--active-providers"])
+
+        assert result.exit_code == 0
+        assert "OLLAMA_HOST (Set)" in result.output
+        assert "Ollama not running" in result.output
+
+
+class TestDetermineModel:
+    """Tests for the _determine_model helper function."""
+
+    def test_determine_model_returns_provided_model(self, runner: CliRunner):
+        """Test that _determine_model returns the model if provided."""
+        from allos.cli.utils import determine_model
+
+        result = determine_model("openai", "gpt-4o-mini")
+        assert result == "gpt-4o-mini"
+
+    def test_determine_model_defaults_openai(self, runner: CliRunner):
+        """Test that _determine_model defaults to gpt-4o for OpenAI."""
+        from allos.cli.utils import determine_model
+
+        result = determine_model("openai", None)
+        assert result == "gpt-4o"
+
+    def test_determine_model_defaults_anthropic(self, runner: CliRunner):
+        """Test that _determine_model defaults to claude-3-haiku for Anthropic."""
+        from allos.cli.utils import determine_model
+
+        result = determine_model("anthropic", None)
+        assert result == "claude-3-haiku-20240307"
+
+    def test_determine_model_returns_none_for_unknown_provider(self, runner: CliRunner):
+        """Test that _determine_model returns None for providers without defaults."""
+        from allos.cli.utils import determine_model
+
+        result = determine_model("ollama", None)
+        assert result is None
+
+
+class TestValidateModelAndApiKey:
+    """Tests for the validate_model_and_api_key helper function."""
+
+    def test_validate_model_and_api_key_success(self, runner: CliRunner, monkeypatch):
+        """Test successful validation with both model and API key."""
+        from allos.cli.utils import validate_model_and_api_key
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        result = validate_model_and_api_key("openai", "gpt-4o", None)
+
+        # Check model determination
+        model_determined = result.get("determined_model", {})
+        assert model_determined["check"] is True
+        assert model_determined["model"] == "gpt-4o"
+
+        # Check API key validation
+        api_key_validated = result.get("validate_api_key", {})
+        assert api_key_validated["check"] is True
+
+    def test_validate_model_and_api_key_model_required(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test that validation fails when model is required but not provided."""
+        from allos.cli.utils import validate_model_and_api_key
+
+        monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
+
+        # For ollama, model is required (no default)
+        result = validate_model_and_api_key("ollama", None, None)
+
+        # Check that model determination failed
+        model_determined = result.get("determined_model", {})
+        assert model_determined["check"] is False
+        assert "Model needs to be specified" in model_determined["message"]  # type: ignore
+        assert "--model" in model_determined["message"]  # type: ignore
+
+    def test_validate_model_and_api_key_missing_api_key(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test that validation fails when API key is missing."""
+        from allos.cli.utils import validate_model_and_api_key
+
+        # Remove API key from environment
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        result = validate_model_and_api_key("openai", "gpt-4o", None)
+
+        # Model determination should succeed
+        model_determined = result.get("determined_model", {})
+        assert model_determined["check"] is True
+        assert model_determined["model"] == "gpt-4o"
+
+        # API key validation should fail
+        api_key_validated = result.get("validate_api_key", {})
+        assert api_key_validated["check"] is False
+        assert "API key not found" in api_key_validated["message"]  # type: ignore
+        assert "OPENAI_API_KEY" in api_key_validated["message"]  # type: ignore
+
+    def test_validate_model_and_api_key_with_explicit_key(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test that validation succeeds with explicitly provided API key."""
+        from allos.cli.utils import validate_model_and_api_key
+
+        # Remove env var to ensure we're using the explicit key
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        result = validate_model_and_api_key("openai", "gpt-4o", "explicit-key")
+
+        # Both checks should pass
+        model_determined = result.get("determined_model", {})
+        assert model_determined["check"] is True
+        assert model_determined["model"] == "gpt-4o"
+
+        api_key_validated = result.get("validate_api_key", {})
+        assert api_key_validated["check"] is True
+
+    def test_validate_model_and_api_key_uses_default_model(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test that default models are used when model is not provided."""
+        from allos.cli.utils import validate_model_and_api_key
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        result = validate_model_and_api_key("openai", None, None)
+
+        model_determined = result.get("determined_model", {})
+        assert model_determined["check"] is True
+        assert model_determined["model"] == "gpt-4o"
+        assert (
+            "defaulting to" in model_determined["message"].lower()  # type: ignore
+        )  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_validate_model_and_api_key_anthropic_default(
+        self, runner: CliRunner, monkeypatch
+    ):
+        """Test Anthropic's default model."""
+        from allos.cli.utils import validate_model_and_api_key
+
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+        result = validate_model_and_api_key("anthropic", None, None)
+
+        model_determined = result.get("determined_model", {})
+        assert model_determined["check"] is True
+        assert model_determined["model"] == "claude-3-haiku-20240307"
+
+
+class TestRunAgentValidation:
+    """Tests for validation in run_agent function."""
+
+    def test_run_agent_exits_when_model_required(
+        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that run_agent exits early when model is required but not provided."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+
+        # Ollama requires explicit model
+        monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
+
+        result = runner.invoke(main, ["--provider", "ollama", "test prompt"])
+
+        assert result.exit_code == 0
+        assert "Model needs to be specified" in result.output
+        # Agent should not be initialized
+        mock_agent_class.assert_not_called()
+
+    def test_run_agent_exits_when_api_key_missing(
+        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that run_agent exits early when API key validation fails."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+
+        # Remove API key
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        result = runner.invoke(main, ["--provider", "openai", "test prompt"])
+
+        assert result.exit_code == 0
+        assert "API key not found" in result.output
+        # Agent should not be initialized
+        mock_agent_class.assert_not_called()
+
+
+class TestStreamAgentValidation:
+    """Tests for validation in run_agent_stream function."""
+
+    def test_stream_agent_exits_when_model_required(
+        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that run_agent_stream exits early when model is required."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+
+        monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
+
+        result = runner.invoke(
+            main, ["--provider", "ollama", "--stream", "test prompt"]
+        )
+
+        assert result.exit_code == 0
+        assert "Model needs to be specified" in result.output
+        mock_agent_class.assert_not_called()
+
+    def test_stream_agent_uses_anthropic_default_model(
+        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that stream mode correctly uses Anthropic's default model."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+        result = runner.invoke(
+            main, ["--provider", "anthropic", "--stream", "test prompt"]
+        )
+
+        assert result.exit_code == 0
+        assert "claude-3-haiku-20240307" in result.output
+        mock_agent_class.assert_called_once()
+
+        # Verify the correct model was passed to the agent
+        config = mock_agent_class.call_args.args[0]
+        assert config.model == "claude-3-haiku-20240307"
+        mock_agent_instance.stream_run.assert_called_once_with("test prompt")
+
+
+class TestInteractiveValidation:
+    """Tests for validation in interactive mode."""
+
+    @patch("allos.cli.interactive._run_repl_loop")
+    def test_interactive_exits_when_model_required(
+        self, mock_repl, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that interactive mode exits early when model is required."""
+        mock_agent_class = mock_agent_and_load_session["class_interactive"]
+
+        monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
+
+        result = runner.invoke(main, ["--provider", "ollama", "--interactive"])
+
+        assert result.exit_code == 0
+        assert "Model needs to be specified" in result.output
+        # Agent should not be initialized, REPL should not start
+        mock_agent_class.assert_not_called()
+        mock_repl.assert_not_called()
+
+    @patch("allos.cli.interactive._run_repl_loop")
+    def test_interactive_uses_anthropic_default(
+        self, mock_repl, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+    ):
+        """Test that interactive mode correctly uses Anthropic's default model."""
+        mock_agent_class = mock_agent_and_load_session["class_interactive"]
+
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+        result = runner.invoke(main, ["--provider", "anthropic", "--interactive"])
+
+        assert result.exit_code == 0
+        assert "claude-3-haiku-20240307" in result.output
+
+        # Verify the correct model was used
+        config = mock_agent_class.call_args.args[0]
+        assert config.model == "claude-3-haiku-20240307"
+        mock_repl.assert_called_once()

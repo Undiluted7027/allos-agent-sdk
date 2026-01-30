@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Generator, Union, cast
 
 import pytest
+import requests
 from _pytest.logging import LogCaptureFixture
 from pydantic import BaseModel
 
@@ -29,6 +30,8 @@ from allos.providers.metadata import (
 )
 from allos.tools.base import BaseTool
 from allos.utils.token_counter import count_tokens
+
+OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 
 def pytest_addoption(parser):
@@ -73,6 +76,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_anthropic: marks tests as requiring an Anthropic API key"
     )
+    config.addinivalue_line(
+        "markers", "requires_ollama: marks tests as requiring ollama local client"
+    )
 
 
 def _skip_integration_tests(items):
@@ -103,23 +109,28 @@ def _select_tests_by_flag(items, run_e2e, run_integration):
     return selected
 
 
+def _ollama_running() -> bool:
+    try:
+        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=0.3)
+        return cast(bool, r.status_code == 200)
+    except requests.RequestException:
+        return False
+
+
 def _apply_integration_key_skips(items):
     """Skip integration tests that require missing API keys."""
     missing_keys = {
-        "requires_openai": "OPENAI_API_KEY",
-        "requires_anthropic": "ANTHROPIC_API_KEY",
+        "requires_openai": lambda: bool(os.getenv("OPENAI_API_KEY")),
+        "requires_anthropic": lambda: bool(os.getenv("ANTHROPIC_API_KEY")),
+        "requires_ollama": _ollama_running,
     }
 
     for item in items:
         if "integration" not in item.keywords:
             continue
-        for marker_name, key_name in missing_keys.items():
-            if marker_name in item.keywords and not os.getenv(key_name):
-                item.add_marker(
-                    pytest.mark.skip(
-                        reason=f"Requires the '{key_name}' environment variable"
-                    )
-                )
+        for marker_name, check in missing_keys.items():
+            if marker_name in item.keywords and not check():
+                item.add_marker(pytest.mark.skip(reason=f"{marker_name} not satisfied"))
 
 
 def pytest_collection_modifyitems(config, items):
@@ -351,3 +362,11 @@ def mock_metadata() -> Metadata:
         provider_specific=ProviderSpecific(),
         sdk=SdkInfo(sdk_version="test"),
     )
+
+
+# Default model for ollama integration tests
+# If you don't have this model, change it to something
+# that supports thinking and tool calling (and is pulled).
+@pytest.fixture
+def default_ollama_model():
+    return "qwen3:8b"

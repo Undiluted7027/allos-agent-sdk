@@ -25,7 +25,7 @@ Key functionalities of this module include:
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 from rich.console import Console
 from rich.panel import Panel
@@ -35,6 +35,7 @@ from ..providers import ProviderRegistry
 from ..tools import ToolRegistry
 from ..utils.errors import AllosError
 from .logo import LOGO_BANNER
+from .utils import validate_model_and_api_key
 
 console = Console()
 
@@ -54,9 +55,28 @@ def start_interactive_session(
     _print_welcome_message()
 
     try:
+        # --- Determine the model ---
+        validation_result = validate_model_and_api_key(provider, model, api_key)
+
+        model_determined = validation_result.get("determined_model", {})
+        api_key_validated = validation_result.get("validate_api_key", {})
+
+        if not model_determined["check"]:
+            console.print(model_determined["message"])
+            return
+
+        if model is None:
+            console.print(model_determined["message"])
+
+        validated_model: str = cast(str, model_determined["model"])
+
+        if not api_key_validated["check"]:
+            console.print(api_key_validated["message"])
+            return
+        console.print(f"[dim] Using {provider} with model {validated_model}.")
         agent = _load_or_create_agent(
             provider,
-            model,
+            validated_model,
             base_url,
             api_key,
             max_tokens,
@@ -100,7 +120,7 @@ def _print_welcome_message() -> None:
 
 def _load_or_create_agent(
     provider: str,
-    model: Optional[str],
+    model: str,
     base_url: Optional[str],
     api_key: Optional[str],
     max_tokens: Optional[int],
@@ -127,7 +147,6 @@ def _load_or_create_agent(
         )
         return agent
 
-    model = model or ("gpt-4o" if provider == "openai" else "claude-3-haiku-20240307")
     config = AgentConfig(
         provider_name=provider,
         model=model,

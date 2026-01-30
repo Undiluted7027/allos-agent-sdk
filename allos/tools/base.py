@@ -144,7 +144,7 @@ class BaseTool(ABC):
     def to_provider_format(self, provider: str) -> Dict[str, Any]:
         """Converts the tool definition to a provider-specific format.
 
-        Currently supports "openai" and "anthropic" formats.
+        Currently supports "openai", "ollama", and "anthropic" formats.
 
         Args:
             provider: The name of the provider (e.g., "openai", "anthropic").
@@ -175,6 +175,17 @@ class BaseTool(ABC):
                 "parameters": param_schema,
                 "strict": True,
             }
+
+        elif provider == "ollama":
+            return {
+                "function": {
+                    "name": self.name,
+                    "description": self.description,
+                    "parameters": param_schema,
+                    "strict": True,
+                }
+            }
+
         elif provider == "anthropic":
             return {
                 "name": self.name,

@@ -11,11 +11,11 @@ repos:
       - id: check-toml
       - id: detect-private-key
 
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.9.0
-    hooks:
-      - id: black
-        language_version: python3.9
+  # - repo: https://github.com/psf/black-pre-commit-mirror
+  #   rev: 25.9.0
+  #   hooks:
+  #     - id: black
+  #       language_version: python3.9
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.3
@@ -52,6 +52,7 @@ repos:
           # --- Dev Dependencies Mypy might need ---
           - "pytest"
           - "pytest-mock"
+          - "types-requests"
 
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.

@@ -1,12 +1,15 @@
 # tests/unit/test_utils.py
 
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 # Test if the package is importable
 import allos
 from allos.__version__ import __version__ as internal_version
+from allos.providers.utils import ollama_running
 from allos.utils import (
     AllosError,
     ProviderError,
@@ -85,3 +88,24 @@ def test_token_counter():
     text_long = "This is a sentence with eight words."
     # Fallback is len(text) // 4 = 36 // 4 = 9
     assert count_tokens(text_long, model="a-fake-model-name") == 9
+
+
+def test_ollama_running_returns_true_on_200():
+    mock_response = Mock()
+    mock_response.status_code = 200
+
+    with patch("requests.get", return_value=mock_response):
+        assert ollama_running("http://localhost:11434") is True
+
+
+def test_ollama_running_returns_false_on_non_200():
+    mock_response = Mock()
+    mock_response.status_code = 500
+
+    with patch("requests.get", return_value=mock_response):
+        assert ollama_running("http://localhost:11434") is False
+
+
+def test_ollama_running_returns_false_on_exception():
+    with patch("requests.get", side_effect=requests.RequestException):
+        assert ollama_running("http://localhost:11434") is False

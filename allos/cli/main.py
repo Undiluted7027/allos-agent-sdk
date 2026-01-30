@@ -42,7 +42,7 @@ Usage Examples:
 """
 
 import os
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import click
 from rich.console import Console
@@ -50,12 +50,13 @@ from rich.panel import Panel
 from rich.table import Table
 
 from ..agent import Agent, AgentConfig
-from ..providers import ProviderRegistry
+from ..providers import ProviderRegistry, ollama_running
 from ..tools import ToolRegistry
 from ..utils.errors import AllosError
 from ..utils.logging import setup_logging
 from .interactive import start_interactive_session
 from .logo import LOGO_BANNER
+from .utils import validate_model_and_api_key
 
 # --- Helper to load API keys from a .env file if it exists ---
 try:
@@ -170,16 +171,30 @@ def print_active_providers(ctx, param, value):
     for p in providers:
         env_var = ProviderRegistry.get_env_var_name(p)
 
+        # Special Case: Native Ollama
+        if p == "ollama":
+            OLLAMA_URL = "http://localhost:11434"
+            status = "[yellow]Manual Config May Be Required[/]"
+            if env_var is not None and env_var in os.environ:
+                var_display = f"{env_var} (Set)"
+                OLLAMA_URL = os.getenv(env_var, "http://localhost:11434")
+            else:
+                var_display = f"{env_var} (Optional)"
+            if ollama_running(OLLAMA_URL):
+                status = "[green]Ready[/]"
+            else:
+                status = "[red]Ollama not running[/]"
         # Special case for generic providers or those without env vars
-        if not env_var:
-            status = "[yellow]Manual Config Required[/]"
-            var_display = "N/A"
-        elif env_var in os.environ:
-            status = "[green]Ready[/]"
-            var_display = f"{env_var} (Set)"
         else:
-            status = "[red]Missing Key[/]"
-            var_display = f"{env_var} (Not Set)"
+            if not env_var:
+                status = "[yellow]Manual Config Required[/]"
+                var_display = "N/A"
+            elif env_var in os.environ:
+                status = "[green]Ready[/]"
+                var_display = f"{env_var} (Set)"
+            else:
+                status = "[red]Missing Key[/]"
+                var_display = f"{env_var} (Not Set)"
 
         table.add_row(p, status, var_display)
 
@@ -391,36 +406,6 @@ def main(
 
 
 # --- Helper Functions ---
-def _determine_model(provider: str, model: Optional[str]) -> str:
-    """Selects a default model if none is provided."""
-    if model is not None:
-        return model
-
-    default_model = "gpt-4o" if provider == "openai" else "claude-3-haiku-20240307"
-    console.print(
-        f"[dim]Model not specified, defaulting to '{default_model}' for provider '{provider}'.[/dim]"
-    )
-    return default_model
-
-
-def _validate_api_key(provider: str, api_key: Optional[str]) -> bool:
-    """Checks if an API key is available.
-
-    Returns True if valid, False if missing (and prints error).
-    """
-    if api_key:
-        return True
-
-    required_env_var = ProviderRegistry.get_env_var_name(provider)
-
-    if required_env_var and required_env_var not in os.environ:
-        console.print(
-            f"[bold red]Error:[/] API key not found. "
-            f"Please set the [bold]{required_env_var}[/] environment variable "
-            f"or use the [bold]--api-key[/] option."
-        )
-        return False
-    return True
 
 
 def _initialize_agent(
@@ -535,18 +520,30 @@ def run_agent(
 ):
     """The core logic for running the agent."""
     # --- Determine the model ---
-    model = _determine_model(provider, model)
+    validation_result = validate_model_and_api_key(provider, model, api_key)
 
-    # --- Validate API Key ---
-    if not _validate_api_key(provider, api_key):
+    model_determined = validation_result.get("determined_model", {})
+    api_key_validated = validation_result.get("validate_api_key", {})
+
+    if not model_determined["check"]:
+        console.print(model_determined["message"])
         return
 
-    console.print(f"[dim] Using {provider} with model {model}.")
+    if model is None:
+        console.print(model_determined["message"])
+
+    validated_model: str = cast(str, model_determined["model"])
+
+    if not api_key_validated["check"]:
+        console.print(api_key_validated["message"])
+        return
+
+    console.print(f"[dim] Using {provider} with model {validated_model}.")
     try:
         # --- Initialize Agent ---
         agent = _initialize_agent(
             provider,
-            model,
+            validated_model,
             base_url,
             api_key,
             max_tokens,
@@ -587,6 +584,18 @@ def run_agent(
         )
 
 
+def _print_stream_chunk(chunk) -> None:
+    """Print a single streaming chunk to the console."""
+    if chunk.content:
+        console.print(chunk.content, end="", style="blue")
+    elif chunk.tool_call_start:
+        console.print(
+            f"\n[yellow]└─ Calling Tool: {chunk.tool_call_start['name']}(...)[/]"
+        )
+    elif chunk.error:
+        console.print(f"\n[bold red]Stream Error: {chunk.error}[/]")
+
+
 def run_agent_stream(
     prompt: str,
     provider: str,
@@ -600,15 +609,32 @@ def run_agent_stream(
     auto_approve: bool,
 ):
     """Initializes and runs the agent in streaming mode, printing chunks to the console."""
-    model = _determine_model(provider, model)
-    if not _validate_api_key(provider, api_key):
+    # Validate inputs
+    validation_result = validate_model_and_api_key(provider, model, api_key)
+
+    model_determined = validation_result.get("determined_model", {})
+    api_key_validated = validation_result.get("validate_api_key", {})
+
+    if not model_determined["check"]:
+        console.print(model_determined["message"])
         return
 
-    console.print(f"[dim] Using {provider} with model {model} (streaming).[/dim]")
+    if model is None:
+        console.print(model_determined["message"])
+
+    validated_model: str = cast(str, model_determined["model"])
+
+    if not api_key_validated["check"]:
+        console.print(api_key_validated["message"])
+        return
+
+    console.print(
+        f"[dim] Using {provider} with model {validated_model} (streaming).[/dim]"
+    )
     try:
         agent = _initialize_agent(
             provider,
-            model,
+            validated_model,
             base_url,
             api_key,
             max_tokens,
@@ -627,14 +653,7 @@ def run_agent_stream(
         # console.print("\n[bold assistant]Agent:[/] ", end="")
 
         for chunk in agent.stream_run(prompt):
-            if chunk.content:
-                console.print(chunk.content, end="", style="blue")
-            elif chunk.tool_call_start:
-                console.print(
-                    f"\n[yellow]└─ Calling Tool: {chunk.tool_call_start['name']}(...)[/]"
-                )
-            elif chunk.error:
-                console.print(f"\n[bold red]Stream Error: {chunk.error}[/]")
+            _print_stream_chunk(chunk)
 
         console.print()  # Final newline
 

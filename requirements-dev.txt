@@ -48,6 +48,7 @@ httpx==0.28.1
     # via
     #   allos-agent-sdk (pyproject.toml)
     #   anthropic
+    #   ollama
     #   openai
 identify==2.6.15
     # via pre-commit
@@ -74,6 +75,8 @@ mypy-extensions==1.1.0
     #   mypy
 nodeenv==1.9.1
     # via pre-commit
+ollama==0.6.1
+    # via allos-agent-sdk (pyproject.toml)
 openai==2.6.1
     # via allos-agent-sdk (pyproject.toml)
 packaging==25.0
@@ -98,6 +101,7 @@ pydantic==2.12.3
     # via
     #   allos-agent-sdk (pyproject.toml)
     #   anthropic
+    #   ollama
     #   openai
 pydantic-core==2.41.4
     # via pydantic
@@ -164,7 +168,7 @@ typing-extensions==4.15.0
     #   virtualenv
 typing-inspection==0.4.2
     # via pydantic
-urllib3==2.6.1
+urllib3==2.6.3
     # via
     #   allos-agent-sdk (pyproject.toml)
     #   requests

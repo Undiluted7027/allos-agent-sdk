@@ -35,6 +35,7 @@ from .base import (
     ToolCall,
 )
 from .registry import ProviderRegistry, provider
+from .utils import ollama_running
 
 # We attempt to import each provider module. If the import fails because the
 # underlying library (e.g., 'openai', 'anthropic') is not installed, we
@@ -59,6 +60,11 @@ try:
 except (ImportError, AttributeError):
     logger.debug("Skipped optional provider: chat_completions")
 
+try:
+    from . import ollama  # noqa: F401
+except (ImportError, AttributeError):
+    logger.debug("Skipped optional provider: ollama")
+
 __all__ = [
     "BaseProvider",
     "Message",
@@ -67,4 +73,5 @@ __all__ = [
     "ToolCall",
     "ProviderRegistry",
     "provider",
+    "ollama_running",
 ]

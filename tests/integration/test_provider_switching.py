@@ -56,6 +56,7 @@ providers_to_test = [
         "chat_completions",
         marks=pytest.mark.requires_openai,
     ),
+    pytest.param("ollama", marks=pytest.mark.requires_ollama),
 ]
 
 # --- The Tests ---
@@ -63,7 +64,7 @@ providers_to_test = [
 
 @pytest.mark.integration
 @pytest.mark.parametrize("provider_name", providers_to_test)
-def test_provider_switching_simple_chat(provider_name):
+def test_provider_switching_simple_chat(provider_name, default_ollama_model):
     """
     Tests simple chat across multiple providers to ensure a consistent interface.
     """
@@ -74,6 +75,8 @@ def test_provider_switching_simple_chat(provider_name):
         model = "gpt-4o"
     elif provider_name == "anthropic":
         model = "claude-3-haiku-20240307"
+    elif provider_name == "ollama":
+        model = default_ollama_model
     else:
         model = "gpt-3.5-turbo"  # chat_completions default for testing
 
@@ -88,7 +91,7 @@ def test_provider_switching_simple_chat(provider_name):
 
 @pytest.mark.integration
 @pytest.mark.parametrize("provider_name", providers_to_test)
-def test_provider_switching_tool_calling(provider_name):
+def test_provider_switching_tool_calling(provider_name, default_ollama_model):
     """
     Tests tool calling across multiple providers to ensure a consistent interface.
     """
@@ -99,6 +102,8 @@ def test_provider_switching_tool_calling(provider_name):
         model = "gpt-4o"
     elif provider_name == "anthropic":
         model = "claude-3-haiku-20240307"
+    elif provider_name == "ollama":
+        model = default_ollama_model
     else:
         model = "gpt-3.5-turbo"  # chat_completions default for testing
 
