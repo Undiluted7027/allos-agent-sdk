@@ -11,7 +11,6 @@ from typing import Any, Callable, Generator, Union, cast
 import pytest
 import requests
 from _pytest.logging import LogCaptureFixture
-from pydantic import BaseModel
 
 # Import this for better type hinting with the mocker fixture
 from pytest_mock import MockerFixture
@@ -282,35 +281,46 @@ def mock_metadata_factory() -> Callable[..., Metadata]:
     """Provides a factory for creating a baseline, valid Metadata object for tests."""
 
     def _create_metadata(**kwargs: Any) -> Metadata:
+        from allos.providers.metadata import (
+            Latency,
+            Metadata,
+            ModelConfiguration,
+            ModelInfo,
+            ProviderSpecific,
+            QualitySignals,
+            SdkInfo,
+            ToolInfo,
+            Usage,
+        )
+
+        # Extract usage kwargs if provided
+        usage_kwargs = kwargs.pop("usage", {})
+
         # Define the baseline structure with proper types
         base_metadata: dict[str, Any] = {
             "status": "success",
             "model": ModelInfo(
                 provider="mock",
-                model_id="mock-model",
+                model_id="mock-model",  # String, not MagicMock
                 configuration=ModelConfiguration(max_output_tokens=8192),
             ),
-            "usage": Usage(input_tokens=0, output_tokens=0, total_tokens=0),
+            "usage": Usage(
+                input_tokens=usage_kwargs.get("input_tokens", 10),
+                output_tokens=usage_kwargs.get("output_tokens", 20),
+                total_tokens=usage_kwargs.get("input_tokens", 10)
+                + usage_kwargs.get("output_tokens", 20),
+            ),
             "latency": Latency(total_duration_ms=100),
             "tools": ToolInfo(tools_available=[]),
-            "quality_signals": QualitySignals(),
+            "quality_signals": QualitySignals(
+                finish_reason="stop"
+            ),  # String, not MagicMock
             "provider_specific": ProviderSpecific(),
             "sdk": SdkInfo(sdk_version="test"),
         }
 
-        # Allow overriding any field
-        for key, value in kwargs.items():
-            # Special handling for nested Pydantic models
-            if (
-                key in base_metadata
-                and isinstance(base_metadata[key], BaseModel)
-                and isinstance(value, dict)
-            ):
-                original_model = cast(BaseModel, base_metadata[key])
-                updated_model = original_model.model_copy(update=value)
-                base_metadata[key] = updated_model
-            else:
-                base_metadata[key] = value
+        # Allow overriding any top-level field
+        base_metadata.update(kwargs)
 
         return Metadata(**base_metadata)
 

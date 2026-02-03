@@ -1,10 +1,12 @@
 # examples/local_models.py
 
-"""
-"The Private Vault"
+"""The Private Vault.
+
 Demonstrates interacting with local data using a local model via Ollama.
 This script creates a "secret" file and asks a local model to summarize it,
 proving that sensitive data doesn't need to leave your machine.
+
+Uses the native Ollama provider for full tool calling support.
 """
 
 import os
@@ -28,9 +30,14 @@ Phase 1: Mercury resource extraction.
 
 
 def main():
+    """Run the private vault example demonstrating local model interaction with sensitive data.
+
+    Creates a secret file, uses a local Ollama model to summarize it while keeping
+    data on the local machine, then cleans up the file.
+    """
     console.print(
         Panel.fit(
-            "[bold green]🔒 Allos Privacy Mode (Local AI: Might not respect instructions)[/]",
+            "[bold green]🔒 Allos Privacy Mode (Native Ollama with Tool Calling)[/]",
             border_style="green",
         )
     )
@@ -40,11 +47,12 @@ def main():
     console.print(f"[dim]Created local file: {SECRET_FILE}[/dim]")
 
     # 2. Configure Local Agent
-    # We use 'ollama_compat' to talk to a local Ollama instance
+    # We use the native 'ollama' provider for full tool calling support
+    # llama3.1 supports native tool calling
     config = AgentConfig(
-        provider_name="ollama_compat",
-        model="llama3.1:latest",  # Requires: ollama pull llama3.1
-        no_tools=False,  # Let's try to let it read the file (if model is capable)
+        provider_name="ollama",
+        model="llama3.1",  # Requires: ollama pull llama3.1
+        no_tools=False,  # llama3.1 supports native tool calling
         tool_names=["read_file", "list_directory"],
     )
 
@@ -58,7 +66,7 @@ def main():
 
         console.print(f"\n[bold]User:[/bold] {prompt}")
         console.print(
-            "[dim](Sending to local llama3.1:latest... Data stays on device)[/dim]"
+            "[dim](Sending to local llama3.1 via native Ollama provider... Data stays on device)[/dim]"
         )
 
         response = agent.run(prompt)
@@ -70,7 +78,7 @@ def main():
     except Exception as e:
         console.print(f"\n[bold red]Connection Failed:[/bold] {e}")
         console.print("Ensure Ollama is running: [bold]ollama serve[/]")
-        console.print("Ensure model is pulled: [bold]ollama pull llama3.1:latest[/]")
+        console.print("Ensure model is pulled: [bold]ollama pull llama3.1[/]")
 
     finally:
         if os.path.exists(SECRET_FILE):

@@ -52,6 +52,9 @@ uv pip install "allos-agent-sdk[openai]"
 # Install with support for Anthropic
 uv pip install "allos-agent-sdk[anthropic]"
 
+# Install with support for local models via Ollama
+uv pip install "allos-agent-sdk[ollama]"
+
 # Install with support for all currently available providers
 uv pip install "allos-agent-sdk[all]"
 ```

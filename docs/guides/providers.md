@@ -86,7 +86,25 @@ For more details on each provider, see the dedicated documentation pages:
 - [OpenAI](./../providers/openai.md)
 - [Anthropic](./../providers/anthropic.md)
 - [ChatCompletions](./../providers/chat-completions.md)
-- [Ollama with Chat Completions](./../providers/ollama.md)
+- [Ollama (Native & Compatibility)](./../providers/ollama.md)
+
+## Local Models with Ollama
+
+For completely private, local AI execution, Allos provides a native Ollama provider:
+
+```python
+# Native Ollama provider with tool calling support
+ollama_provider = ProviderRegistry.get_provider("ollama", model="llama3.1")
+
+# Or use the OpenAI-compatible endpoint
+ollama_compat = ProviderRegistry.get_provider("ollama_compat", model="mistral")
+```
+
+> [!NOTE]
+> The `model` parameter is required for the `ollama` provider. See the [Ollama Provider](./../providers/ollama.md) documentation for supported models and tool calling capabilities.
+
+> [!TIP]
+> Use `allos --list-ollama-models` to see all locally available models with their context windows and tool support status.
 
 ## The `ProviderResponse` Object
 

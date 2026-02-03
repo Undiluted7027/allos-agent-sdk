@@ -97,6 +97,7 @@ KNOWN_FLAG_WORDS = {
     "interactive",
     "list-providers",
     "list-tools",
+    "list-ollama-models",
     "provider",
     "model",
     "tool",
@@ -229,6 +230,159 @@ def print_tools(ctx, param, value):
     ctx.exit()
 
 
+def _format_size(size_bytes: int) -> str:
+    """Format bytes to human-readable size string."""
+    if size_bytes >= 1e9:
+        return f"{size_bytes / 1e9:.1f} GB"
+    elif size_bytes >= 1e6:
+        return f"{size_bytes / 1e6:.1f} MB"
+    else:
+        return f"{size_bytes} B"
+
+
+def _format_modified_date(modified) -> str:
+    """Format modified date or return 'Unknown'."""
+    if modified:
+        return cast(str, modified.strftime("%Y-%m-%d"))
+    return "Unknown"
+
+
+def _get_model_capabilities(client, model_name: str) -> tuple[str, str]:
+    """Retrieve context length and tool support for a model.
+
+    Returns:
+        Tuple of (context_str, tool_support) where both are formatted strings.
+    """
+    from ..providers.ollama import check_tools_capability, retrieve_context_length
+
+    context_str = "-"
+    tool_support = "[dim]?[/]"
+
+    try:
+        model_info = client.show(model_name)  # pyright: ignore[reportArgumentType]
+
+        # Get context window
+        if model_info.modelinfo:
+            ctx_len = retrieve_context_length(model_info.modelinfo)
+            if ctx_len:
+                context_str = f"{ctx_len // 1000}K" if ctx_len >= 1000 else str(ctx_len)
+
+        # Check tool support
+        tool_support = (
+            "[green]Yes[/]" if check_tools_capability(model_info) else "[dim]No[/]"
+        )
+    except Exception:
+        pass  # Return defaults
+
+    return context_str, tool_support
+
+
+def _create_models_table(client, models, ollama_host: str):
+    """Create and populate the models table."""
+    table = Table(title=f"Ollama Models ({ollama_host})")
+    table.add_column("Model", style="cyan", no_wrap=True)
+    table.add_column("Size", style="green", justify="right")
+    table.add_column("Context", style="blue", justify="right")
+    table.add_column("Tools", style="yellow")
+    table.add_column("Modified", style="dim")
+
+    for model in models:
+        model_name = model.model
+        size_str = _format_size(getattr(model, "size", 0) or 0)
+        modified_str = _format_modified_date(getattr(model, "modified_at", None))
+        context_str, tool_support = _get_model_capabilities(client, model_name)
+
+        table.add_row(model_name, size_str, context_str, tool_support, modified_str)
+
+    return table
+
+
+def print_ollama_models(ctx, param, value):
+    """A callback function for the `--list-ollama-models` CLI flag.
+
+    This function is triggered by Click when the `--list-ollama-models` flag is used.
+    It connects to the local Ollama server and lists all available models with their
+    details including size and modification date.
+
+    If the Ollama server is not running, an error message is displayed.
+
+    Args:
+        ctx: The click Context object.
+        param: The click Parameter object that triggered the callback. (unused)
+        value: The value of the parameter; for a flag, this is `True` if present.
+    """
+    if not value or ctx.resilient_parsing:
+        return
+
+    ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+    # Check if Ollama is running
+    if not ollama_running(ollama_host):
+        console.print(
+            Panel(
+                f"[red]Ollama server is not running at {ollama_host}[/]\n\n"
+                "To start Ollama, run:\n"
+                "  [bold]ollama serve[/]\n\n"
+                "To pull a model, run:\n"
+                "  [bold]ollama pull llama3.1[/]",
+                title="Ollama Not Available",
+                border_style="red",
+            )
+        )
+        ctx.exit(1)
+
+    try:
+        from ollama import Client
+
+        client = Client(host=ollama_host)
+        models_response = client.list()
+        models = models_response.models
+
+        if not models:
+            console.print(
+                Panel(
+                    "[yellow]No models found.[/]\n\n"
+                    "To pull a model, run:\n"
+                    "  [bold]ollama pull llama3.1[/]",
+                    title="Ollama Models",
+                    border_style="yellow",
+                )
+            )
+            ctx.exit()
+
+        table = _create_models_table(client, models, ollama_host)
+        console.print(table)
+        console.print(
+            "\n[dim]Tip: Use [bold]--provider ollama --model <name>[/] to use a model[/]"
+        )
+        console.print(
+            "[dim]Note: Models with [green]Tools=Yes[/] support native tool calling[/]"
+        )
+
+    except ImportError:
+        console.print(
+            Panel(
+                "[red]The 'ollama' package is not installed.[/]\n\n"
+                "Install it with:\n"
+                "  [bold]pip install ollama[/]",
+                title="Missing Dependency",
+                border_style="red",
+            )
+        )
+        ctx.exit(1)
+    except Exception as e:
+        console.print(
+            Panel(
+                f"[red]Failed to list Ollama models: {e}[/]",
+                title="Error",
+                border_style="red",
+            )
+        )
+        ctx.exit(1)
+
+    ctx.exit()
+
+
 @click.command(
     name="allos",
     cls=RichHelpCommand,
@@ -261,6 +415,14 @@ def print_tools(ctx, param, value):
     expose_value=False,
     is_eager=True,
     help="List available tools and exit.",
+)
+@click.option(
+    "--list-ollama-models",
+    is_flag=True,
+    callback=print_ollama_models,
+    expose_value=False,
+    is_eager=True,
+    help="List models available on the local Ollama server and exit.",
 )
 @click.option(
     "--provider",

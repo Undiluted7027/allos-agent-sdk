@@ -26,6 +26,20 @@ Lists all providers and checks if they are configured and ready to use in the cu
 #### `--list-tools`
 Lists all available and registered tools, including their permission levels and descriptions, and exits.
 
+#### `--list-ollama-models`
+Lists all models available on the local Ollama server, showing their size, context window, tool support status, and modification date. Requires Ollama to be running.
+
+Example output:
+```
+           Ollama Models (http://localhost:11434)
+┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━┓
+┃ Model            ┃   Size ┃ Context ┃ Tools ┃ Modified   ┃
+┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━┩
+│ llama3.1:latest  │ 4.9 GB │    131K │ Yes   │ 2025-11-19 │
+│ qwen3:8b         │ 5.2 GB │     40K │ Yes   │ 2026-01-29 │
+└──────────────────┴────────┴─────────┴───────┴────────────┘
+```
+
 #### `-i, --interactive`
 Starts an interactive REPL session with the agent, allowing for a continuous, multi-turn conversation. If this flag is used, any `[PROMPT]` argument is ignored.
 
@@ -34,8 +48,14 @@ Runs the agent in streaming mode. The output will be printed to the console toke
 
 #### `-p, --provider <name>`
 Specifies the LLM provider to use.
-- **Choices:** `openai`, `anthropic`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, `cohere`, `openrouter`, `portkey`, `ollama_compat`.
+- **Choices:** `openai`, `anthropic`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, `cohere`, `openrouter`, `portkey`, `ollama`, `ollama_compat`.
 - **Default:** `openai`
+
+> [!TIP]
+> For local models via Ollama, use `ollama` (native provider with full tool support) or `ollama_compat` (OpenAI-compatible mode).
+
+> [!IMPORTANT]
+> When using the `ollama` provider, the `--model` parameter is **required**. There is no default model for Ollama.
 
 #### `-m, --model <model_name>`
 Specifies the exact model name to use. If not provided, a sensible default will be chosen for the selected provider (e.g., `gpt-4o` for OpenAI).
@@ -101,8 +121,17 @@ Inside the interactive session, you can type `exit` or `quit` to end the session
 allos --active-providers
 ```
 
-#### Connect to a Local Server
+#### List Local Ollama Models
 ```bash
+allos --list-ollama-models
+```
+
+#### Connect to a Local Ollama Server
+```bash
+# Using the native Ollama provider (recommended, model is required)
+allos "Why is the sky blue?" --provider ollama --model llama3.1
+
+# Using a custom OpenAI-compatible server
 allos "Why is the sky blue?" \
   --provider chat_completions \
   --base-url http://localhost:8000/v1 \

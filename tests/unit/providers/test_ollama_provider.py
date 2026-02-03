@@ -1,11 +1,12 @@
 # tests/unit/test_ollama_provider.py
 
 import time
-from unittest.mock import patch
+from typing import Optional
+from unittest.mock import MagicMock, patch
 
 import pytest
 from ollama import RequestError, ResponseError
-from ollama._types import ListResponse
+from ollama._types import ListResponse, ShowResponse
 
 from allos.providers.base import Message, MessageRole, ToolCall
 from allos.providers.ollama import OLLAMA_TOOL_SUPPORTED_MODELS, OllamaProvider
@@ -19,8 +20,21 @@ MOCK_MODEL_LIST: ListResponse = ListResponse(
         ListResponse.Model(model="mistral:latest"),
         ListResponse.Model(model="qwen3:8b"),
         ListResponse.Model(model="qwen2:latest"),
+        ListResponse.Model(model="llama3.1:latest"),
     ]
 )
+
+
+# Helper function to create mock ShowResponse with capabilities
+def create_mock_show_response(
+    model_name: str, supports_tools: bool = False, context_length: Optional[int] = None
+) -> ShowResponse:
+    """Create a mock ShowResponse for testing."""
+    mock_response = MagicMock(spec=ShowResponse)
+    mock_response.capabilities = {"tools": True} if supports_tools else {}
+    mock_response.modelinfo = {"num_ctx": context_length} if context_length else {}
+    return mock_response
+
 
 # Mock response from `ollama.Client.chat()`
 MOCK_CHAT_RESPONSE = {
@@ -122,6 +136,7 @@ def test_init_success(MockClient):
     """Tests successful initialization of OllamaProvider."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("llama3:latest")
 
     provider = OllamaProvider(model="llama3:latest")
     assert provider.model == "llama3:latest"
@@ -133,6 +148,7 @@ def test_init_model_not_found(MockClient):
     """Tests that ProviderError is raised if the model is not available locally."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     with pytest.raises(ProviderError) as excinfo:
         OllamaProvider(model="gemma:latest")
@@ -173,6 +189,7 @@ def test_chat_success():
     with patch("allos.providers.ollama.Client") as MockClient:
         mock_instance = MockClient.return_value
         mock_instance.list.return_value = MOCK_MODEL_LIST
+        mock_instance.show.return_value = create_mock_show_response("default")
         mock_instance.chat.return_value = MOCK_CHAT_RESPONSE
 
         provider = OllamaProvider(model="llama3:latest")
@@ -190,6 +207,7 @@ def test_convert_messages_formats_all_roles(MockClient):
     """Test that all message roles are correctly converted to Ollama format."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     provider = OllamaProvider(model="llama3:latest")
 
@@ -239,6 +257,7 @@ def test_assistant_message_with_content_and_tool_calls(MockClient):
     """Test that assistant messages with both content and tool calls are handled."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     provider = OllamaProvider(model="llama3:latest")
 
@@ -268,6 +287,7 @@ def test_convert_messages_handles_empty_content(MockClient):
     """Test that messages with empty/None content are handled gracefully."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     provider = OllamaProvider(model="llama3:latest")
 
@@ -287,10 +307,12 @@ def test_chat_with_tools_supported_model(MockClient):
     """Tests that tools are passed to a supported model."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    # Mock show() to return tool support capability
+    mock_instance.show.return_value = create_mock_show_response(
+        "qwen3:8b", supports_tools=True, context_length=40960
+    )
     mock_instance.chat.return_value = MOCK_TOOL_CALL_RESPONSE
 
-    # Manually add a model family to the supported set for this test
-    OLLAMA_TOOL_SUPPORTED_MODELS.add("qwen2")
     provider = OllamaProvider(model="qwen3:8b")
 
     response = provider.chat(messages=[], tools=MOCK_TOOLS)
@@ -308,6 +330,10 @@ def test_chat_with_tools_unsupported_model(MockClient, caplog):
     """Tests that a warning is logged for unsupported models and tools are ignored."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    # Mock show() to return NO tool support
+    mock_instance.show.return_value = create_mock_show_response(
+        "llama3:latest", supports_tools=False
+    )
     mock_instance.chat.return_value = (
         MOCK_CHAT_RESPONSE  # Returns a simple text response
     )
@@ -318,7 +344,7 @@ def test_chat_with_tools_unsupported_model(MockClient, caplog):
     provider.chat(messages=[], tools=MOCK_TOOLS)
 
     # Assert that a warning was logged
-    assert "may not support tool calling" in caplog.text
+    assert "does not support native tool calling" in caplog.text
     # Assert that 'tools' was NOT passed to the client
     assert "tools" not in mock_instance.chat.call_args.kwargs
 
@@ -328,6 +354,7 @@ def test_stream_chat_text_response(MockClient):
     """Tests a successful streaming call with a text response."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = iter(MOCK_TEXT_STREAM)
 
     provider = OllamaProvider(model="llama3:latest")
@@ -346,6 +373,7 @@ def test_stream_chat_tool_response(MockClient):
     """Tests a successful streaming call with a tool call response."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = iter(MOCK_TOOL_STREAM)
 
     OLLAMA_TOOL_SUPPORTED_MODELS.add("qwen2")
@@ -366,6 +394,7 @@ def test_convert_tools_to_ollama_format(MockClient):
     """Test that tools are correctly converted to Ollama's expected format."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     provider = OllamaProvider(model="qwen3:8b")
 
@@ -384,6 +413,7 @@ def test_chat_handles_response_with_no_message_field(MockClient):
     """Test that a response missing the 'message' field is handled gracefully."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = {
         "model": "llama3:latest",
         "done": True,
@@ -402,6 +432,7 @@ def test_chat_handles_tool_call_with_missing_id(MockClient):
     """Test that tool calls without IDs get auto-generated IDs."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = {
         "model": "qwen3:8b",
         "message": {
@@ -432,6 +463,7 @@ def test_chat_handles_missing_usage_fields(MockClient):
     """Test that missing usage fields default to 0 in metadata."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = {
         "model": "llama3:latest",
         "message": {"role": "assistant", "content": "Hello"},
@@ -465,6 +497,7 @@ def test_chat_error_handling(MockClient, ollama_error, expected_message_part):
     """Test that various Ollama errors are properly wrapped in ProviderError."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.side_effect = ollama_error
 
     provider = OllamaProvider(model="llama3:latest")
@@ -481,6 +514,7 @@ def test_chat_filters_unsupported_parameters(MockClient):
     """Test that only OLLAMA_SUPPORTED_OPTIONS are passed to the client."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = MOCK_CHAT_RESPONSE
 
     provider = OllamaProvider(model="llama3:latest")
@@ -508,6 +542,7 @@ def test_stream_chat_handles_missing_message_field(MockClient):
     """Test streaming with chunks missing the 'message' field."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = iter(
         [
             {"done": False},  # No 'message' field
@@ -530,6 +565,7 @@ def test_stream_chat_handles_multiple_tool_calls_in_chunk(MockClient):
     """Test streaming with multiple tool calls in a single chunk."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = iter(
         [
             {
@@ -566,6 +602,7 @@ def test_stream_chat_with_content_and_tool_calls_same_chunk(MockClient):
     """Test streaming chunk containing both content and tool calls."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
     mock_instance.chat.return_value = iter(
         [
             {
@@ -610,6 +647,10 @@ def test_model_supports_tools(MockClient, model_name, should_support):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model=model_name)]
     )
+    # Mock show() to return appropriate tool support
+    mock_instance.show.return_value = create_mock_show_response(
+        model_name, supports_tools=should_support
+    )
 
     provider = OllamaProvider(model=model_name)
 
@@ -625,6 +666,10 @@ def test_get_context_window_handles_version_tags(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="llama3.1:latest")]
     )
+    # Mock show() to return context length
+    mock_instance.show.return_value = create_mock_show_response(
+        "llama3.1:latest", context_length=128000
+    )
     provider = OllamaProvider(model="llama3.1:latest")
     assert provider.get_context_window() == 128000
 
@@ -632,6 +677,7 @@ def test_get_context_window_handles_version_tags(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="llama3:13b")]
     )
+    mock_instance.show.return_value = create_mock_show_response("default")
     provider = OllamaProvider(model="llama3:13b")
     assert provider.get_context_window() == 8192
 
@@ -643,6 +689,7 @@ def test_extract_model_family_no_colon(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="llama3")]
     )
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     provider = OllamaProvider(model="llama3")
 
@@ -658,6 +705,7 @@ def test_extract_model_family_special_case_in_mappings(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="qwen3:8b")]
     )
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     provider = OllamaProvider(model="qwen3:8b")
 
@@ -671,6 +719,10 @@ def test_stream_chat_warns_on_unsupported_model_with_tools(MockClient, caplog):
     """Test that streaming with tools on unsupported model logs a warning."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    # Mock show() to return NO tool support
+    mock_instance.show.return_value = create_mock_show_response(
+        "llama3:latest", supports_tools=False
+    )
     mock_instance.chat.return_value = iter(
         [
             {"message": {"role": "assistant", "content": "Hi"}, "done": False},
@@ -685,8 +737,7 @@ def test_stream_chat_warns_on_unsupported_model_with_tools(MockClient, caplog):
     list(provider.stream_chat(messages=[], tools=MOCK_TOOLS))
 
     # Assert the warning was logged
-    assert "may not support tool calling" in caplog.text
-    assert "Ignoring tools" in caplog.text
+    assert "does not support native tool calling" in caplog.text
 
     # Assert 'tools' was NOT passed to the client
     call_kwargs = mock_instance.chat.call_args.kwargs
@@ -698,6 +749,7 @@ def test_stream_chat_handles_response_error(MockClient):
     """Test that ResponseError during streaming yields an error chunk."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     # Simulate a ResponseError during streaming
     mock_instance.chat.side_effect = ResponseError("Model crashed", status_code=500)
@@ -717,6 +769,7 @@ def test_stream_chat_handles_request_error(MockClient):
     """Test that RequestError during streaming yields an error chunk."""
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
 
     # Simulate a RequestError (connection issue)
     mock_instance.chat.side_effect = RequestError("Connection lost")
@@ -737,6 +790,10 @@ def test_get_context_window_unknown_model_fallback(MockClient, caplog):
     mock_instance = MockClient.return_value
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="totally-unknown-model:v1")]
+    )
+    # Mock show() to return NO context length
+    mock_instance.show.return_value = create_mock_show_response(
+        "totally-unknown-model:v1"
     )
 
     provider = OllamaProvider(model="totally-unknown-model:v1")
@@ -759,10 +816,14 @@ def test_get_context_window_prefix_match(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="mistral:7b-instruct")]
     )
+    # Mock show() to return context length
+    mock_instance.show.return_value = create_mock_show_response(
+        "mistral:7b-instruct", context_length=32768
+    )
 
     provider = OllamaProvider(model="mistral:7b-instruct")
 
-    # Should match "mistral" via prefix
+    # Should match "mistral" via retrieved context
     assert provider.get_context_window() == 32768
 
 
@@ -775,6 +836,7 @@ def test_extract_model_family_strips_common_tags(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="mistral:instruct")]
     )
+    mock_instance.show.return_value = create_mock_show_response("default")
     provider = OllamaProvider(model="mistral:instruct")
     family = provider._extract_model_family()  # type: ignore
     assert family == "mistral"
@@ -783,6 +845,7 @@ def test_extract_model_family_strips_common_tags(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="llama3:chat")]
     )
+    mock_instance.show.return_value = create_mock_show_response("default")
     provider = OllamaProvider(model="llama3:chat")
     family = provider._extract_model_family()  # type: ignore
     assert family == "llama3"
@@ -803,6 +866,7 @@ def test_extract_model_family_strips_size_tags(MockClient):
         mock_instance.list.return_value = ListResponse(
             models=[ListResponse.Model(model=model)]
         )
+        mock_instance.show.return_value = create_mock_show_response("default")
         provider = OllamaProvider(model=model)
         family = provider._extract_model_family()  # type: ignore
         assert family == expected_family, f"Failed for model: {model}"
@@ -817,6 +881,10 @@ def test_model_supports_tools_with_prefix_match(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="llama3.1:custom")]
     )
+    # Mock show() to return tool support
+    mock_instance.show.return_value = create_mock_show_response(
+        "llama3.1:custom", supports_tools=True
+    )
     provider = OllamaProvider(model="llama3.1:custom")
     assert provider._model_supports_tools()  # type: ignore
 
@@ -824,5 +892,143 @@ def test_model_supports_tools_with_prefix_match(MockClient):
     mock_instance.list.return_value = ListResponse(
         models=[ListResponse.Model(model="llama3:latest")]
     )
+    # Mock show() to return NO tool support
+    mock_instance.show.return_value = create_mock_show_response(
+        "llama3:latest", supports_tools=False
+    )
     provider = OllamaProvider(model="llama3:latest")
     assert not provider._model_supports_tools()  # type: ignore
+
+
+@patch("allos.providers.ollama.Client")
+def test_verify_model_available_handles_show_exception(MockClient):
+    """Test that exception during show() call is handled gracefully."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    # Simulate show() raising an exception
+    mock_instance.show.side_effect = Exception("Failed to get model info")
+
+    # Should still initialize successfully (non-fatal error)
+    provider = OllamaProvider(model="llama3:latest")
+    assert provider.model == "llama3:latest"
+    # Capabilities should be None since show() failed
+    assert provider._model_context_window is None  # type: ignore
+    assert provider._model_supports_tools_capability is None  # type: ignore
+
+
+@patch("allos.providers.ollama.Client")
+def test_model_supports_tools_fallback_to_family_check(MockClient):
+    """Test that tool support falls back to family check when show() fails."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = ListResponse(
+        models=[ListResponse.Model(model="llama3.1:latest")]
+    )
+    # Simulate show() failing to set capability (exception handled)
+    mock_instance.show.side_effect = Exception("Failed to get info")
+
+    provider = OllamaProvider(model="llama3.1:latest")
+
+    # Capability should be None, triggering fallback to family check
+    # llama3.1 is in OLLAMA_TOOL_SUPPORTED_MODELS, so should return True
+    assert provider._model_supports_tools()  # type: ignore
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_with_tools_supported_model(MockClient):
+    """Test streaming with tools on a supported model."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    # Mock show() to return tool support
+    mock_instance.show.return_value = create_mock_show_response(
+        "qwen3:8b", supports_tools=True
+    )
+    mock_instance.chat.return_value = iter(
+        [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": {"location": "NYC"},
+                            }
+                        }
+                    ],
+                },
+                "done": False,
+            },
+            {"done": True, "model": "qwen3:8b"},
+        ]
+    )
+
+    provider = OllamaProvider(model="qwen3:8b")
+    chunks = list(provider.stream_chat(messages=[], tools=MOCK_TOOLS))
+
+    # Verify tools were passed to the chat call
+    call_kwargs = mock_instance.chat.call_args.kwargs
+    assert "tools" in call_kwargs
+
+    # Verify we got chunks back
+    tool_chunks = [c for c in chunks if c.tool_call_done]
+    assert len(tool_chunks) == 1
+
+
+@patch("allos.providers.ollama.Client")
+def test_get_context_window_uses_prefix_match_fallback(MockClient):
+    """Test that context window detection falls back to prefix matching."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = ListResponse(
+        models=[ListResponse.Model(model="llama3:custom-variant")]
+    )
+    # Mock show() to return no context length info
+    mock_instance.show.return_value = create_mock_show_response("llama3:custom-variant")
+
+    provider = OllamaProvider(model="llama3:custom-variant")
+
+    # Should match "llama3" prefix and return 8192
+    context_window = provider.get_context_window()
+    assert context_window == 8192
+
+
+@patch("allos.providers.ollama.Client")
+def test_retrieve_context_length_handles_exceptions(MockClient):
+    """Test that retrieve_context_length handles AttributeError and TypeError."""
+    from allos.providers.ollama import retrieve_context_length
+
+    # Test with dict that raises AttributeError
+    bad_model_info = {"broken": "data"}
+    result = retrieve_context_length(bad_model_info)
+    # Should return None when no valid path found
+    assert result is None
+
+    # Test with None (will raise TypeError)
+    result = retrieve_context_length(None)  # type: ignore
+    assert result is None
+
+
+@patch("allos.providers.ollama.Client")
+def test_retrieve_context_length_finds_num_ctx(MockClient):
+    """Test that retrieve_context_length successfully extracts num_ctx."""
+    from allos.providers.ollama import retrieve_context_length
+
+    # Test direct num_ctx
+    model_info = {"num_ctx": 8192}
+    result = retrieve_context_length(model_info)
+    assert result == 8192
+
+    # Test nested in details
+    model_info = {"details": {"num_ctx": 16384}}
+    result = retrieve_context_length(model_info)
+    assert result == 16384
+
+    # Test nested in parameters
+    model_info = {"parameters": {"num_ctx": 32768}}
+    result = retrieve_context_length(model_info)
+    assert result == 32768
+
+    # Test with context_length suffix
+    model_info = {"model_context_length": 128000}
+    result = retrieve_context_length(model_info)
+    assert result == 128000

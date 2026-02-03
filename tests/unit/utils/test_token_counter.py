@@ -2,7 +2,11 @@ from unittest.mock import patch
 
 import tiktoken
 
-from allos.utils.token_counter import count_tokens, truncate_text_by_tokens
+from allos.utils.token_counter import (
+    _get_encoding_for_ollama_model,
+    count_tokens,
+    truncate_text_by_tokens,
+)
 
 
 class TestCountTokens:
@@ -25,11 +29,39 @@ class TestCountTokens:
         assert count_tokens("", model="gpt-4") == 0
         assert count_tokens("", model="a-fake-model-name") == 0
 
+    def test_count_tokens_with_ollama_model_exact_match(self, configured_caplog):
+        """Test counting tokens with an Ollama model that has an exact encoding match."""
+        # Clear cache to ensure fresh execution
+        from allos.utils.token_counter import _get_encoding
+        _get_encoding.cache_clear()
+
+        text = "hello world"
+        # llama3.1:8b should map to cl100k_base encoding
+        result = count_tokens(text, model="llama3.1:8b")
+        assert result > 0  # Should successfully count tokens
+        assert "Using 'cl100k_base' encoding for Ollama model" in configured_caplog.text
+
+    def test_count_tokens_with_ollama_model_prefix_match(self, configured_caplog):
+        """Test counting tokens with an Ollama model using prefix matching."""
+        # Clear cache to ensure fresh execution
+        from allos.utils.token_counter import _get_encoding
+        _get_encoding.cache_clear()
+
+        text = "hello world"
+        # mistral-custom should match 'mistral' prefix
+        result = count_tokens(text, model="mistral:custom-version")
+        assert result > 0
+        assert "Using 'cl100k_base' encoding for Ollama model" in configured_caplog.text
+
     def test_count_tokens_handles_unexpected_exception(self, configured_caplog):
         """
         Test that a generic exception from tiktoken is caught, logged,
         and triggers the fallback.
         """
+        # Clear the LRU cache to ensure the exception is not cached
+        from allos.utils.token_counter import _get_encoding
+        _get_encoding.cache_clear()
+
         text = "some text to count"  # 18 chars
         with patch(
             "allos.utils.token_counter.tiktoken.encoding_for_model",
@@ -43,6 +75,31 @@ class TestCountTokens:
         assert "An unexpected error occurred with tiktoken" in configured_caplog.text
         assert "Simulated tiktoken error" in configured_caplog.text
         assert configured_caplog.records[0].levelname == "WARNING"
+
+
+class TestOllamaModelEncodingMapping:
+    """Tests for Ollama model to tiktoken encoding mapping."""
+
+    def test_get_encoding_for_ollama_model_exact_match(self):
+        """Test exact match for Ollama model names."""
+        # Test exact matches
+        assert _get_encoding_for_ollama_model("llama3.1") == "cl100k_base"
+        assert _get_encoding_for_ollama_model("mistral") == "cl100k_base"
+        assert _get_encoding_for_ollama_model("qwen2") == "cl100k_base"
+
+    def test_get_encoding_for_ollama_model_with_version_tag(self):
+        """Test that version tags are stripped correctly."""
+        assert _get_encoding_for_ollama_model("llama3.1:8b") == "cl100k_base"
+        assert _get_encoding_for_ollama_model("mistral:latest") == "cl100k_base"
+
+    def test_get_encoding_for_ollama_model_prefix_match(self):
+        """Test prefix matching for custom model variants."""
+        assert _get_encoding_for_ollama_model("llama3.1-custom") == "cl100k_base"
+        assert _get_encoding_for_ollama_model("mistral-finetune") == "cl100k_base"
+
+    def test_get_encoding_for_ollama_model_no_match(self):
+        """Test that unknown models return None."""
+        assert _get_encoding_for_ollama_model("totally-unknown-model") is None
 
 
 class TestTruncateTextByTokens:
@@ -80,3 +137,15 @@ class TestTruncateTextByTokens:
         tokens = encoding.encode(text)
         truncated = encoding.decode(tokens[:7])
         assert truncate_text_by_tokens(text, 7, "gpt-4") == truncated
+
+    def test_truncate_handles_exception_fallback(self):
+        """Test that exceptions in truncation trigger character-based fallback."""
+        text = "test text for truncation"  # 24 chars
+        with patch(
+            "allos.utils.token_counter._get_encoding",
+            side_effect=Exception("Simulated error"),
+        ):
+            # Should fall back to character-based: 4 tokens * 4 chars = 16 chars
+            result = truncate_text_by_tokens(text, max_tokens=4, model="gpt-4")
+            assert result == "test text for tr"
+            assert len(result) == 16

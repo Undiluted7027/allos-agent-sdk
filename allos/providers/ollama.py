@@ -2,10 +2,10 @@
 
 import os
 import time
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Set
 
 import ollama
-from ollama import Client
+from ollama import Client, ShowResponse
 
 from ..tools.base import BaseTool
 from ..utils.errors import ProviderError
@@ -22,24 +22,48 @@ from .metadata import MetadataBuilder
 from .registry import provider
 
 # A mapping of known Ollama models to their context window sizes (in tokens)
+# These serve as fallbacks when actual context window cannot be retrieved from ollama.show()
 OLLAMA_CONTEXT_WINDOWS = {
+    # Llama family
     "llama3": 8192,
     "llama3.1": 128000,
+    "llama3.2": 131072,
+    "codellama": 16384,
+    # Mistral family
     "mistral": 32768,
     "mixtral": 32768,
+    # Qwen family
     "qwen2": 32768,
-    "codellama": 16384,
-    "gemma": 8192,
+    "qwen2.5": 32768,
+    "qwen2.5-coder": 32768,
+    "qwen3": 40960,
     "qwen3:8b": 40960,
+    # Google family
+    "gemma": 8192,
+    "gemma2": 8192,
+    # DeepSeek family
+    "deepseek-coder": 16384,
+    "deepseek-coder-v2": 32768,
 }
 
 # Set of models known to support native tool calling in Ollama
-# This can be expanded as more models add support.
+# These serve as fallbacks when actual capability cannot be retrieved from ollama.show()
+# Models should be added here when they are confirmed to support function calling
 OLLAMA_TOOL_SUPPORTED_MODELS: Set[str] = {
+    # Llama family (3.1+)
     "llama3.1",
+    "llama3.2",
+    # Mistral family
+    "mistral",
+    "mixtral",
+    # Qwen family
     "qwen2",
+    "qwen2.5",
+    "qwen2.5-coder",
+    "qwen3",
     "qwen3:8b",
-    # Add other model families here e.g. "gemma2"
+    # Google family
+    "gemma2",
 }
 
 # Parameters from the Ollama library that can be passed through kwargs
@@ -93,6 +117,10 @@ class OllamaProvider(BaseProvider):
         host = kwargs.pop("host", os.getenv("OLLAMA_HOST"))
         super().__init__(model, **kwargs)
 
+        # These will be populated by _verify_model_available
+        self._model_context_window: Optional[int] = None
+        self._model_supports_tools_capability: Optional[bool] = None
+
         try:
             self.client = Client(host=host)
             self._verify_model_available()
@@ -109,8 +137,17 @@ class OllamaProvider(BaseProvider):
             ) from e
 
     def _verify_model_available(self):
-        """Checks if the configured model is available on the Ollama server."""
+        """Checks if the configured model is available and retrieves its capabilities.
+
+        This method verifies that:
+        1. The model is pulled locally on the Ollama server
+        2. Retrieves the model's actual context window size (if available)
+        3. Checks if the model natively supports tool calling
+
+        The retrieved capabilities are stored on the instance for later use.
+        """
         try:
+            # First, check if model is in the list of available models
             local_models = self.client.list().models
             available_model_names = {m.model for m in local_models}
             if self.model not in available_model_names:
@@ -119,6 +156,37 @@ class OllamaProvider(BaseProvider):
                     f"Please run `ollama pull {self.model}`.",
                     provider="ollama",
                 )
+
+            # Get detailed model info using ollama.show()
+            try:
+                model_info: ShowResponse = self.client.show(self.model)
+
+                # Extract context window from model info
+                if model_info.modelinfo:
+                    self._model_context_window = retrieve_context_length(
+                        model_info.modelinfo
+                    )
+                    if self._model_context_window:
+                        logger.debug(
+                            f"Model '{self.model}' context window: "
+                            f"{self._model_context_window} tokens"
+                        )
+
+                # Check tool calling capability
+                self._model_supports_tools_capability = check_tools_capability(
+                    model_info
+                )
+                if self._model_supports_tools_capability:
+                    logger.debug(f"Model '{self.model}' supports native tool calling")
+                else:
+                    logger.debug(
+                        f"Model '{self.model}' does not support native tool calling"
+                    )
+
+            except Exception as e:
+                # Non-fatal: we can still use the model, just without capability info
+                logger.debug(f"Could not retrieve model capabilities: {e}")
+
         except ollama.RequestError as e:
             raise ProviderError(
                 "Could not connect to Ollama server to verify models. Is it running?",
@@ -187,7 +255,19 @@ class OllamaProvider(BaseProvider):
         return self.model
 
     def _model_supports_tools(self) -> bool:
-        """Check if the current model family supports tool calling."""
+        """Check if the current model supports tool calling.
+
+        First checks the actual capability reported by the Ollama server (most accurate),
+        then falls back to checking against our known list of tool-supporting models.
+
+        Returns:
+            True if the model supports native tool calling, False otherwise.
+        """
+        # Use the actual capability from ollama.show() if available
+        if self._model_supports_tools_capability is not None:
+            return self._model_supports_tools_capability
+
+        # Fallback to checking against known model families
         model_family = self._extract_model_family()
         return any(
             model_family == family or model_family.startswith(f"{family}.")
@@ -253,7 +333,10 @@ class OllamaProvider(BaseProvider):
             request_params["tools"] = self._convert_tools_to_ollama_format(tools)
         elif tools:
             logger.warning(
-                f"Model '{self.model}' may not support tool calling. Ignoring tools."
+                f"Model '{self.model}' does not support native tool calling. "
+                f"Tools will be ignored and the agent may not perform well for tasks "
+                f"requiring tool use. Consider using a tool-capable model like "
+                f"'llama3.1', 'qwen2', or 'qwen3:8b', or use --no-tools flag."
             )
 
         start_time = time.time()
@@ -337,7 +420,10 @@ class OllamaProvider(BaseProvider):
             request_params["tools"] = self._convert_tools_to_ollama_format(tools)
         elif tools:
             logger.warning(
-                f"Model '{self.model}' may not support tool calling. Ignoring tools."
+                f"Model '{self.model}' does not support native tool calling. "
+                f"Tools will be ignored and the agent may not perform well for tasks "
+                f"requiring tool use. Consider using a tool-capable model like "
+                f"'llama3.1', 'qwen2', or 'qwen3:8b', or use --no-tools flag."
             )
 
         start_time = time.time()
@@ -358,7 +444,19 @@ class OllamaProvider(BaseProvider):
             yield ProviderChunk(error=error_msg)
 
     def get_context_window(self) -> int:
-        """Returns the context window size for the current model."""
+        """Returns the context window size for the current model.
+
+        First checks the actual context window retrieved from ollama.show() (most accurate),
+        then falls back to our known mappings, and finally to a conservative default.
+
+        Returns:
+            The context window size in tokens.
+        """
+        # Use the actual context window from ollama.show() if available
+        if self._model_context_window is not None:
+            return self._model_context_window
+
+        # Fallback to known mappings
         model_family = self._extract_model_family()
 
         # Try exact match first
@@ -374,3 +472,37 @@ class OllamaProvider(BaseProvider):
             f"Unknown context window for '{self.model}'. Falling back to 4096."
         )
         return 4096
+
+
+def retrieve_context_length(model_info: Mapping[str, Any]) -> Optional[int]:
+    """Extract context length from model info using known paths."""
+    # Try common paths in order of likelihood
+    paths = [
+        lambda d: d.get("num_ctx"),
+        lambda d: d.get("details", {}).get("num_ctx"),
+        lambda d: d.get("parameters", {}).get("num_ctx"),
+        lambda d: next((v for k, v in d.items() if k.endswith("context_length")), None),
+    ]
+
+    for path_fn in paths:
+        try:
+            result: int = path_fn(model_info)
+            if result is not None:
+                return result
+        except (AttributeError, TypeError):
+            continue
+    return None
+
+
+def check_tools_capability(model: ShowResponse) -> bool:
+    """Checks if the model supports tools.
+
+    Args:
+        model (ShowResponse): The model to check for tool support.
+
+    Returns:
+        bool: True if the model supports tools, False otherwise.
+    """
+    if model.capabilities and "tools" in model.capabilities:
+        return True
+    return False
