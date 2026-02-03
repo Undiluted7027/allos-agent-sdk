@@ -163,11 +163,11 @@ agent_groq = Agent(AgentConfig(
     model="groq/compound",
 ))
 
-# Or use local models via compatibility layer
+# Or use local models with native Ollama support
 agent_local = Agent(AgentConfig(
-    provider="ollama_compat",
-    model="mistral:latest",
-    no_tools=True
+    provider="ollama",
+    model="llama3.1",
+    tools=["read_file", "write_file"]
 ))
 
 # Same interface, different providers!
@@ -250,12 +250,13 @@ Allos supports a massive range of models through native integrations and a unive
 |----------|--------|--------|
 | **OpenAI** | ✅ Ready | GPT-4o, GPT-5, GPT-5.2 |
 | **Anthropic** | ✅ Ready | Claude 4.5 Sonnet, Haiku |
+| **Ollama** | ✅ Ready | Native support - Llama, Mistral, etc. |
 | **Groq** | ✅ Ready | Llama 3, Mixtral |
 | **Mistral** | ✅ Ready | Mistral Large, Small |
 | **Together AI** | ✅ Ready | Llama 3, Qwen, DeepSeek |
 | **DeepSeek** | ✅ Ready | DeepSeek Chat/Coder |
 | **Cohere** | ✅ Ready | Command R+ |
-| **Ollama (compat)** | ✅ Ready | Local Llama, Mistral, etc. |
+| **Ollama (compat)** | ✅ Ready | OpenAI-compatible endpoint mode |
 | **LocalAI / vLLM** | ✅ Ready | Custom endpoints via `chat_completions` |
 
 ## 🛠️ Built-in Tools
@@ -334,7 +335,7 @@ content_agent.run("Research AI trends and write a blog post")
 - [x] **CLI DX**: Active providers check, config flags.
 
 ### 🏗️ Phase 2: Upcoming
-- [ ] **Native Ollama**: Advanced local model support.
+- [x] **Native Ollama**: Advanced local model support with tool calling.
 - [ ] Google Gemini support
 - [ ] Web search and fetch tools
 - [ ] Advanced context management
@@ -353,14 +354,13 @@ content_agent.run("Research AI trends and write a blog post")
 
 See [POST_MVP_ROADMAP.md](./POST_MVP_ROADMAP.md) for detailed timeline.
 
-## 🚧 Known Limitations (MVP)
+## 🚧 Known Limitations
 
-The current MVP of the Allos Agent SDK is focused on providing a robust foundation. It intentionally excludes some advanced features that are planned for future releases:
+While Allos has matured significantly beyond the MVP, some advanced features are still in development:
 
--   **No Streaming Support:** The agent currently waits for the full response from the LLM and tools. Real-time streaming of responses is a post-MVP feature.
--   **Limited Context Management:** The agent performs a basic check to prevent exceeding the context window but does not yet implement advanced context compaction or summarization for very long conversations.
+-   **Limited Context Management:** Basic context window checks are implemented, but advanced context compaction and summarization for very long conversations are planned.
 -   **No Async Support:** The core `Agent` and `Tool` classes are synchronous. An async-first version is planned for a future release.
--   **Limited Provider Support:** The MVP includes `openai` and `anthropic`. Support for `ollama`, `google`, and others is on the roadmap.
+-   **Additional Provider Support:** While we support 10+ providers, native support for Google (Vertex AI), Azure OpenAI, and AWS Bedrock are planned for future releases.
 -   **No Web Tools:** Built-in tools for web search (`web_search`) and fetching URLs (`web_fetch`) are planned but not yet implemented.
 -   **Basic Error Recovery:** While the agent can recover from tool execution errors (like permission denied), it does not yet have sophisticated strategies for retrying failed API calls or self-correcting flawed plans.
 
