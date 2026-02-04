@@ -1,7 +1,6 @@
 # examples/agent_usage.py
 
-"""
-A complete, end-to-end example demonstrating the core capabilities of the Allos Agent.
+"""A complete, end-to-end example demonstrating the core capabilities of the Allos Agent.
 
 This script showcases:
 1.  Agent initialization with configuration.

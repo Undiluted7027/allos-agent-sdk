@@ -1,6 +1,5 @@
 # examples/sre_debugging.py
-"""
-An example of an SRE (Site Reliability Engineering) Agent that can diagnose issues.
+"""An example of an SRE (Site Reliability Engineering) Agent that can diagnose issues.
 
 This agent uses the `shell_exec` tool to inspect the local system.
 **WARNING:** This script executes shell commands. It will ask for your permission
@@ -19,6 +18,7 @@ from allos import Agent, AgentConfig
 
 
 def main():
+    """Run the SRE debugging agent example, prompting the user and executing diagnostic tasks."""
     console = Console()
     console.print(
         "[bold yellow]⚠️ WARNING: This agent will request to run shell commands on your system.[/]"

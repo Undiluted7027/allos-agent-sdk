@@ -42,6 +42,12 @@ def main():
         )
     )
 
+    console.print("""
+[dim]Note: The first request to a model may take 10-30 seconds as Ollama loads it into
+memory (GPU/CPU VRAM). The SDK will notify you if warm-up occurs. Subsequent requests
+will be much faster since the model stays loaded in memory.[/dim]
+""")
+
     # 1. Setup Data
     Path(SECRET_FILE).write_text(SECRET_CONTENT)
     console.print(f"[dim]Created local file: {SECRET_FILE}[/dim]")
@@ -51,7 +57,7 @@ def main():
     # llama3.1 supports native tool calling
     config = AgentConfig(
         provider_name="ollama",
-        model="llama3.1",  # Requires: ollama pull llama3.1
+        model="llama3.1:latest",  # Requires: ollama pull llama3.1
         no_tools=False,  # llama3.1 supports native tool calling
         tool_names=["read_file", "list_directory"],
     )
@@ -76,7 +82,7 @@ def main():
         )
 
     except Exception as e:
-        console.print(f"\n[bold red]Connection Failed:[/bold] {e}")
+        console.print(f"\n[bold red]Connection Failed:[/bold red] {e}")
         console.print("Ensure Ollama is running: [bold]ollama serve[/]")
         console.print("Ensure model is pulled: [bold]ollama pull llama3.1[/]")
 

@@ -8,11 +8,26 @@ Create and run your first "Hello, World!" application using the Allos agent in u
     ```bash
     uv pip install "allos-agent-sdk[all]" python-dotenv
     ```
-2.  **Create a `.env` file** in your project directory with your API key. You can use OpenAI, Anthropic, or any compatible provider like Groq. For this example, we'll use OpenAI.
+2.  **Choose your provider**:
+
+    **Option A: Cloud Provider (OpenAI, Anthropic, Groq)**
+
+    Create a `.env` file in your project directory with your API key:
     ```env
     # .env
     OPENAI_API_KEY="your_openai_api_key_here"
-    # GROQ_API_KEY="gsk_..."
+    # Or: ANTHROPIC_API_KEY="your_key"
+    # Or: GROQ_API_KEY="gsk_..."
+    ```
+
+    **Option B: Local Models (Ollama) - No API Key Required!**
+
+    Install and start Ollama:
+    ```bash
+    # Install from https://ollama.com
+    # Then pull a model and start the server
+    ollama pull llama3.1
+    ollama serve
     ```
 
 ## Step 1: Check Your Setup
@@ -80,7 +95,9 @@ allos "Execute the 'app.py' script using python."
 ╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
-## Step 4: Try a Different Provider (e.g., Groq)
+## Step 4: Try a Different Provider
+
+### Option A: Fast Cloud Provider (Groq)
 
 Allos makes it instant to switch providers. If you have a Groq key, try this for blazing fast speed:
 
@@ -93,6 +110,33 @@ allos "Explain how this python script works" \
 
 > [!NOTE]
 We used `--no-tools` here because smaller models often work better in pure chat mode.
+
+### Option B: Local Model (Ollama) - Private & Free
+
+Run completely local models with zero API costs and full privacy:
+
+```bash
+# Using native Ollama provider
+allos "Explain how this python script works" \
+  --provider ollama \
+  --model llama3.1 \
+  --no-tools
+```
+
+**Benefits:**
+- ✅ **Free** - No API costs
+- ✅ **Private** - Data never leaves your machine
+- ✅ **Offline** - Works without internet
+- ✅ **Tool Calling** - Full agent capabilities with compatible models
+
+To see all available local models:
+```bash
+allos --list-ollama-models
+```
+
+For more Ollama examples, see [examples/ollama_usage.py](../../examples/ollama_usage.py).
+
+---
 
 Congratulations! You have successfully used the Allos agent.
 

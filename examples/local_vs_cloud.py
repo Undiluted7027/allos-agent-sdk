@@ -15,7 +15,6 @@ Usage: python examples/local_vs_cloud.py
 """
 
 import os
-import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -38,8 +37,10 @@ class BenchmarkResult:
     response_time: float
     input_tokens: int
     output_tokens: int
+    tps: float
     response: str
     error: Optional[str] = None
+    warm_up: bool = False  # Ollama-specific: model warm-up detected
 
 
 def check_provider_availability() -> dict:
@@ -77,28 +78,42 @@ def run_benchmark(
     try:
         agent = Agent(config)
 
-        start_time = time.perf_counter()
+        # start_time = time.perf_counter()
         response = agent.run(prompt)
-        elapsed = time.perf_counter() - start_time
+        # elapsed = time.perf_counter() - start_time
 
         # Extract token usage from the last response metadata
         input_tokens = 0
         output_tokens = 0
+        warm_up_detected = False
+
         if agent.context.messages:
-            last_msg = agent.context.messages[-1]
-            if hasattr(last_msg, "metadata") and last_msg.metadata:  # pyright: ignore[reportAttributeAccessIssue]
-                usage = getattr(last_msg.metadata, "usage", None)  # pyright: ignore[reportAttributeAccessIssue]
-                if usage:
-                    input_tokens = getattr(usage, "input_tokens", 0)
-                    output_tokens = getattr(usage, "output_tokens", 0)
+            meta = agent.last_run_metadata
+            if not meta:
+                raise ValueError("No metadata returned")
+            duration = meta.latency.total_duration_ms / 1000.0
+            output_tokens = meta.usage.output_tokens
+            input_tokens = meta.usage.input_tokens
+            tps = output_tokens / duration if duration > 0 else 0
+
+            # Check for Ollama warm-up
+            if provider == "ollama" and meta.provider_specific.ollama:
+                warm_up_detected = meta.provider_specific.ollama.warm_up
+                if warm_up_detected:
+                    console.print(
+                        f"[yellow]  ⚠️  Note: Model warm-up detected for {model} "
+                        f"({meta.provider_specific.ollama.warm_up_duration_seconds:.1f}s)[/yellow]"
+                    )
 
         return BenchmarkResult(
             provider=provider,
             model=model,
-            response_time=elapsed,
+            response_time=duration,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             response=response,
+            tps=tps,
+            warm_up=warm_up_detected,
         )
 
     except Exception as e:
@@ -110,6 +125,8 @@ def run_benchmark(
             output_tokens=0,
             response="",
             error=str(e),
+            tps=0,
+            warm_up=False,
         )
 
 
@@ -142,6 +159,8 @@ def display_comparison_table(results: list[BenchmarkResult]):
     table.add_column("Tokens (In/Out)", justify="right")
     table.add_column("Est. Cost", justify="right", style="yellow")
     table.add_column("Data Privacy", style="magenta")
+    table.add_column("Speed (Tokens per second)")
+    table.add_column("Warm-Up", style="yellow")  # New column for Ollama
 
     for result in results:
         if result.error:
@@ -149,6 +168,8 @@ def display_comparison_table(results: list[BenchmarkResult]):
                 result.provider,
                 result.model,
                 "[red]Error[/]",
+                "-",
+                "-",
                 "-",
                 "-",
                 "-",
@@ -163,6 +184,12 @@ def display_comparison_table(results: list[BenchmarkResult]):
             )
             tokens_str = f"{result.input_tokens}/{result.output_tokens}"
 
+            # Warm-up status (Ollama-specific)
+            if result.provider == "ollama":
+                warm_up_str = "[yellow]Yes[/]" if result.warm_up else "[green]No[/]"
+            else:
+                warm_up_str = "[dim]N/A[/]"
+
             table.add_row(
                 result.provider,
                 result.model,
@@ -170,6 +197,8 @@ def display_comparison_table(results: list[BenchmarkResult]):
                 tokens_str,
                 cost_str,
                 privacy,
+                f"{result.tps:.2f}",
+                warm_up_str,
             )
 
     console.print(table)

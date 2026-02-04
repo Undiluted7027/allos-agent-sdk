@@ -1,8 +1,6 @@
 # examples/tool_usage.py
 
-"""
-An example demonstrating how to use the built-in tools and the ToolRegistry directly,
-without using the main Agent class.
+"""An example demonstrating how to use the built-in tools and the ToolRegistry directly without using the main Agent class.
 
 This script shows how to:
 1. List all available tools.
@@ -26,6 +24,7 @@ WORKSPACE_DIR = Path("./tool_usage_workspace")
 
 
 def setup_workspace():
+    """Set up the workspace directory for the tool usage example."""
     if WORKSPACE_DIR.exists():
         shutil.rmtree(WORKSPACE_DIR)
     WORKSPACE_DIR.mkdir()
@@ -33,6 +32,7 @@ def setup_workspace():
 
 
 def cleanup():
+    """Clean up the workspace directory by removing it and changing back to the parent directory."""
     os.chdir("..")
     if WORKSPACE_DIR.exists():
         shutil.rmtree(WORKSPACE_DIR)

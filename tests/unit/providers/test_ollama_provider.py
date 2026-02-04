@@ -9,9 +9,22 @@ from ollama import RequestError, ResponseError
 from ollama._types import ListResponse, ShowResponse
 
 from allos.providers.base import Message, MessageRole, ToolCall
-from allos.providers.ollama import OLLAMA_TOOL_SUPPORTED_MODELS, OllamaProvider
+from allos.providers.ollama import (
+    _OLLAMA_CLIENT_POOL,
+    OLLAMA_TOOL_SUPPORTED_MODELS,
+    OllamaProvider,
+)
 from allos.tools.base import BaseTool, ToolParameter
 from allos.utils.errors import ProviderError
+
+
+@pytest.fixture(autouse=True)
+def clear_connection_pool():
+    """Clear the connection pool before and after each test."""
+    _OLLAMA_CLIENT_POOL.clear()
+    yield
+    _OLLAMA_CLIENT_POOL.clear()
+
 
 # Mock response from `ollama.Client.list()`
 MOCK_MODEL_LIST: ListResponse = ListResponse(
@@ -782,6 +795,168 @@ def test_stream_chat_handles_request_error(MockClient):
     assert chunks[0].error is not None
     assert "Ollama connection error" in chunks[0].error
     assert "Connection lost" in chunks[0].error
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_handles_unexpected_error(MockClient):
+    """Test that unexpected exceptions during streaming yield an error chunk without retry."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
+
+    # Simulate an unexpected error (e.g., ValueError, KeyError, etc.)
+    mock_instance.chat.side_effect = ValueError("Unexpected internal error")
+
+    provider = OllamaProvider(model="llama3:latest")
+    chunks = list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+
+    # Should yield exactly one error chunk (no retries for unexpected errors)
+    assert len(chunks) == 1
+    assert chunks[0].error is not None
+    assert "Unexpected error during Ollama streaming" in chunks[0].error
+    assert "Unexpected internal error" in chunks[0].error
+
+    # Verify chat was only called once (no retries)
+    assert mock_instance.chat.call_count == 1
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_retries_on_request_error_then_succeeds(MockClient):
+    """Test that RequestError triggers retry and succeeds on second attempt."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
+
+    # First call fails, second succeeds
+    def chat_side_effect(*args, **kwargs):
+        if mock_instance.chat.call_count == 1:
+            raise RequestError("Connection timeout")
+        else:
+            # Second attempt succeeds
+            return iter(
+                [
+                    {"message": {"content": "Success"}, "done": False},
+                    {
+                        "done": True,
+                        "model": "llama3:latest",
+                        "prompt_eval_count": 5,
+                        "eval_count": 1,
+                    },
+                ]
+            )
+
+    mock_instance.chat.side_effect = chat_side_effect
+
+    provider = OllamaProvider(model="llama3:latest", max_stream_retries=3)
+
+    start_time = time.time()
+    chunks = list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+    elapsed = time.time() - start_time
+
+    # Should have retried and succeeded
+    assert mock_instance.chat.call_count == 2
+
+    # Should have content from successful retry
+    content_chunks = [c for c in chunks if c.content]
+    assert len(content_chunks) == 1
+    assert content_chunks[0].content == "Success"
+
+    # Should have waited at least 1 second for retry
+    assert elapsed >= 1.0
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_retry_exhaustion(MockClient):
+    """Test that all retries are exhausted and proper error message is returned."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
+
+    # All attempts fail
+    mock_instance.chat.side_effect = RequestError("Connection refused")
+
+    provider = OllamaProvider(model="llama3:latest", max_stream_retries=2)
+
+    start_time = time.time()
+    chunks = list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+    elapsed = time.time() - start_time
+
+    # Should have tried 2 times total
+    assert mock_instance.chat.call_count == 2
+
+    # Should yield error chunk with retry count
+    assert len(chunks) == 1
+    assert chunks[0].error is not None
+    assert "Connection refused" in chunks[0].error
+    assert "retried 2 times" in chunks[0].error
+
+    # Should have waited with exponential backoff (1s total: first immediate, second after 1s)
+    assert elapsed >= 1.0
+    assert elapsed < 3.0  # Should not wait for third attempt
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_exponential_backoff_timing(MockClient):
+    """Test that retry delays follow exponential backoff pattern."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
+
+    # All attempts fail
+    mock_instance.chat.side_effect = RequestError("Timeout")
+
+    provider = OllamaProvider(model="llama3:latest", max_stream_retries=3)
+
+    start_time = time.time()
+    list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+    elapsed = time.time() - start_time
+
+    # Should have tried 3 times
+    assert mock_instance.chat.call_count == 3
+
+    # Total wait should be: 1s (after 1st fail) + 2s (after 2nd fail) = 3s minimum
+    # Attempts: immediate -> wait 1s -> immediate -> wait 2s -> immediate
+    assert elapsed >= 3.0
+    assert elapsed < 5.0  # Allow some overhead but not much more
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_custom_max_retries(MockClient):
+    """Test that custom max_stream_retries parameter is respected."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
+
+    # All attempts fail
+    mock_instance.chat.side_effect = RequestError("Network error")
+
+    provider = OllamaProvider(model="llama3:latest", max_stream_retries=5)
+    list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+
+    # Should have tried 5 times as configured
+    assert mock_instance.chat.call_count == 5
+
+
+@patch("allos.providers.ollama.Client")
+def test_stream_chat_no_retry_on_response_error(MockClient):
+    """Test that ResponseError does NOT trigger retry (API errors fail fast)."""
+    mock_instance = MockClient.return_value
+    mock_instance.list.return_value = MOCK_MODEL_LIST
+    mock_instance.show.return_value = create_mock_show_response("default")
+
+    # API error should not be retried
+    mock_instance.chat.side_effect = ResponseError("Model not found", status_code=404)
+
+    provider = OllamaProvider(model="llama3:latest", max_stream_retries=3)
+    chunks = list(provider.stream_chat([Message(role=MessageRole.USER, content="Hi")]))
+
+    # Should NOT retry - only called once
+    assert mock_instance.chat.call_count == 1
+
+    # Should yield error immediately
+    assert len(chunks) == 1
+    assert chunks[0].error is not None
+    assert "Ollama API error" in chunks[0].error
 
 
 @patch("allos.providers.ollama.Client")

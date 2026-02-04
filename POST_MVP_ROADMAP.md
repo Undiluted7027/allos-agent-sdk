@@ -456,7 +456,7 @@ class OllamaProvider(BaseProvider):
 ```
 
 #### Testing
-- [ ] **`tests/unit/test_ollama_provider.py`**
+- [x] **`tests/unit/test_ollama_provider.py`**
   - Mock Ollama client (native library)
   - Test model availability checking
   - Test message conversion
@@ -467,7 +467,7 @@ class OllamaProvider(BaseProvider):
 ### Day 62-63: Ollama Tool Calling & Streaming (adjusted from Day 59-60)
 
 #### Tool Calling Support
-- [ ] **Native tool calling implementation**
+- [x] **Native tool calling implementation**
   - Convert Allos tool format to Ollama format (native, not OpenAI functions)
   - Handle tool call responses from Ollama's native format
   - Extract tool call IDs
@@ -495,7 +495,7 @@ def _convert_tools_to_ollama_format(self, tools: List[dict]) -> List[dict]:
 ```
 
 #### Streaming Support
-- [ ] **Implement streaming chat using native library**
+- [x] **Implement streaming chat using native library**
   - Stream tokens as they're generated
   - Yield partial responses
   - Handle tool calls in streaming mode
@@ -524,7 +524,7 @@ def chat_stream(self, messages: List[Message], tools: List[dict] = None):
 ```
 
 #### Testing
-- [ ] **Integration tests with real Ollama**
+- [x] **Integration tests with real Ollama**
   - Test with llama3.2:1b (fast, small model)
   - Test tool calling with real model
   - Test streaming responses
@@ -535,7 +535,7 @@ def chat_stream(self, messages: List[Message], tools: List[dict] = None):
 ### Day 64-65: Context Window Detection & Model Support (adjusted from Day 61-62)
 
 #### Context Window Management
-- [ ] **Model-specific context windows**
+- [x] **Model-specific context windows**
   - Create model family mappings (Llama, Mistral, Qwen, etc.)
   - Detect context window from model name
   - Add override via configuration
@@ -565,14 +565,14 @@ def _get_context_window(self, model: str) -> int:
 ```
 
 #### Token Counting
-- [ ] **Implement token counting**
+- [x] **Implement token counting**
   - Use tiktoken for estimation (by model family)
   - Fall back to word-based estimation
   - Cache token counts
   - Integrate with context manager
 
 #### Popular Model Testing
-- [ ] Test with popular models:
+- [x] Test with popular models:
   - `llama3.2:3b` - Latest small Llama
   - `qwen2.5-coder:7b` - Code-focused
   - `mistral:7b` - General purpose
@@ -581,7 +581,7 @@ def _get_context_window(self, model: str) -> int:
 ### Day 66-67: Documentation & Examples (adjusted from Day 63-64)
 
 #### Documentation
-- [ ] **`docs/providers/ollama.md`**
+- [x] **`docs/providers/ollama.md`**
   - Installation instructions (Ollama + models)
   - Configuration guide
   - Model recommendations
@@ -621,10 +621,10 @@ allos --provider ollama --model qwen2.5-coder:7b "Create a FastAPI app"
 - `llama3.2:3b` - Fast, capable
 - `mistral:7b` - Well-rounded
 - `llama3.1:8b` - Latest Llama
-```
+
 
 #### Examples
-- [ ] **`examples/ollama_usage.py`**
+- [x] **`examples/ollama_usage.py`**
   - Basic local model usage
   - Model comparison (local vs API)
   - Streaming example
@@ -680,62 +680,62 @@ if __name__ == "__main__":
     compare_providers()
 ```
 
-- [ ] **`examples/local_vs_cloud.py`**
+- [x] **`examples/local_vs_cloud.py`**
   - Side-by-side comparison
   - Cost analysis
   - Performance benchmarks
   - Privacy considerations
 
 #### Update Main Documentation
-- [ ] Update `README.md` provider table
-- [ ] Update `docs/guides/providers.md`
-- [ ] Add Ollama to quickstart guide
+- [x] Update `README.md` provider table
+- [x] Update `docs/guides/providers.md`
+- [x] Add Ollama to quickstart guide
 - [ ] Update architecture diagrams
 
 ### Day 68-69: Testing & Polish (adjusted from Day 65-66)
 
 #### Comprehensive Testing
-- [ ] **Unit tests**: Mock-based, no Ollama required
-- [ ] **Integration tests**: Real Ollama server required
-- [ ] **E2E tests**: Full agent workflows with Ollama
+- [x] **Unit tests**: Mock-based, no Ollama required
+- [x] **Integration tests**: Real Ollama server required
+- [x] **E2E tests**: Full agent workflows with Ollama
 - [ ] **Performance tests**: Measure response times
 
 #### Edge Cases
-- [ ] Model not available (suggest `ollama pull`)
-- [ ] Ollama server not running
-- [ ] Network timeout handling
+- [x] Model not available (suggest `ollama pull`)
+- [x] Ollama server not running
+- [x] Network timeout handling
 - [ ] Large context handling
-- [ ] Streaming interruption
-- [ ] Tool calling errors
+- [x] Streaming interruption
+- [x] Tool calling errors
 
 #### Performance Optimization
-- [ ] Connection pooling
-- [ ] Request caching
-- [ ] Model warm-up detection
+- [x] Connection pooling
+- [] Request caching
+- [x] Model warm-up detection
 - [ ] Memory usage monitoring
 
 #### CLI Integration
-- [ ] Add `--list-ollama-models` command
-- [ ] Show model status in provider list
-- [ ] Add Ollama-specific help text
+- [x] Add `--list-ollama-models` command
+- [ ] ~~Show model status in provider list~~
+- [x] Add Ollama-specific help text
 
 ### Day 70: Additional Model Families & Final Polish (adjusted from Days 67-70)
 
 #### Expand Model Support
-- [ ] **Llama family**:
+- [x] **Llama family**:
   - llama3.2 (1b, 3b, 11b)
   - llama3.1 (8b, 70b, 405b)
   - llama3 (8b, 70b)
 
-- [ ] **Mistral family**:
+- [x] **Mistral family**:
   - mistral (7b)
   - mixtral (8x7b, 8x22b)
 
-- [ ] **Qwen family**:
+- [x] **Qwen family**:
   - qwen2.5 (0.5b-72b)
   - qwen2.5-coder (1.5b-32b)
 
-- [ ] **Code models**:
+- [x] **Code models**:
   - deepseek-coder (1.3b-33b)
   - codellama (7b-34b)
   - starcoder2 (3b-15b)

@@ -54,6 +54,7 @@ The metadata object is a strict Pydantic model (`allos.providers.metadata.Metada
 | `tools` | `ToolInfo` | Details on tool availability and execution. |
 | `turns` | `TurnsInfo` | (Agent only) History of the agentic loop. |
 | `quality_signals` | `QualitySignals` | Indicators of response quality (e.g., stop reasons). |
+| `provider_specific` | `ProviderSpecific` | Provider-specific metadata (e.g., Ollama warm-up info). |
 
 ### `ModelInfo`
 Details about the model configuration.
@@ -94,6 +95,40 @@ When running an `Agent`, this object tracks the "Reason-Act" loop.
 - `finish_reason`: `str` - Why the model stopped generating (e.g., `"stop"`, `"tool_calls"`, `"length"`).
 - `refusal_detected`: `bool` - `True` if the model explicitly refused a request (via OpenAI's refusal field or heuristic).
 - `response_truncated`: `bool` - `True` if the response was cut off due to `max_tokens`.
+
+### `ProviderSpecific`
+Provider-specific metadata fields that are unique to particular LLM providers.
+
+> [!IMPORTANT]
+> The `provider_specific.ollama` fields (warm-up detection) are **exclusive to the native Ollama provider** and are not available for other providers (OpenAI, Anthropic, Groq, etc.).
+
+#### `ProviderSpecificOllama`
+For the native Ollama provider, this contains information about model warm-up:
+- `warm_up`: `bool` - `True` if model warm-up was detected (first request ≥10 seconds).
+- `warm_up_duration_seconds`: `Optional[float]` - The duration of the warm-up in seconds, if detected.
+
+**What is Model Warm-Up?**
+When you make the first request to an Ollama model, it must be loaded into memory (GPU/CPU VRAM), which can take 10-30 seconds depending on model size and hardware. Subsequent requests are much faster as the model stays loaded. The SDK automatically detects and logs this event to help you understand the initial delay.
+
+**This feature is unique to Ollama** because:
+- Cloud providers keep models perpetually loaded in memory
+- Local models need to be loaded on-demand to conserve resources
+- Tracking warm-up helps diagnose performance and set expectations
+
+**Example:**
+```python
+response = provider.chat(messages)
+if response.metadata.provider_specific.ollama and response.metadata.provider_specific.ollama.warm_up:
+    duration = response.metadata.provider_specific.ollama.warm_up_duration_seconds
+    print(f"Model warm-up detected: {duration:.1f}s")
+    print("Subsequent requests will be faster.")
+```
+
+For more details, see the [Ollama Provider documentation](../providers/ollama.md#model-warm-up-detection).
+
+#### `ProviderSpecificOpenAI`
+For OpenAI, this may contain:
+- `system_fingerprint`: `Optional[str]` - OpenAI's system fingerprint for reproducibility tracking.
 
 ---
 
@@ -153,6 +188,50 @@ Here is a representation of what `agent.last_run_metadata.model_dump()` might lo
         "tokens_used": { "input_tokens": 700, "output_tokens": 300 }
       }
     ]
+  },
+  "provider_specific": {
+    "ollama": null,
+    "openai": {
+      "system_fingerprint": "fp_abc123"
+    }
+  }
+}
+```
+
+### Example: Ollama Provider with Warm-Up Detection
+
+When using the Ollama provider, the metadata will include warm-up information if the model was loaded into memory:
+
+```json
+{
+  "request_id": "req_4d2f8a9c...",
+  "timestamp": "2026-02-04T03:30:00+00:00",
+  "status": "success",
+  "model": {
+    "provider": "ollama",
+    "model_id": "llama3.1",
+    "configuration": { "max_output_tokens": null }
+  },
+  "usage": {
+    "total_tokens": 450,
+    "input_tokens": 120,
+    "output_tokens": 330,
+    "estimated_cost": {
+      "total_usd": 0.0,
+      "input_cost_usd": 0.0,
+      "output_cost_usd": 0.0,
+      "pricing_source": "free_local"
+    }
+  },
+  "latency": {
+    "total_duration_ms": 12500
+  },
+  "provider_specific": {
+    "ollama": {
+      "warm_up": true,
+      "warm_up_duration_seconds": 12.5
+    },
+    "openai": null
   }
 }
 ```

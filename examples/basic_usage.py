@@ -1,7 +1,6 @@
 # examples/basic_usage.py
 
-"""
-A basic example demonstrating how to get a simple response from an LLM provider.
+"""A basic example demonstrating how to get a simple response from an LLM provider.
 
 This script shows the fundamental steps:
 1. Load environment variables.

@@ -129,3 +129,35 @@ class TestMetadataBuilder:
         assert cost.output_cost_usd == pytest.approx(3.0)
         # Expected total cost
         assert cost.total_usd == pytest.approx(3.5)
+
+    def test_build_provider_specific_with_custom_ollama_data(self):
+        """Test the custom provider-specific ollama data path in _build_provider_specific."""
+        # Create builder with custom provider-specific data containing ollama info
+        builder = MetadataBuilder(
+            provider_name="ollama",
+            request_kwargs={},
+            start_time=0,
+        )
+
+        # Create a mock response object
+        mock_response = MagicMock()
+        mock_response.id = "test_id"
+        mock_response.model = "llama3.1"
+        mock_response.usage = MagicMock()
+        mock_response.usage.input_tokens = 10
+        mock_response.usage.output_tokens = 20
+
+        # Set response and custom provider-specific data
+        custom_data = {
+            "warm_up": True,
+            "warm_up_duration_seconds": 12.5
+        }
+        builder.with_response_obj(mock_response).with_provider_specific(ollama=custom_data)
+
+        # Call the private method to test the specific path
+        provider_specific = builder._build_provider_specific()
+
+        # Verify the ollama data was properly converted (line 616)
+        assert provider_specific.ollama is not None
+        assert provider_specific.ollama.warm_up is True
+        assert provider_specific.ollama.warm_up_duration_seconds == 12.5

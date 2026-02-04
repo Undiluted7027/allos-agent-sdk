@@ -1,7 +1,6 @@
 # examples/code_review_agent.py
 
-"""
-An example of a Code Review Agent that can read files and provide feedback.
+"""An example of a Code Review Agent that can read files and provide feedback.
 
 This agent uses the `read_file` and `list_directory` tools to inspect a simple
 project and suggest improvements.
@@ -57,6 +56,7 @@ def cleanup():
 
 
 def main():
+    """Run the code review agent on a dummy project."""
     console = Console()
     setup_workspace()
 

@@ -103,8 +103,18 @@ ollama_compat = ProviderRegistry.get_provider("ollama_compat", model="mistral")
 > [!NOTE]
 > The `model` parameter is required for the `ollama` provider. See the [Ollama Provider](./../providers/ollama.md) documentation for supported models and tool calling capabilities.
 
+> [!IMPORTANT]
+> **Ollama-Exclusive Features**: The native `ollama` provider includes advanced features not available in other providers:
+> - **Model Warm-Up Detection**: Automatic detection and logging of model loading time (10-30s on first request)
+> - **Streaming Retry Logic**: Automatic retry with exponential backoff for interrupted streams
+> - **Dynamic Capability Detection**: Runtime detection of model context windows and tool support
+>
+> These features are unique to Ollama and enhance reliability for local model usage. See the [Ollama Provider documentation](./../providers/ollama.md) for details.
+
 > [!TIP]
 > Use `allos --list-ollama-models` to see all locally available models with their context windows and tool support status.
+>
+> For a comprehensive guide comparing native vs compat providers, see **[examples/ollama_usage.py](../../examples/ollama_usage.py)**.
 
 ## The `ProviderResponse` Object
 

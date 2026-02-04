@@ -47,6 +47,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run only the integration tests (requires API keys).",
     )
+    parser.addoption(
+        "--run-performance",
+        action="store_true",
+        default=False,
+        help="Run only the performance tests (requires Ollama or other providers).",
+    )
 
 
 def run_e2e_tests(func):
@@ -70,6 +76,10 @@ def pytest_configure(config):
         "integration: marks tests as integration (requires --run-integration and API keys)",
     )
     config.addinivalue_line(
+        "markers",
+        "performance: marks tests as performance tests (requires --run-performance)",
+    )
+    config.addinivalue_line(
         "markers", "requires_openai: marks tests as requiring an OpenAI API key"
     )
     config.addinivalue_line(
@@ -77,6 +87,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "requires_ollama: marks tests as requiring ollama local client"
+    )
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow-running tests"
     )
 
 
@@ -90,17 +103,30 @@ def _skip_integration_tests(items):
             item.add_marker(skip_marker)
 
 
-def _select_tests_by_flag(items, run_e2e, run_integration):
+def _skip_performance_tests(items):
+    """Skip performance tests unless explicitly requested."""
+    skip_marker = pytest.mark.skip(
+        reason="Performance tests require the --run-performance flag"
+    )
+    for item in items:
+        if "performance" in item.keywords:
+            item.add_marker(skip_marker)
+
+
+def _select_tests_by_flag(items, run_e2e, run_integration, run_performance):
     """Return the list of tests to run based on given flags."""
     selected, deselected = [], []
 
     for item in items:
         is_e2e = "e2e" in item.keywords
         is_integration = "integration" in item.keywords
+        is_performance = "performance" in item.keywords
 
         if run_e2e and is_e2e:
             selected.append(item)
         elif run_integration and is_integration:
+            selected.append(item)
+        elif run_performance and is_performance:
             selected.append(item)
         else:
             deselected.append(item)
@@ -125,7 +151,7 @@ def _apply_integration_key_skips(items):
     }
 
     for item in items:
-        if "integration" not in item.keywords:
+        if "integration" not in item.keywords and "performance" not in item.keywords:
             continue
         for marker_name, check in missing_keys.items():
             if marker_name in item.keywords and not check():
@@ -136,21 +162,25 @@ def pytest_collection_modifyitems(config, items):
     """
     Selects or skips tests based on custom command-line flags.
 
-    - If no flags are given, runs unit and e2e tests (skips integration).
+    - If no flags are given, runs unit and e2e tests (skips integration and performance).
     - If --run-e2e is given, runs ONLY e2e tests.
     - If --run-integration is given, runs ONLY integration tests and
       provides skip messages if required API keys are missing.
+    - If --run-performance is given, runs ONLY performance tests and
+      provides skip messages if required services are not available.
     """
     run_e2e = config.getoption("--run-e2e")
     run_integration = config.getoption("--run-integration")
+    run_performance = config.getoption("--run-performance")
 
-    if not run_e2e and not run_integration:
+    if not run_e2e and not run_integration and not run_performance:
         _skip_integration_tests(items)
+        _skip_performance_tests(items)
         return
 
-    selected = _select_tests_by_flag(items, run_e2e, run_integration)
+    selected = _select_tests_by_flag(items, run_e2e, run_integration, run_performance)
 
-    if run_integration:
+    if run_integration or run_performance:
         _apply_integration_key_skips(selected)
 
     items[:] = selected

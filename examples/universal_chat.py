@@ -1,7 +1,7 @@
 # examples/universal_chat.py
 
-"""
-The Model Arena. Ask one question, get answers from everyone.
+"""The Model Arena. Ask one question, get answers from everyone.
+
 Demonstrates the power of the unified `Agent` interface.
 """
 
@@ -20,6 +20,7 @@ console = Console()
 
 
 def main():
+    """Run the Model Arena to compare responses from multiple AI providers."""
     console.print(Panel.fit("[bold]⚔️  Allos Model Arena[/]", border_style="red"))
 
     prompt = console.input("\n[bold cyan]Enter a complex question for the arena: [/]")

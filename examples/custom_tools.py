@@ -1,7 +1,6 @@
 # examples/custom_tools.py
 
-"""
-An example demonstrating how to create a custom tool and have an agent use it.
+"""An example demonstrating how to create a custom tool and have an agent use it.
 
 This script shows how to:
 1. Define a custom tool by inheriting from `BaseTool`.
@@ -49,6 +48,20 @@ class RectangleAreaTool(BaseTool):
     ]
 
     def execute(self, **kwargs: Any) -> Dict[str, Any]:
+        """Calculate the area of a rectangle.
+
+        Parameters
+        ----------
+        length : int or float
+            The length of the rectangle.
+        width : int or float
+            The width of the rectangle.
+
+        Returns:
+        -------
+        dict
+            A dictionary containing the status and the calculated area, or an error message.
+        """
         length = kwargs.get("length")
         width = kwargs.get("width")
 

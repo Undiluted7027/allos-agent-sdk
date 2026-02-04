@@ -276,14 +276,21 @@ class ProviderSpecificOpenAI(BaseModel):
     logprobs: Optional[Any] = None
 
 
+class ProviderSpecificOllama(BaseModel):
+    """Container for metadata fields unique to Ollama's API response."""
+
+    warm_up: bool = False
+    warm_up_duration_seconds: Optional[float] = None
+
+
 class ProviderSpecific(BaseModel):
     """A namespace for provider-specific metadata fields."""
 
     openai: Optional[ProviderSpecificOpenAI] = None
+    ollama: Optional[ProviderSpecificOllama] = None
     # Future
     anthropic: Optional[Any] = None
     google: Optional[Any] = None
-    ollama: Optional[Any] = None
     chat_completions: Optional[Any] = None
 
 
@@ -354,6 +361,22 @@ class MetadataBuilder:
         self._start_time = start_time
         self._end_time = time.time()
         self._response_obj: Optional[Any] = None
+        self._custom_provider_specific: Optional[Dict[str, Any]] = None
+
+    def with_provider_specific(self, **kwargs: Any) -> "MetadataBuilder":
+        """Sets custom provider-specific metadata.
+
+        This allows providers to inject their own specific metadata fields
+        that will be included in the ProviderSpecific section.
+
+        Args:
+            **kwargs: Provider-specific fields (e.g., ollama={...}, anthropic={...})
+
+        Returns:
+            The `MetadataBuilder` instance for method chaining.
+        """
+        self._custom_provider_specific = kwargs
+        return self
 
     def with_response_obj(self, response_obj: Any) -> "MetadataBuilder":
         """Sets the raw provider response object to be processed.
@@ -585,10 +608,15 @@ class MetadataBuilder:
 
     def _build_provider_specific(self) -> ProviderSpecific:
         """Builds the `ProviderSpecific` part of the metadata."""
-        # In a real scenario, this would be extracted from HTTP headers.
-        # For now, we are leaving it as a placeholder.
+        # Start with custom provider-specific data if provided
+        if self._custom_provider_specific:
+            # Convert custom data to proper types
+            ollama_data = self._custom_provider_specific.get("ollama")
+            if ollama_data:
+                return ProviderSpecific(ollama=ProviderSpecificOllama(**ollama_data))
+
+        # Fallback to OpenAI auto-detection for backward compatibility
         system_fingerprint_raw = getattr(self._response_obj, "system_fingerprint", None)
-        # Convert to string only if it's actually a string, otherwise None
         system_fingerprint = (
             system_fingerprint_raw if isinstance(system_fingerprint_raw, str) else None
         )
