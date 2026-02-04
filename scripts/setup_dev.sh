@@ -24,7 +24,7 @@ echo "✅ uv is installed."
 VENV_DIR=".venv"
 if [ ! -d "$VENV_DIR" ]; then
     echo "🐍 Creating virtual environment in '$VENV_DIR'..."
-    uv venv --python $(which python3)
+    uv venv --python "$(which python3)"
 else
     echo "🐍 Virtual environment already exists."
 fi

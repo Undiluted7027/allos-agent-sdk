@@ -160,8 +160,11 @@ def test_ollama_agent_with_tools_workflow(
     assert agent.last_run_metadata.tools.tool_calls[0].tool_name == "write_file"
 
 
+@patch("allos.cli.utils.ollama_running", return_value=True)
 @patch("allos.providers.ollama.Client")
-def test_ollama_cli_integration(MockClient, runner: CliRunner, work_dir: Path):
+def test_ollama_cli_integration(
+    MockClient, mock_ollama_running, runner: CliRunner, work_dir: Path
+):
     """
     E2E Test: Ollama via CLI with file operations.
     Tests the full CLI -> Agent -> Provider -> Tools workflow.
