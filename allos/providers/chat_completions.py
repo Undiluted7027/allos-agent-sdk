@@ -84,10 +84,14 @@ class ChatCompletionsProvider(BaseProvider):
         """
         super().__init__(model, **kwargs)
         self.base_url = base_url
+        # OpenAI client requires api_key, use dummy for local servers like Ollama
+        effective_api_key = (
+            api_key or os.environ.get("OPENAI_API_KEY") or "not-required"
+        )
         try:
             # We use the standard OpenAI client but point it to the user's desired URL
             self.client = openai.OpenAI(
-                api_key=api_key or os.getenv("OPENAI_API_KEY"),
+                api_key=effective_api_key,
                 base_url=base_url,
                 **kwargs,
             )

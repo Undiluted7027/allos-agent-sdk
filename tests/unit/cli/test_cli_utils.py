@@ -34,7 +34,7 @@ class TestValidateApiKey:
         """Test validation when required env var is missing."""
         result, missing_var = validate_api_key("openai", None)
         assert result is False
-        assert missing_var == "OPENAI_API_KEY"
+        assert missing_var == "OPENAI_API_KEY (Not Set)"
 
     @patch.dict("os.environ", {}, clear=True)
     @patch("allos.cli.utils.ollama_running")
@@ -53,7 +53,7 @@ class TestValidateApiKey:
         mock_ollama_running.return_value = False
         result, missing_var = validate_api_key("ollama", None)
         assert result is False
-        assert missing_var == "OLLAMA_HOST"
+        assert missing_var == "Ollama server not running"
         mock_ollama_running.assert_called_once_with("http://localhost:11434")
 
 

@@ -151,7 +151,7 @@ def print_active_providers(ctx, param, value):
     Possible statuses:
      - "Ready": The required environment variable is set.
      - "Missing Key": The required environment variable is not set.
-     - "Manual Config Required": The provider does not rely on a standard env var.
+     - "No API key required": The provider does not rely on a standard env var.
 
     The program terminates after printing the table.
 
@@ -167,35 +167,28 @@ def print_active_providers(ctx, param, value):
     table = Table(title="Active Providers Configuration")
     table.add_column("Provider", style="cyan")
     table.add_column("Status", style="bold")
-    table.add_column("Required Env Var", style="dim")
+    table.add_column("Env Var", style="dim")
 
     for p in providers:
-        env_var = ProviderRegistry.get_env_var_name(p)
+        is_configured, var_display = ProviderRegistry.check_provider_env(p)
 
         # Special Case: Native Ollama
         if p == "ollama":
-            OLLAMA_URL = "http://localhost:11434"
-            status = "[yellow]Manual Config May Be Required[/]"
-            if env_var is not None and env_var in os.environ:
-                var_display = f"{env_var} (Set)"
-                OLLAMA_URL = os.getenv(env_var, "http://localhost:11434")
+            OLLAMA_URL = os.getenv("OLLAMA_HOST")
+            var_display = "OLLAMA_HOST (Optional)"
+            if OLLAMA_URL:
+                var_display = "OLLAMA_HOST (Set)"
             else:
-                var_display = f"{env_var} (Optional)"
+                OLLAMA_URL = "http://localhost:11434"
+
             if ollama_running(OLLAMA_URL):
                 status = "[green]Ready[/]"
             else:
                 status = "[red]Ollama not running[/]"
-        # Special case for generic providers or those without env vars
+        elif is_configured:
+            status = "[green]Ready[/]"
         else:
-            if not env_var:
-                status = "[yellow]Manual Config Required[/]"
-                var_display = "N/A"
-            elif env_var in os.environ:
-                status = "[green]Ready[/]"
-                var_display = f"{env_var} (Set)"
-            else:
-                status = "[red]Missing Key[/]"
-                var_display = f"{env_var} (Not Set)"
+            status = "[red]Missing Key"
 
         table.add_row(p, status, var_display)
 

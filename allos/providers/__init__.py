@@ -65,6 +65,11 @@ try:
 except (ImportError, AttributeError):
     logger.debug("Skipped optional provider: ollama")
 
+try:
+    from . import google  # noqa: F401
+except (ImportError, AttributeError):
+    logger.debug("Skipped optional provider: google")
+
 __all__ = [
     "BaseProvider",
     "Message",

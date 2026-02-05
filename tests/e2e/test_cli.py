@@ -106,10 +106,12 @@ def test_active_providers_command(runner: CliRunner, monkeypatch):
     # Anthropic should be Missing Key (if it appears in list)
     # Note: Rich tables might wrap or format differently, but the text should be present
     assert "anthropic" in result.output
-    # ollama_compat should be Manual Config
+    # ollama_compat should be No API key
     assert "ollama_compat" in result.output
+    assert "No API key required"
     assert "ollama" in result.output
-    assert "Manual Config Required" in result.output
+    assert "Optional" in result.output
+    print(result.output)
 
 
 def test_run_command_max_tokens(runner: CliRunner, mock_agent_and_load_session):

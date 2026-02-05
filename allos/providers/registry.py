@@ -8,7 +8,7 @@ factory to create provider instances on demand.
 """
 
 import os
-from typing import Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from ..utils.errors import ConfigurationError
 from .base import BaseProvider
@@ -17,7 +17,7 @@ from .base import BaseProvider
 _provider_registry: Dict[str, Type[BaseProvider]] = {}
 
 # Configuration for known OpenAI-compatible providers
-OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Optional[str]]] = {
+OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
     "together": {
         "env_var": "TOGETHER_API_KEY",
         "base_url": "https://api.together.xyz/v1",
@@ -59,7 +59,9 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Optional[str]]] = {
     "ollama_compat": {
         "env_var": None,
         "base_url": "http://localhost:11434/v1",
+        "base_url_env_var": "OLLAMA_HOST",  # Override base URL from this
         "implementation": "chat_completions",
+        "requires_auth": False,
     },
 }
 
@@ -120,14 +122,27 @@ class ProviderRegistry:
 
             # Apply default from the alias config
             # Only set base_url if not already provided by user
+            # Check env var first, then apply default
             if "base_url" not in kwargs or kwargs["base_url"] is None:
-                config_overrides["base_url"] = config["base_url"]
+                base_url_env_var = config.get("base_url_env_var")
+                if base_url_env_var and base_url_env_var in os.environ:
+                    # OLLAMA_HOST does not include /v1 for
+                    # Chat Completions, so append it
+                    host = os.environ[base_url_env_var].rstrip("/")
+                    config_overrides["base_url"] = f"{host}/v1"
+                else:
+                    config_overrides["base_url"] = config["base_url"]
 
             # Auto-detect API key if not provided
             if "api_key" not in kwargs or kwargs["api_key"] is None:
-                env_var = config["env_var"]
+                env_var = config.get("env_var")
+                requires_auth = config.get("requires_auth", True)  # Default True
+
                 if env_var and env_var in os.environ:
                     config_overrides["api_key"] = os.environ[env_var]
+                elif not requires_auth:
+                    # Provider doesn't need auth, but OpenAI client requires a value
+                    config_overrides["api_key"] = "ollama"  # Dummy value
 
         # Check if it's a directly registered provider
         elif name in _provider_registry:
@@ -145,11 +160,25 @@ class ProviderRegistry:
         return implementation_class(**final_kwargs)
 
     @classmethod
-    def list_providers(cls) -> List[str]:
-        """List the names of all registered providers AND known aliases."""
+    def list_providers(cls, include_unavailable: bool = True) -> List[str]:
+        """List the names of all registered providers AND known aliases.
+
+        Args:
+            include_unavailable: If True, includes providers that may not be
+                                available due to Python version requirements.
+        """
         direct = list(_provider_registry.keys())
         aliases = list(OPENAI_COMPATIBLE_PROVIDERS.keys())
-        return sorted(set(direct + aliases))
+        all_providers = sorted(set(direct + aliases))
+        if include_unavailable:
+            # Add known providers that might not be registered due to version
+            import sys
+
+            if "google" not in all_providers and sys.version_info < (3, 10):
+                all_providers.append("google")
+            all_providers = sorted(set(all_providers))
+
+        return all_providers
 
     @classmethod
     def get_env_var_name(cls, provider_name: str) -> Optional[str]:
@@ -168,3 +197,62 @@ class ProviderRegistry:
 
         # Return None if no specific variable is found.
         return None
+
+    @classmethod
+    def check_provider_env(cls, provider_name: str) -> Tuple[bool, str]:
+        """Check environment configuration for a provider.
+
+        This method delegates to the provider's check_env_config classmethod,
+        which allows each provider to implement its own validation logic.
+
+        Args:
+            provider_name: Name of the provider (e.g., "anthropic", "openai")
+
+        Returns:
+            Tuple of (is_configured, display_message)
+        """
+        import sys
+
+        # Check aliases first
+        if provider_name in OPENAI_COMPATIBLE_PROVIDERS:
+            config = OPENAI_COMPATIBLE_PROVIDERS[provider_name]
+            env_var = config.get("env_var")
+            requires_auth = config.get("requires_auth", True)
+            base_url_env_var = config.get("base_url_env_var")
+
+            # Build status message
+            parts = []
+
+            # Check base URL env var
+            if base_url_env_var:
+                if base_url_env_var in os.environ:
+                    parts.append(f"{base_url_env_var} (Set)")
+                else:
+                    parts.append(f"{base_url_env_var} (Using default)")
+
+            # Check auth requirement
+            if not requires_auth:
+                parts.append("No API key required")
+                return (True, ", ".join(parts) if parts else "Ready")
+
+            if env_var is None:
+                return (True, ", ".join(parts) if parts else "N/A")
+
+            if env_var in os.environ:
+                parts.append(f"{env_var} (Set)")
+                return (True, ", ".join(parts))
+
+            parts.append(f"{env_var} (Not Set)")
+            return (False, ", ".join(parts))
+
+        # Check registered providers
+        if provider_name in _provider_registry:
+            provider_class = _provider_registry[provider_name]
+            return provider_class.check_env_config()
+        # Provider not registered - check if it's a known provider with version requirements
+        if provider_name == "google" and sys.version_info < (3, 10):
+            return (
+                False,
+                f"Requires Python 3.10+ (current: {sys.version_info.major}.{sys.version_info.minor})",
+            )
+        return (False, "Provider not found")

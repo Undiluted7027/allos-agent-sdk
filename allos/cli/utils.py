@@ -8,7 +8,7 @@ have properly configured providers and credentials before executing CLI commands
 import os
 from typing import Dict, Optional, Tuple, Union
 
-from allos.providers.registry import ProviderRegistry
+from allos.providers.registry import OPENAI_COMPATIBLE_PROVIDERS, ProviderRegistry
 from allos.providers.utils import ollama_running
 
 
@@ -33,6 +33,8 @@ def determine_model(provider: str, model: Optional[str]) -> Optional[str]:
         default_model = "gpt-4o"
     elif provider == "anthropic":
         default_model = "claude-3-haiku-20240307"
+    elif provider == "google":
+        default_model = "gemini-2.5-flash-lite"
     return default_model
 
 
@@ -55,16 +57,24 @@ def validate_api_key(provider: str, api_key: Optional[str]) -> Tuple[bool, str]:
     if api_key:
         return (True, "")
 
-    required_env_var = ProviderRegistry.get_env_var_name(provider)
+    # Check if provider requires auth at all
+    if provider in OPENAI_COMPATIBLE_PROVIDERS:
+        config = OPENAI_COMPATIBLE_PROVIDERS[provider]
+        if not config.get("requires_auth", True):
+            return (True, "")  # No API key required
 
-    if required_env_var and required_env_var not in os.environ:
-        if provider == "ollama":
-            if not ollama_running("http://localhost:11434"):
-                return (False, required_env_var)
-            else:
-                return (True, "")
-        return (False, required_env_var)
-    return (True, "")
+    # Special case: Native Ollama doesn't need API key, just needs to be running
+    if provider == "ollama":
+        host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        if ollama_running(host):
+            return (True, "")
+        return (False, "Ollama server not running")
+
+    # Use provider's env check
+    is_configured, message = ProviderRegistry.check_provider_env(provider)
+    if is_configured:
+        return (True, "")
+    return (False, message)
 
 
 def validate_model_and_api_key(

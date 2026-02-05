@@ -6,10 +6,11 @@ This module defines the abstract interface that all provider implementations mus
 ensuring they are interchangeable within the Allos ecosystem.
 """
 
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from .metadata import Metadata
 
@@ -95,6 +96,26 @@ class BaseProvider(ABC):
         """
         self.model = model
         self.provider_specific_kwargs = kwargs
+
+    @classmethod
+    def check_env_config(cls) -> Tuple[bool, str]:
+        """Check if environment is properly configured for this provider.
+
+        Override this method in subclasses that need complex env var logic
+        (e.g., multiple valid configurations, OR/AND combinations).
+
+        Returns:
+            Tuple of (is_configured, display_message) where:
+            - is_configured: True if the provider can be used
+            - display_message: Human-readable status for CLI display
+            Examples: "OPENAI_API_KEY (Set)", "GOOGLE_API_KEY (Not Set)",
+                       "Vertex AI (PROJECT=Set, LOCATION=Set)"
+        """
+        if cls.env_var is None:
+            return (True, "N/A")
+        if cls.env_var in os.environ:
+            return (True, f"{cls.env_var} (Set)")
+        return (False, f"{cls.env_var} (Not Set)")
 
     @abstractmethod
     def chat(self, messages: List[Message], **kwargs: Any) -> ProviderResponse:

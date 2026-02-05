@@ -87,9 +87,7 @@ class TestProviderBase:
 
         # Instantiation will fail because abstract methods are not implemented
         with pytest.raises(TypeError):
-            provider = UnimplementedProvider(
-                model="test"
-            )  # pyright: ignore[reportAbstractUsage]
+            provider = UnimplementedProvider(model="test")  # pyright: ignore[reportAbstractUsage]
 
         # To test the `raise` statement itself, we need a partial implementation
         class PartiallyImplementedProvider(BaseProvider):
@@ -363,6 +361,21 @@ class TestProviderInit:
         assert "openai" in registered_providers
         assert "ollama" not in registered_providers
 
+    def test_init_handles_missing_google_library(self, monkeypatch):
+        """
+        Tests that `allos.providers` can be imported even if 'google' is not installed.
+        """
+        monkeypatch.setitem(sys.modules, "google", None)
+        self._unload_provider_modules(monkeypatch)
+
+        import allos.providers  # noqa: F401
+
+        registered_providers = ProviderRegistry.list_providers()
+        assert "anthropic" in registered_providers
+        assert "openai" in registered_providers
+        assert "ollama" in registered_providers
+        assert "google" not in registered_providers
+
     def test_init_handles_all_libraries_missing(self, monkeypatch):
         """
         Tests that `allos.providers` can be imported even if all optional provider
@@ -371,6 +384,7 @@ class TestProviderInit:
         monkeypatch.setitem(sys.modules, "openai", None)
         monkeypatch.setitem(sys.modules, "anthropic", None)
         monkeypatch.setitem(sys.modules, "ollama", None)
+        monkeypatch.setitem(sys.modules, "google", None)
         self._unload_provider_modules(monkeypatch)
 
         import allos.providers  # noqa: F401
@@ -378,6 +392,7 @@ class TestProviderInit:
         providers = ProviderRegistry.list_providers()
         assert "openai" not in providers
         assert "anthropic" not in providers
+        assert "google" not in providers
         # But we expect 'ollama_compat' to be there as it's an alias
         assert "ollama_compat" in providers
         assert "ollama" not in providers

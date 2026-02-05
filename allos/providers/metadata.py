@@ -282,15 +282,21 @@ class ProviderSpecificOllama(BaseModel):
     warm_up: bool = False
     warm_up_duration_seconds: Optional[float] = None
 
+class ProviderSpecificGoogle(BaseModel):
+    """Container for metadata fields unique to Google's Gemini and Vertex AI API responses."""
+    vertexai: bool = False
+    project: Optional[str] = None
+    location: Optional[str] = None
+
 
 class ProviderSpecific(BaseModel):
     """A namespace for provider-specific metadata fields."""
 
     openai: Optional[ProviderSpecificOpenAI] = None
     ollama: Optional[ProviderSpecificOllama] = None
+    google: Optional[ProviderSpecificGoogle] = None
     # Future
     anthropic: Optional[Any] = None
-    google: Optional[Any] = None
     chat_completions: Optional[Any] = None
 
 
