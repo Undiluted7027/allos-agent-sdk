@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import sys
 import unittest.mock as mock
 from dataclasses import asdict
 from pathlib import Path
@@ -31,6 +32,12 @@ from allos.tools.base import BaseTool
 from allos.utils.token_counter import count_tokens
 
 OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+# This sets the env var before the coverage plugin finishes initialization
+if sys.version_info < (3, 10):
+    os.environ["OMIT_FOR_VERSION"] = "allos/providers/google.py"
+else:
+    os.environ["OMIT_FOR_VERSION"] = ""
 
 
 def pytest_addoption(parser):
@@ -89,8 +96,13 @@ def pytest_configure(config):
         "markers", "requires_ollama: marks tests as requiring ollama local client"
     )
     config.addinivalue_line(
-        "markers", "slow: marks tests as slow-running tests"
+        "markers", "requires_gemini: marks tests as requiring Gemini API key"
     )
+    config.addinivalue_line(
+        "markers",
+        "requires_vertexai: marks tests as requiring Vertex AI authentication",
+    )
+    config.addinivalue_line("markers", "slow: marks tests as slow-running tests")
 
 
 def _skip_integration_tests(items):
@@ -142,12 +154,20 @@ def _ollama_running() -> bool:
         return False
 
 
+def _check_vertexai_conf() -> bool:
+    if os.getenv("GOOGLE_API_KEY") is not None:
+        return True
+    return False
+
+
 def _apply_integration_key_skips(items):
     """Skip integration tests that require missing API keys."""
     missing_keys = {
         "requires_openai": lambda: bool(os.getenv("OPENAI_API_KEY")),
         "requires_anthropic": lambda: bool(os.getenv("ANTHROPIC_API_KEY")),
+        "requires_gemini": lambda: bool(os.getenv("GEMINI_API_KEY")),
         "requires_ollama": _ollama_running,
+        "requires_vertex": _check_vertexai_conf,
     }
 
     for item in items:
@@ -196,8 +216,10 @@ def mock_api_keys(monkeypatch):
     TEST_ANTHROPIC_API_KEY = os.getenv(
         "TEST_ANTHROPIC_API_KEY", "test-anthropic-api-key"
     )
+    TEST_GEMINI_API_KEY = os.getenv("TEST_GEMINI_API_KEY", "test-gemini-api-key")
     monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
     monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
+    monkeypatch.setenv("GEMINI_API_KEY", TEST_GEMINI_API_KEY)
 
 
 @pytest.fixture

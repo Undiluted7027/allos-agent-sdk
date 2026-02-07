@@ -253,6 +253,6 @@ class ProviderRegistry:
         if provider_name == "google" and sys.version_info < (3, 10):
             return (
                 False,
-                f"Requires Python 3.10+ (current: {sys.version_info.major}.{sys.version_info.minor})",
+                f"Requires Python 3.10+ (current: {sys.version_info[0]}.{sys.version_info[1]})",
             )
         return (False, "Provider not found")

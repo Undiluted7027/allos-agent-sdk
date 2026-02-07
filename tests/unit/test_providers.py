@@ -2,6 +2,8 @@
 
 
 import sys
+from typing import Tuple
+from unittest.mock import patch
 
 import pytest
 
@@ -370,7 +372,7 @@ class TestProviderInit:
 
         import allos.providers  # noqa: F401
 
-        registered_providers = ProviderRegistry.list_providers()
+        registered_providers = ProviderRegistry.list_providers(include_unavailable=False)
         assert "anthropic" in registered_providers
         assert "openai" in registered_providers
         assert "ollama" in registered_providers
@@ -389,7 +391,7 @@ class TestProviderInit:
 
         import allos.providers  # noqa: F401
 
-        providers = ProviderRegistry.list_providers()
+        providers = ProviderRegistry.list_providers(include_unavailable=False)
         assert "openai" not in providers
         assert "anthropic" not in providers
         assert "google" not in providers
@@ -402,3 +404,290 @@ class TestProviderInit:
         # 'unknown_provider' is not an alias and not in the (cleared) registry
         env_var = ProviderRegistry.get_env_var_name("unknown_provider")
         assert env_var is None
+
+
+class TestProviderRegistryEnvChecks:
+    """Tests for provider environment configuration checks."""
+
+    def setup_method(self):
+        self._original_registry = _provider_registry.copy()
+        _provider_registry.clear()
+
+    def teardown_method(self):
+        """Restore registry."""
+        _provider_registry.clear()
+        _provider_registry.update(self._original_registry)
+
+    def test_check_provider_env_alias_with_base_url_env_var_set(self, monkeypatch):
+        """Test check_provider_env for ollama_compat with OLLAMA_HOST set."""
+        monkeypatch.setenv("OLLAMA_HOST", "http://custom:11434")
+
+        is_configured, message = ProviderRegistry.check_provider_env("ollama_compat")
+
+        assert is_configured is True
+        assert "OLLAMA_HOST (Set)" in message
+        assert "No API key required" in message
+
+    def test_check_provider_env_alias_with_base_url_env_var_default(self, monkeypatch):
+        """Test check_provider_env for ollama_compat using default URL."""
+        monkeypatch.delenv("OLLAMA_HOST", raising=False)
+
+        is_configured, message = ProviderRegistry.check_provider_env("ollama_compat")
+
+        assert is_configured is True
+        assert "Using default" in message
+
+    def test_check_provider_env_alias_with_env_var_set(self, monkeypatch):
+        """Test check_provider_env for alias with API key set."""
+        monkeypatch.setenv("GROQ_API_KEY", "test-key")
+
+        is_configured, message = ProviderRegistry.check_provider_env("groq")
+
+        assert is_configured is True
+        assert "GROQ_API_KEY (Set)" in message
+
+    def test_check_provider_env_alias_with_env_var_missing(self, monkeypatch):
+        """Test check_provider_env for alias with API key missing."""
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+        is_configured, message = ProviderRegistry.check_provider_env("groq")
+
+        assert is_configured is False
+        assert "GROQ_API_KEY (Not Set)" in message
+
+    def test_check_provider_env_alias_no_env_var_required(self):
+        """Test check_provider_env for alias with no env_var field."""
+        # Create a test alias with env_var=None but requires_auth=True (default)
+        # This is a theoretical edge case - ollama_compat has requires_auth = False
+        from allos.providers.registry import OPENAI_COMPATIBLE_PROVIDERS
+
+        # Temporarily add a test alias
+        original = OPENAI_COMPATIBLE_PROVIDERS.get("test_alias")
+        OPENAI_COMPATIBLE_PROVIDERS["test_alias"] = {
+            "env_var": None,
+            "base_url": "http://test.url",
+            "implementations": "chat_completions",
+            # requires_auth defaults to True
+        }
+
+        try:
+            is_configured, message = ProviderRegistry.check_provider_env("test_alias")
+            assert is_configured is True
+            assert message == "N/A"
+        finally:
+            if original:
+                OPENAI_COMPATIBLE_PROVIDERS["test_alias"] = original
+            else:
+                del OPENAI_COMPATIBLE_PROVIDERS["test_alias"]
+
+    def test_check_provider_env_registered_provider(self, monkeypatch):
+        """Test check_provider_env delegates to provider's check_env_config."""
+
+        @provider("test_check_provider")
+        class TestCheckProvider(BaseProvider):
+            env_var = "TEST_API_KEY"
+
+            @classmethod
+            def check_env_config(cls) -> Tuple[bool, str]:
+                return (True, "Custom check passed")
+
+            def chat(self, messages, **kwargs):
+                yield from []
+
+            def get_context_window(self) -> int:
+                return 4096
+
+        is_configured, message = ProviderRegistry.check_provider_env(
+            "test_check_provider"
+        )
+        assert is_configured is True
+        assert message == "Custom check passed"
+
+    def test_check_provider_env_google_python_version_check(self, monkeypatch):
+        """Test check_provider_env for google when Python < 3.10"""
+        import sys
+
+        # Only run this test if we can mock the version
+        if sys.version_info >= (3, 10):
+            # Mock a lower version
+            with patch.object(sys, "version_info", (3, 9, 0)):
+                # Clear google from history if present
+                _provider_registry.pop("google", None)
+
+                is_configured, message = ProviderRegistry.check_provider_env("google")
+
+                assert is_configured is False
+                assert "Requires Python 3.10+" in message
+
+    def test_check_provider_env_unknown_provider(self):
+        """Test check_provider_env for unknown provider."""
+        is_configured, message = ProviderRegistry.check_provider_env("nonexistent")
+
+        assert is_configured is False
+        assert message == "Provider not found"
+
+    def test_get_provider_ollama_compat_with_env_var(self, monkeypatch):
+        """Test get_provider for ollama_compat uses OLLAMA_HOST."""
+
+        # Register chat_completions implementation
+        @provider("chat_completions")
+        class MockChatCompletions(BaseProvider):
+            def chat(self, messages, **kwargs):
+                pass
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []
+
+            def get_context_window(self) -> int:
+                return 4096
+
+        monkeypatch.setenv("OLLAMA_HOST", "http://custom-host:11434")
+        instance = ProviderRegistry.get_provider("ollama_compat", model="llama3")
+
+        # Base URL should /v1 appended to OLLAMA_HOST
+        assert (
+            instance.provider_specific_kwargs["base_url"]
+            == "http://custom-host:11434/v1"
+        )
+        # Should have dummy API key
+        assert instance.provider_specific_kwargs["api_key"] == "ollama"
+
+    def test_get_provider_ollama_compat_no_env_var(self, monkeypatch):
+        """Test get_provider for ollama_compat uses default URL."""
+
+        @provider("chat_completions")
+        class MockChatCompletions(BaseProvider):
+            def chat(self, messages, **kwargs):
+                pass
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []
+
+            def get_context_window(self):
+                return 4096
+
+        monkeypatch.delenv("OLLAMA_HOST", raising=False)
+
+        instance = ProviderRegistry.get_provider("ollama_compat", model="llama3")
+
+        assert (
+            instance.provider_specific_kwargs["base_url"] == "http://localhost:11434/v1"
+        )
+        assert instance.provider_specific_kwargs["api_key"] == "ollama"
+
+    def test_list_providers_includes_unavailable(self, monkeypatch):
+        """Test list_providers includes unavailable providers like google on Python < 3.10."""
+        import sys
+
+        # Clear registry
+        _provider_registry.clear()
+
+        # Mock Python 3.9
+        with patch.object(sys, "version_info", (3, 9, 0)):
+            providers = ProviderRegistry.list_providers(include_unavailable=True)
+
+            # Google should be added even though not registered
+            assert "google" in providers
+
+    def test_get_env_var_name_registered_provider(self):
+        """Test get_env_var_name for directly registered provider."""
+
+        @provider("test_env_var_provider")
+        class TestEnvVarProvider(BaseProvider):
+            env_var = "TEST_PROVIDER_KEY"
+
+            def chat(self, messages, **kwargs):
+                pass
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []
+
+            def get_context_window(self):
+                return 4096
+
+        env_var = ProviderRegistry.get_env_var_name("test_env_var_provider")
+
+        assert env_var == "TEST_PROVIDER_KEY"
+
+    def test_get_env_var_name_registered_provider_no_env_var(self):
+        """Test get_env_var_name when provider has no env_var attribute."""
+
+        @provider("test_no_env_provider")
+        class TestNoEnvProvider(BaseProvider):
+            # No env_var attribute
+            def chat(self, messages, **kwargs):
+                pass
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []
+
+            def get_context_window(self):
+                return 4096
+
+        env_var = ProviderRegistry.get_env_var_name("test_no_env_provider")
+
+        assert env_var is None
+
+    def test_get_env_var_name_for_openai_completions_compatible_provider(self):
+        """Test get_env_var_name for OpenAI-compatible alias providers."""
+
+        # Test with a known OpenAI-compatible provider
+        env_var = ProviderRegistry.get_env_var_name("groq")
+
+        assert env_var == "GROQ_API_KEY"
+
+        # Test with another alias
+        env_var = ProviderRegistry.get_env_var_name("together")
+        assert env_var == "TOGETHER_API_KEY"
+
+    def test_check_env_config_no_env_var_required(self):
+        """Test check_env_config when provider has no env_var requirement."""
+
+        @provider("test_no_env_var_provider")
+        class TestNoEnvVarProvider(BaseProvider):
+            env_var = None  # No environment variable required
+
+            def chat(self, messages, **kwargs):
+                pass
+
+            def stream_chat(self, messages, **kwargs):
+                yield from []
+
+            def get_context_window(self) -> int:
+                return 4096
+
+        is_configured, message = TestNoEnvVarProvider.check_env_config()
+
+        assert is_configured is True
+        assert message == "N/A"
+
+
+class TestDetermineModelGoogle:
+    """Tests for determine_model with Google provider."""
+
+    def test_determine_model_google_default(self):
+        """Test that Google provider has a default model."""
+        from allos.cli.utils import determine_model
+
+        result = determine_model("google", None)
+        assert result == "gemini-2.5-flash-lite"
+
+    def test_determine_model_google_explicit(self):
+        """Test that explicit model overrides default for Google."""
+        from allos.cli.utils import determine_model
+
+        result = determine_model("google", "gemini-2.0-flash")
+        assert result == "gemini-2.0-flash"
+
+
+class TestValidateApiKeyOllamaCompat:
+    """Tests for validate_api_key with ollama_compat provider."""
+
+    def test_validate_api_key_ollama_compat_no_auth_required(self):
+        """Test that ollama_compat doesn't require API key."""
+        from allos.cli.utils import validate_api_key
+
+        result, missing_var = validate_api_key("ollama_compat", None)
+
+        assert result is True
+        assert missing_var == ""

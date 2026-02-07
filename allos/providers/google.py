@@ -24,6 +24,7 @@ from ..utils.logging import logger
 from .registry import provider
 
 if sys.version_info < (3, 10):
+    # pragma: no cover
     raise ImportError(
         "Google provider requires version Python 3.10 or higher. "
         f"Current version: {sys.version_info.major}.{sys.version_info.minor}"
@@ -119,6 +120,7 @@ class GoogleProvider(BaseProvider):
 
     def _verify_model_available(self):
         """Check if the configured model is available.
+
         This method verifies that:
         1. The model name is valid and can be used with Gemini/Vertex AI APIs.
         2. Retrieves the model's actual context window size (if available)
@@ -133,12 +135,12 @@ class GoogleProvider(BaseProvider):
             available_model_names = {m.name for m in pulled_models}
             if model_name not in available_model_names:
                 raise ProviderError(
-                    f"Model '{self.model}' not available locally. "
+                    f"Model '{self.model}' not available. "
                     f"If you're using Gemini API then ensure you use models/{self.model}.",
                     provider="google",
                 )
             # Get detailed info
-            model_info = next((m for m in pulled_models if m.name == self.model), None)
+            model_info = next((m for m in pulled_models if m.name == model_name), None)
             # Extract context window from model info
             if model_info and model_info.input_token_limit:
                 self._model_context_window = model_info.input_token_limit
@@ -157,8 +159,7 @@ class GoogleProvider(BaseProvider):
     def _convert_messages(
         messages: List[Message],
     ) -> tuple[Optional[str], List[types.Content]]:
-        """
-        Convert Allos messages to Google format.
+        """Convert Allos messages to Google format.
 
         :param messages: A list of `allos.providers.base.Message` objects.
         :type messages: List[Message]
@@ -209,8 +210,7 @@ class GoogleProvider(BaseProvider):
 
     @staticmethod
     def _convert_tools(tools: List[BaseTool]) -> List[types.Tool]:
-        """
-        Convert Allos tools to Google FunctionDeclaration format.
+        """Convert Allos tools to Google FunctionDeclaration format.
 
         :param tools: Description
         :type tools: List[BaseTool]
@@ -246,8 +246,7 @@ class GoogleProvider(BaseProvider):
     def _parse_response(
         response: types.GenerateContentResponse,
     ) -> Tuple[Optional[str], List[ToolCall]]:
-        """
-        Parse Google response to Allos format.
+        """Parse Google response to Allos format.
 
         :param response: Description
         :return: Description
@@ -322,8 +321,7 @@ class GoogleProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> Iterator[ProviderChunk]:
-        """
-        Docstring for stream_chat
+        """Docstring for stream_chat
 
         :param self: Description
         :param messages: Description

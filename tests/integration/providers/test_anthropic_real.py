@@ -33,7 +33,7 @@ class GetWeatherTool(BaseTool):
 def test_anthropic_provider_simple_chat_integration():
     """
     Performs a real API call to test simple chat completion.
-    This test is skipped unless --run-integration is provided and OPENAI_API_KEY is set.
+    This test is skipped unless --run-integration is provided and ANTHROPIC_API_KEY is set.
     """
     provider = ProviderRegistry.get_provider(
         "anthropic", model="claude-3-5-haiku-latest"

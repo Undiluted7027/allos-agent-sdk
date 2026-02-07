@@ -151,3 +151,9 @@ markers = [
     "e2e: marks tests as end-to-end tests",
     "performance: marks tests as performance tests"
 ]
+
+[tool.coverage.run]
+source = ["allos"]
+omit = [
+    "${OMIT_FOR_VERSION}"
+]

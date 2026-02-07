@@ -27,16 +27,19 @@ def runner() -> CliRunner:
 
 
 @pytest.fixture
-def mock_agent_and_load_session(mocker):
+def mock_agent_and_load_session(mocker, monkeypatch):
     """
     Mocks the Agent class, its instance, and its load_session classmethod
     across all relevant modules where it is imported.
     """
+    # Set up environment variables so that validation passes
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-for-mocking")
     # Create a mock instance that has the necessary attributes
     mock_instance = MagicMock(spec=Agent)
     mock_instance.config = AgentConfig(
-        provider_name="mock", model="mock"
+        provider_name="openai", model="gpt-4o"
     )  # Give it a config
+    mock_instance.stream_run.return_value = iter([])
 
     # Patch the Agent class in both modules where it is imported and used
     patcher_main = mocker.patch("allos.cli.main.Agent", return_value=mock_instance)
@@ -54,6 +57,38 @@ def mock_agent_and_load_session(mocker):
         "class_interactive": patcher_interactive,
         "instance": mock_instance,
     }
+
+
+@pytest.fixture
+def mock_validation(mocker):
+    """Mock validation to always succeed"""
+    mocker.patch(
+        "allos.cli.main.validate_model_and_api_key",
+        return_value={
+            "determined_model": {
+                "check": True,
+                "model": "gpt-4o",
+                "message": "[dim]Model not specified, defaulting to 'gpt-4o' for provider 'openai'.[/dim]",
+            },
+            "validate_api_key": {"check": True},
+        },
+    )
+
+
+@pytest.fixture
+def mock_anthropic_validation(mocker):
+    """Mock validation for Anthropic specific test cases."""
+    mocker.patch(
+        "allos.cli.main.validate_model_and_api_key",
+        return_value={
+            "determined_model": {
+                "check": True,
+                "model": "claude-3-haiku-20240307",
+                "message": "[dim]Model not specified, defaulting to 'claude-3-haiku-20240307' for provider 'anthropic'.[/dim]",
+            },
+            "validate_api_key": {"check": True},
+        },
+    )
 
 
 # --- Test Cases ---
@@ -111,7 +146,6 @@ def test_active_providers_command(runner: CliRunner, monkeypatch):
     assert "No API key required"
     assert "ollama" in result.output
     assert "Optional" in result.output
-    print(result.output)
 
 
 def test_run_command_max_tokens(runner: CliRunner, mock_agent_and_load_session):
@@ -401,6 +435,47 @@ class TestCliRunCommand:
         assert mock_agent_instance.config.max_tokens == 99
         assert mock_agent_instance.config.no_tools is True
         assert mock_agent_instance.tools == []
+
+    def test_session_provider_switching_resets_config(
+        self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
+    ):
+        """Test that switching providers in a loaded session resets config."""
+        mock_agent_class = mock_agent_and_load_session["class_main"]
+        mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # Set up agent with initial provider config
+        mock_agent_instance.config.provider_name = "openai"
+        mock_agent_instance.config.base_url = "http://custom-url"
+        mock_agent_instance.config.api_key = "old-key"
+        mock_agent_instance.config.no_tools = True
+
+        session_file = work_dir / "session.json"
+
+        dummy_config = {
+            "provider_name": "openai",
+            "model": "gpt-4o",
+            "base_url": "http://custom-url",
+            "api_key": "old-key",
+            "no_tools": True,
+            "tool_names": [],
+        }
+        session_file.write_text(json.dumps({"config": dummy_config, "context": {}}))
+
+        # Simulate switching to a different provider
+        result = runner.invoke(
+            main,
+            ["--session", str(session_file), "--provider", "anthropic", "test prompt"],
+        )
+
+        assert result.exit_code == 0
+
+        # Verify load_session was called
+        mock_agent_class.load_session.assert_called_once_with(str(session_file))
+
+        # Verify the config was reset
+        assert mock_agent_instance.config.base_url is None
+        assert mock_agent_instance.config.api_key is None
+        assert mock_agent_instance.config.no_tools is False
 
     def test_run_command_auto_approve_shows_warning(
         self, runner: CliRunner, mock_agent_and_load_session
@@ -813,7 +888,7 @@ class TestCliStreamCommand:
     """Tests for the `--stream` flag and `run_agent_stream` function."""
 
     def test_main_dispatches_to_run_agent_stream(
-        self, runner: CliRunner, mock_agent_and_load_session
+        self, runner: CliRunner, mock_agent_and_load_session, mock_validation
     ):
         """Test that the --stream flag correctly calls run_agent_stream."""
         mock_agent_class = mock_agent_and_load_session["class_main"]
@@ -821,7 +896,6 @@ class TestCliStreamCommand:
 
         # Test with the flag
         result = runner.invoke(main, ["--stream", "This is a test prompt"])
-
         assert result.exit_code == 0
 
         mock_agent_class.assert_called_once()
@@ -830,7 +904,7 @@ class TestCliStreamCommand:
         assert "Streaming Response" in result.output
 
     def test_stream_command_all_chunk_types(
-        self, runner: CliRunner, mock_agent_and_load_session
+        self, runner: CliRunner, mock_agent_and_load_session, mock_validation
     ):
         """Test that run_agent_stream correctly prints different chunk types."""
         mock_agent_instance = mock_agent_and_load_session["instance"]
@@ -855,7 +929,11 @@ class TestCliStreamCommand:
         assert "Stream Error: Something went wrong." in result.output
 
     def test_stream_command_saves_session(
-        self, runner: CliRunner, mock_agent_and_load_session, work_dir: Path
+        self,
+        runner: CliRunner,
+        mock_agent_and_load_session,
+        work_dir: Path,
+        mock_validation,
     ):
         """Test that --session flag works with --stream."""
         mock_agent_class = mock_agent_and_load_session["class_main"]
@@ -880,7 +958,12 @@ class TestCliStreamCommand:
         ],
     )
     def test_stream_command_handles_exceptions(
-        self, runner: CliRunner, mock_agent_and_load_session, exception, expected_output
+        self,
+        runner: CliRunner,
+        mock_agent_and_load_session,
+        exception,
+        expected_output,
+        mock_validation,
     ):
         """Test that exceptions from stream_run are caught and printed."""
         mock_agent_instance = mock_agent_and_load_session["instance"]
@@ -893,7 +976,7 @@ class TestCliStreamCommand:
         assert str(exception) in result.output
 
     def test_stream_error_handling(
-        self, runner: CliRunner, mock_agent_and_load_session
+        self, runner: CliRunner, mock_agent_and_load_session, mock_validation
     ):
         """Test handling of stream errors."""
         mock_agent_instance = mock_agent_and_load_session["instance"]
@@ -925,7 +1008,7 @@ class TestCliStreamCommand:
         assert "Auto-approve is enabled" in result.output
 
     def test_stream_command_api_key_from_flag(
-        self, runner: CliRunner, mock_agent_and_load_session
+        self, runner: CliRunner, mock_agent_and_load_session, mock_validation
     ):
         """Test that validation succeeds when API key is passed via --api-key flag"""
         mock_agent_class = mock_agent_and_load_session["class_main"]
@@ -975,7 +1058,11 @@ class TestCliStreamCommand:
         mock_agent_instance.stream_run.assert_not_called()
 
     def test_stream_command_api_key_from_env(
-        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+        self,
+        runner: CliRunner,
+        mock_agent_and_load_session,
+        mock_validation,
+        monkeypatch,
     ):
         """Test that validation succeeds when API key is in environment variable"""
         mock_agent_class = mock_agent_and_load_session["class_main"]
@@ -997,9 +1084,6 @@ class TestCliStreamCommand:
         mock_agent_instance.stream_run.assert_called_once_with("This is a test prompt")
 
 
-# Add these to tests/e2e/test_cli.py
-
-
 class TestActiveProvidersCommand:
     """Tests for the --active-providers command."""
 
@@ -1018,13 +1102,18 @@ class TestActiveProvidersCommand:
         assert "OLLAMA_HOST (Set)" in result.output
         assert "Ready" in result.output
 
-    def test_active_providers_ollama_not_running(self, runner: CliRunner, monkeypatch):
+    def test_active_providers_ollama_not_running(
+        self, runner: CliRunner, mock_validation, monkeypatch
+    ):
         """Test that Ollama shows 'not running' when server is down."""
         # Ensure OLLAMA_HOST is not set (will use default)
         monkeypatch.delenv("OLLAMA_HOST", raising=False)
 
         # Mock ollama_running to return False
-        with patch("allos.cli.main.ollama_running", return_value=False):
+        with (
+            patch("allos.cli.main.ollama_running", return_value=False),
+            patch("allos.providers.ollama_running", return_value=False),
+        ):
             result = runner.invoke(main, ["--active-providers"])
 
         assert result.exit_code == 0
@@ -1243,11 +1332,18 @@ class TestStreamAgentValidation:
         mock_agent_class.assert_not_called()
 
     def test_stream_agent_uses_anthropic_default_model(
-        self, runner: CliRunner, mock_agent_and_load_session, monkeypatch
+        self,
+        runner: CliRunner,
+        mock_agent_and_load_session,
+        mock_anthropic_validation,
+        monkeypatch,
     ):
         """Test that stream mode correctly uses Anthropic's default model."""
         mock_agent_class = mock_agent_and_load_session["class_main"]
         mock_agent_instance = mock_agent_and_load_session["instance"]
+
+        # Ensure the mock returns an iterator for stream_run
+        mock_agent_instance.stream_run.return_value = iter([])
 
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
