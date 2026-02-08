@@ -51,7 +51,7 @@ dependencies = [
 openai = ["openai>=2.6.1"]
 anthropic = ["anthropic>=0.72.0"]
 ollama = ["ollama>=0.6.1"]
-google = ["google-genai>=1.47.0; python_version>='3.10'"]
+google = ["google-genai>=1.47.0; python_version>='3.10'", "google-auth>=2.48.0; python_version>='3.10'",]
 all = ["allos-agent-sdk[openai,anthropic,ollama,google]"]
 dev = [
     "pytest>=8.4.2",

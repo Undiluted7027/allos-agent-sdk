@@ -155,8 +155,24 @@ def _ollama_running() -> bool:
 
 
 def _check_vertexai_conf() -> bool:
-    if os.getenv("GOOGLE_API_KEY") is not None:
+    if os.getenv("GOOGLE_CLOUD_PROJECT"):
         return True
+
+    # Check for service account file
+    sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if sa_path and os.path.exists(sa_path):
+        return True
+
+    # Try to detect ADC creds
+    try:
+        import google.auth
+        from google.auth.exceptions import DefaultCredentialsError
+
+        _, project = google.auth.default()
+        if project:
+            return True
+    except DefaultCredentialsError:
+        pass
     return False
 
 
@@ -167,7 +183,7 @@ def _apply_integration_key_skips(items):
         "requires_anthropic": lambda: bool(os.getenv("ANTHROPIC_API_KEY")),
         "requires_gemini": lambda: bool(os.getenv("GEMINI_API_KEY")),
         "requires_ollama": _ollama_running,
-        "requires_vertex": _check_vertexai_conf,
+        "requires_vertexai": _check_vertexai_conf,
     }
 
     for item in items:
@@ -217,9 +233,12 @@ def mock_api_keys(monkeypatch):
         "TEST_ANTHROPIC_API_KEY", "test-anthropic-api-key"
     )
     TEST_GEMINI_API_KEY = os.getenv("TEST_GEMINI_API_KEY", "test-gemini-api-key")
+    TEST_GOOGLE_API_KEY = os.getenv("TEST_GOOGLE_API_KEY", "test-google-api-key")
     monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
     monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
     monkeypatch.setenv("GEMINI_API_KEY", TEST_GEMINI_API_KEY)
+    monkeypatch.setenv("GOOGLE_API_KEY", TEST_GOOGLE_API_KEY)
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
 
 @pytest.fixture

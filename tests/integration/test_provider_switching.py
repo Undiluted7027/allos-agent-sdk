@@ -36,7 +36,7 @@ SIMPLE_CHAT_MESSAGES = [
 ]
 
 TOOL_CALL_MESSAGES = [
-    Message(role=MessageRole.USER, content="What is the weather like in Boston?"),
+    Message(role=MessageRole.USER, content="What is the weather like in Boston, MA?"),
 ]
 
 # --- Pytest Parametrization ---
@@ -57,6 +57,8 @@ providers_to_test = [
         marks=pytest.mark.requires_openai,
     ),
     pytest.param("ollama", marks=pytest.mark.requires_ollama),
+    pytest.param("google", marks=pytest.mark.requires_gemini),
+    pytest.param("google", marks=pytest.mark.requires_vertexai),
 ]
 
 # --- The Tests ---
@@ -77,6 +79,9 @@ def test_provider_switching_simple_chat(provider_name, default_ollama_model):
         model = "claude-3-haiku-20240307"
     elif provider_name == "ollama":
         model = default_ollama_model
+    elif provider_name == "google" or provider_name == "google_vertexai":
+        model = "gemini-2.5-flash-lite"
+
     else:
         model = "gpt-3.5-turbo"  # chat_completions default for testing
 
@@ -104,6 +109,8 @@ def test_provider_switching_tool_calling(provider_name, default_ollama_model):
         model = "claude-3-haiku-20240307"
     elif provider_name == "ollama":
         model = default_ollama_model
+    elif provider_name == "google" or provider_name == "google_vertexai":
+        model = "gemini-2.5-flash-lite"
     else:
         model = "gpt-3.5-turbo"  # chat_completions default for testing
 
@@ -113,9 +120,9 @@ def test_provider_switching_tool_calling(provider_name, default_ollama_model):
     response = provider.chat(TOOL_CALL_MESSAGES, tools=tools)
 
     # Assert that a valid tool call was requested
-    assert (
-        len(response.tool_calls) > 0
-    ), f"Expected {provider_name} to request a tool call"
+    assert len(response.tool_calls) > 0, (
+        f"Expected {provider_name} to request a tool call"
+    )
 
     tool_call = response.tool_calls[0]
     assert tool_call.name == "get_current_weather"

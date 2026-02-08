@@ -1,8 +1,10 @@
 # allos/providers/google.py
 
+import json
+import os
 import sys
 import time
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -30,6 +32,9 @@ if sys.version_info < (3, 10):
         f"Current version: {sys.version_info.major}.{sys.version_info.minor}"
     )
 
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials
+
 # Only runs on Python 3.10
 MODEL_CONTEXT_WINDOWS = {
     "gemini-2.5-flash": 1048576,
@@ -48,55 +53,180 @@ class GoogleProvider(BaseProvider):
     @classmethod
     def check_env_config(cls) -> Tuple[bool, str]:
         """Check for Gemini API key or Vertex AI configuration."""
-        import os
 
-        # Check Gemini API Keys
+        # Priority 1: Check Gemini API Keys
         if os.environ.get("GOOGLE_API_KEY"):
             return (True, "GOOGLE_API_KEY (Set)")
         if os.environ.get("GEMINI_API_KEY"):
             return (True, "GEMINI_API_KEY (Set)")
 
-        # Check Vertex AI configuration
+        # Priority 2: Check Service Account JSON file
+        sa_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if sa_path:
+            if os.path.exists(sa_path):
+                return (True, f"Service Account (File: {os.path.basename(sa_path)})")
+            else:
+                return (
+                    False,
+                    f"GOOGLE_APPLICATION_CREDENTIALS points to a non-existent file: {sa_path}",
+                )
+
+        # Priority 3: Check Vertex AI ADC configuration
         project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-        location = os.environ.get("GOOGLE_CLOUD_LOCATION")
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 
         if project:
-            loc_status = "Set" if location else "us-central1"
-            return (True, f"Vertex AI (PROJECT=Set, LOCATION={loc_status})")
-        return (False, "GOOGLE_API_KEY or GOOGLE_CLOUD_PROJECT (Not Set)")
+            return (True, f"Vertex AI ADC (PROJECT={project}, LOCATION={location})")
+
+        # Try to detect default ADC credentials
+        try:
+            import google.auth
+            from google.auth.exceptions import DefaultCredentialsError
+
+            creds, detected_project = google.auth.default()
+            if detected_project:
+                return (True, f"ADC (Auto-detected PROJECT={detected_project})")
+        except DefaultCredentialsError:
+            pass
+        return (
+            False,
+            "No authentication method configured. See documentation for setup instructions.",
+        )
 
     def __init__(
         self,
         model: str,
+        sub_provider: str = "google",
+        # Gemini API Auth (Backward compatible)
         api_key: Optional[str] = None,
+        # Vertex AI mode flag (Backward compatible)
         vertexai: bool = False,
+        # Vertex AI config
         project: Optional[str] = None,
         location: str = "us-central1",
+        # Service Acc Auth options
+        credentials: Optional["Credentials"] = None,
+        credentials_path: Optional[str] = None,
+        credentials_json: Optional[Union[Dict[str, Any], str]] = None,
+        # Service Acc impersonation
+        impersonate_service_account: Optional[str] = None,
+        impersonation_scopes: Optional[List[str]] = None,
         **kwargs: Any,
     ):
+        """Initialize Google provider with flexible authentication.
+
+        Args:
+            :param model: Model name (e.g., "gemini-2.0-flash")
+            :type model: str
+            :param sub_provider: Name of Sub provider (Vertex AI ONLY)
+            :type sub_provider: str
+            :param api_key: API key for Gemini API (not Vertex AI)
+            :type api_key: Optional[str]
+            :param vertexai: Use Vertex AI instead of Gemini API (Gemini API default)
+            :type vertexai: bool
+            :param project: GCP project ID (auto-detected if not provided)
+            :type project: Optional[str]
+            :param location: GCP region for Vertex AI (default: us-central1)
+            :type location: str
+            :param credentials: Pre-configured credentials object
+            :type credentials: Optional["Credentials"]
+            :param credentials_path: Path to service account JSON file
+            :type credentials_path: Optional[str]
+            :param credentials_json: Service account JSON as dict or string
+            :type credentials_json: Optional[Union[Dict[str, Any], str]]
+            :param impersonate_service_account: Service account email to impersonate
+            :type impersonate_service_account: Optional[str]
+            :param impersonation_scopes: OAuth scopes for impersonation
+            :type impersonation_scopes: Optional[List[str]]
+
+        Examples:
+            # Gemini API
+            provider = GoogleProvider(model="gemini-2.0-flash", api_key="...")
+
+            # Vertex AI with ADC
+            provider = GoogleProvider(model="gemini-2.0-flash", vertexai=True)
+
+            # Vertex AI with service account file
+            provider = GoogleProvider(
+                model="gemini-2.0-flash",
+                vertexai=True,
+                credentials_path="/path/to/sa.json"
+            )
+
+            # Vertex AI with service account JSON
+            provider = GoogleProvider(
+                model="gemini-2.0-flash",
+                vertexai=True,
+                credentials_json={"type": "service_account", ...}
+            )
+
+            # Vertex AI with impersonation
+            provider = GoogleProvider(
+                model="gemini-2.0-flash",
+                vertexai=True,
+                impersonate_service_account="sa@project.iam.gserviceaccount.com"
+            )
+        """
         super().__init__(model, **kwargs)
+        self._sub_provider = sub_provider
         self.vertexai = vertexai
-        self.project = project
         self.location = location
+        self._project = project
 
         # This will be populated by _verify_model_available()
         self._model_context_window: Optional[int] = None
 
+        # Store auth parameters for credential loading
+        self._api_key = api_key
+        self._credentials = credentials
+        self._credentials_path = credentials_path
+        self._credentials_json = credentials_json
+        self._impersonate_service_account = impersonate_service_account
+        self._impersonation_scopes = impersonation_scopes or [
+            "https://www.googleapis.com/auth/cloud-platform"
+        ]
+
         try:
             if vertexai:
-                self.client = genai.Client(
-                    vertexai=True, project=project, location=location
-                )
+                # Load credentials and detect project
+                creds, self.project = self._load_vertex_credentials()
+
+                # Validate project is available
+                if not self.project:
+                    raise ProviderError(
+                        "Vertex AI requires a project ID. Provide via:\n"
+                        "  1. 'project' parameter\n"
+                        "  2. GOOGLE_CLOUD_PROJECT environment variable\n"
+                        "  3. 'project_id' in service account JSON\n"
+                        "  4. Application Default Credentials",
+                        provider="google",
+                    )
+
+                # Initialize Vertex AI client
+                if creds:
+                    self.client = genai.Client(
+                        vertexai=True,
+                        project=self.project,
+                        location=location,
+                        credentials=creds,
+                    )
+                else:
+                    # Fall back to ADC
+                    self.client = genai.Client(
+                        vertexai=True, project=self.project, location=location
+                    )
             else:
+                # Gemini API mode
+                self.project = None
                 self.client = genai.Client(api_key=api_key)
+
             self._verify_model_available()
-            message = "Google "
-            if self.vertexai:
-                message += "Vertex AI "
-            else:
-                message += "Gemini "
-            message += f"API provider initialized for '{model}'."
-            logger.debug(message)
+            auth_method = "Vertex AI" if self.vertexai else "Gemini API"
+            logger.debug(f"Google {auth_method} provider initialized for '{model}'.")
+
+        except ProviderError:
+            raise
+
         except genai_errors.ClientError as e:
             # 4xx errors - likely auth/config issues
             raise ProviderError(
@@ -118,6 +248,242 @@ class GoogleProvider(BaseProvider):
                 f"Failed to initialize Google client: {e}", provider="google"
             ) from e
 
+    def _load_vertex_credentials(self) -> Tuple[Optional[Any], Optional[str]]:
+        """Load Vertex AI credentials following priority chain.
+
+        Returns:
+            Tuple of (credentials_object, project_id)
+            - credentials_object: google.auth.credentials.Credentials or None for ADC
+            - project_id: Detected project ID or None
+
+        Priority:
+            1. Explicit credentials object
+            2. Service account JSON path (parameter)
+            3. Service account JSON path (GOOGLE_APPLICATION_CREDENTIALS)
+            4. Service account JSON content (parameter)
+            5. Service account impersonation
+            6. Application Default Credentials (ADC) - returns (None, project)
+        """
+        project = self._project or os.environ.get("GOOGLE_CLOUD_PROJECT")
+
+        # Priority 1: Explicit credentials object
+        if self._credentials:
+            logger.debug("Using explicit credentials object")
+            return self._credentials, project
+
+        # Priority 2: Service account JSON path
+        if self._credentials_path:
+            logger.debug(f"Loading credentials from file: {self._credentials_path}")
+            return self._load_credentials_from_file(self._credentials_path, project)
+
+        # Priority 3: Service account JSON path (environment variable)
+        env_sa_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if env_sa_path:
+            logger.debug(
+                f"Loading credentials from GOOGLE_APPLICATION_CREDENTIALS: {env_sa_path}"
+            )
+            return self._load_credentials_from_file(env_sa_path, project)
+
+        # Priority 4: Service account JSON content
+        if self._credentials_json:
+            logger.debug("Loading credentials from JSON content")
+            return self._load_credentials_from_json(self._credentials_json, project)
+
+        # Priority 5: Service account impersonation
+        if self._impersonate_service_account:
+            logger.debug(
+                f"Impersonating service account: {self._impersonate_service_account}"
+            )
+            return self._load_impersonated_credentials(project)
+
+        # Priority 6: Application Default Credentials (ADC)
+        logger.debug("Using Application Default Credentials (ADC)")
+        return self._load_adc_credentials(project)
+
+    def _load_credentials_from_file(
+        self, file_path: str, project: Optional[str]
+    ) -> Tuple[Any, Optional[str]]:
+        """Load credentials from service account JSON file.
+
+        Args:
+            file_path: Path to service account JSON file
+            project: Explicit project ID (or None to extract from file)
+
+        Returns:
+            Tuple of (credentials, project_id)
+        """
+        from google.oauth2 import service_account
+
+        try:
+            if not os.path.exists(file_path):
+                raise ProviderError(
+                    f"Service account file not found: {file_path}", provider="google"
+                )
+
+            creds = service_account.Credentials.from_service_account_file(
+                file_path, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+
+            # Extract project from JSON if not provided
+            if not project:
+                with open(file_path) as f:
+                    sa_info = json.load(f)
+                    project = sa_info.get("project_id")
+                    if project:
+                        logger.debug(
+                            f"Extracted project from service account: {project}"
+                        )
+            return creds, project
+
+        except json.JSONDecodeError as e:
+            raise ProviderError(
+                f"Invalid JSON in service account file {file_path}: {e}",
+                provider="google",
+            ) from e
+
+        except Exception as e:
+            raise ProviderError(
+                f"Failed to load credentials from {file_path}: {e}", provider="google"
+            ) from e
+
+    def _load_credentials_from_json(
+        self, credentials_json: Union[Dict[str, Any], str], project: Optional[str]
+    ) -> Tuple[Any, Optional[str]]:
+        """Load credentials from service account JSON content.
+
+        Args:
+            credentials_json: Service account JSON as dict or JSON string
+            project: Explicit project ID (or None to extract from JSON)
+
+        Returns:
+            Tuple of (credentials, project_id)
+        """
+        from google.oauth2 import service_account
+
+        try:
+            # Parse JSON string to dict if needed
+            if isinstance(credentials_json, str):
+                sa_info = json.loads(credentials_json)
+            else:
+                sa_info = credentials_json
+
+            # Validate required fields
+            if not isinstance(sa_info, dict):
+                raise ProviderError(
+                    "credentials_json must be a dict or JSON string", provider="google"
+                )
+
+            creds = service_account.Credentials.from_service_account_info(
+                sa_info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+
+            # Extract project from JSON if not provided
+            if not project:
+                project = sa_info.get("project_id")
+                if project:
+                    logger.debug(f"Extracted project from credentials JSON: {project}")
+
+            return creds, project
+
+        except json.JSONDecodeError as e:
+            raise ProviderError(
+                f"Invalid JSON in credentials_json: {e}", provider="google"
+            ) from e
+        except Exception as e:
+            raise ProviderError(
+                f"Failed to load credentials from JSON: {e}", provider="google"
+            ) from e
+
+    def _load_impersonated_credentials(
+        self, project: Optional[str]
+    ) -> Tuple[Any, Optional[str]]:
+        """Load impersonated service account credentials.
+
+        Args:
+            project: Explicit project ID
+
+        Returns:
+            Tuple of (credentials, project_id)
+        """
+        import google.auth
+        from google.auth import impersonated_credentials
+
+        try:
+            # Get source credentials (ADC or explicit)
+            source_creds, detected_project = google.auth.default()
+
+            # Use detected project if not explicitly provided
+            if not project:
+                project = detected_project
+
+            # Create impersonated credentials
+            creds = impersonated_credentials.Credentials(
+                source_credentials=source_creds,
+                target_principal=self._impersonate_service_account,
+                target_scopes=self._impersonation_scopes,
+            )
+
+            logger.debug(
+                f"Impersonating {self._impersonate_service_account} "
+                f"with scopes: {self._impersonation_scopes}"
+            )
+
+            return creds, project
+
+        except Exception as e:
+            raise ProviderError(
+                f"Failed to impersonate service account {self._impersonate_service_account}: {e}\n"
+                f"Ensure source credentials have 'roles/iam.serviceAccountTokenCreator' role.",
+                provider="google",
+            ) from e
+
+    def _load_adc_credentials(
+        self, project: Optional[str]
+    ) -> Tuple[None, Optional[str]]:
+        """Use Application Default Credentials (ADC).
+
+        Args:
+            project: Explicit project ID
+
+        Returns:
+            Tuple of (None, project_id) - None signals ADC to genai.Client
+
+        Raises:
+            ProviderError: If ADC is not configured
+        """
+        import google.auth
+        from google.auth.exceptions import DefaultCredentialsError
+
+        try:
+            # Always verify ADC is available, even if project is provided
+            _, detected_project = google.auth.default()
+
+            # Use explicit project if provided, otherwise use detected project
+            if not project:
+                project = detected_project
+                if project:
+                    logger.debug(f"Auto-detected project from ADC: {project}")
+            else:
+                logger.debug(f"Using explicit project with ADC: {project}")
+
+            return None, project
+
+        except DefaultCredentialsError as e:
+            # ADC is not configured - this is a critical error
+            raise ProviderError(
+                "Application Default Credentials (ADC) not found. "
+                "To use Vertex AI, either:\n"
+                "  1. Set up ADC: gcloud auth application-default login\n"
+                "  2. Provide explicit credentials: credentials_path='/path/to/sa.json'\n"
+                "  3. Set GOOGLE_APPLICATION_CREDENTIALS env var\n"
+                "  4. Provide credentials as JSON: credentials_json={...}\n"
+                f"Original error: {e}",
+                provider="google",
+            ) from e
+        except Exception as e:
+            logger.warning(f"Could not detect project from ADC: {e}")
+            return None, project
+
     def _verify_model_available(self):
         """Check if the configured model is available.
 
@@ -125,10 +491,9 @@ class GoogleProvider(BaseProvider):
         1. The model name is valid and can be used with Gemini/Vertex AI APIs.
         2. Retrieves the model's actual context window size (if available)
         """
-        if not self.vertexai:
-            model_name = "models/" + self.model
-        else:
-            model_name = self.model
+        model_name = "models/" + self.model
+        if self.vertexai:
+            model_name = "publishers/" + self._sub_provider + "/" + model_name
         try:
             # First check if the model is in the list of available models
             pulled_models = self.client.models.list()

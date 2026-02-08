@@ -11,22 +11,26 @@ from allos.utils.token_counter import count_tokens
 
 
 # We can keep the real provider/tool registries, but mock the provider's .chat method
-@patch("allos.providers.openai.OpenAIProvider.chat")
-@patch("allos.providers.anthropic.AnthropicProvider.chat")
-@patch("allos.providers.chat_completions.ChatCompletionsProvider.chat")
-@patch("allos.providers.ollama.OllamaProvider.chat")
-@patch("allos.providers.ollama.OllamaProvider._verify_model_available")
 @patch("allos.agent.agent.Agent._check_tool_permission", return_value=True)
+@patch("allos.providers.google.GoogleProvider._verify_model_available")
+@patch("allos.providers.google.GoogleProvider.chat")
+@patch("allos.providers.ollama.OllamaProvider._verify_model_available")
+@patch("allos.providers.ollama.OllamaProvider.chat")
+@patch("allos.providers.chat_completions.ChatCompletionsProvider.chat")
+@patch("allos.providers.anthropic.AnthropicProvider.chat")
+@patch("allos.providers.openai.OpenAIProvider.chat")
 @pytest.mark.parametrize(
-    "provider_name", ["openai", "anthropic", "chat_completions", "ollama"]
+    "provider_name", ["openai", "anthropic", "chat_completions", "ollama", "google"]
 )
 def test_session_save_and_load_with_filesystem(
-    mock_check_permission,
-    mock_verify_ollama,
-    mock_ollama_chat,
-    mock_chat_completions_chat,
-    mock_anthropic_chat,
     mock_openai_chat,
+    mock_anthropic_chat,
+    mock_chat_completions_chat,
+    mock_ollama_chat,
+    mock_verify_ollama,
+    mock_google_chat,
+    mock_verify_google,
+    mock_check_permission,
     provider_name,
     work_dir: Path,
     mock_metadata_factory,
@@ -35,6 +39,8 @@ def test_session_save_and_load_with_filesystem(
     Tests the full end-to-end workflow of saving and loading a session to/from the filesystem.
     """
     mock_verify_ollama.return_value = None
+    mock_verify_google.return_value = None
+
     mock_provider_chat = mock_ollama_chat
     if provider_name == "openai":
         mock_provider_chat = mock_openai_chat
@@ -42,6 +48,8 @@ def test_session_save_and_load_with_filesystem(
         mock_provider_chat = mock_anthropic_chat
     elif provider_name == "chat_completions":
         mock_provider_chat = mock_chat_completions_chat
+    elif provider_name == "google":
+        mock_provider_chat = mock_google_chat
 
     # --- 1. SETUP and INITIAL RUN ---
     # Define the sequence of LLM intents for each turn

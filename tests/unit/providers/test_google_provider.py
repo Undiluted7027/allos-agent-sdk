@@ -6,6 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from google.auth.exceptions import DefaultCredentialsError
 
 # Skip entire module if Python < 3.10
 pytestmark = pytest.mark.skipif(
@@ -43,6 +44,45 @@ class MockTool(BaseTool):
 MOCK_TOOLS = [MockTool()]
 
 
+@pytest.fixture
+def mock_service_account_json():
+    """Valid service account JSON structure."""
+    return {
+        "type": "service_account",
+        "project_id": "allos-test-project-from-json",
+        "private_key_id": "key123",
+        "private_key": "-----BEGIN KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
+        "client_email": "allos@allos-test-project-from-json.iam.gserviceaccount.com",
+        "client_id": "123456789",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/allos%40allos-test-project-from-json.iam.gserviceaccount.com",
+        "universe_domain": "googleapis.com",
+    }
+
+
+@pytest.fixture
+def mock_credentials():
+    """Mock google.auth.credentials.Credentials object."""
+    mock_creds = MagicMock()
+    mock_creds.project_id = None
+    return mock_creds
+
+
+@pytest.fixture
+def mock_genai_client():
+    """Mock genai.Client with models list."""
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = [
+        types.Model(
+            name="publishers/google/models/gemini-2.0-flash",
+            input_token_limit=1048576,
+        )
+    ]
+    return mock_client
+
+
 class TestGoogleProviderInit:
     """Tests for GoogleProvider initialization"""
 
@@ -63,13 +103,28 @@ class TestGoogleProviderInit:
         mock_genai.Client.assert_called_once_with(api_key="test-key")
 
     @patch("allos.providers.google.genai")
-    def test_init_with_vertexai(self, mock_genai):
+    @patch("allos.providers.google.os.path.exists")
+    @patch("google.oauth2.service_account.Credentials.from_service_account_file")
+    def test_init_with_vertexai(
+        self, mock_from_sa_file, mock_exists, mock_genai, monkeypatch
+    ):
         """Test initialization with Vertex AI."""
+        monkeypatch.setenv(
+            "GOOGLE_APPLICATION_CREDENTIALS", "/path/to/test_credentials.json"
+        )
+
+        # Mock file system and credentials
+        mock_exists.return_value = True
+        mock_creds = MagicMock()
+        mock_from_sa_file.return_value = mock_creds
 
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_client.models.list.return_value = [
-            types.Model(name="gemini-2.0-flash", input_token_limit=1048576)
+            types.Model(
+                name="publishers/google/models/gemini-2.0-flash",
+                input_token_limit=1048576,
+            )
         ]
 
         provider = GoogleProvider(
@@ -82,7 +137,10 @@ class TestGoogleProviderInit:
         assert provider.vertexai is True  # pyright: ignore[reportAttributeAccessIssue]
         assert provider.project == "test-project"  # pyright: ignore[reportAttributeAccessIssue]
         mock_genai.Client.assert_called_once_with(
-            vertexai=True, project="test-project", location="us-central1"
+            vertexai=True,
+            project="test-project",
+            location="us-central1",
+            credentials=mock_creds,
         )
 
     @patch("allos.providers.google.genai")
@@ -156,12 +214,59 @@ class TestGoogleProviderCheckEnvConfig:
         assert is_configured is True
         assert "GEMINI_API_KEY (Set)" in message
 
+    @patch("allos.providers.google.os.path.exists")
+    def test_check_env_with_sa_file_exists(self, mock_exists, monkeypatch):
+        """Test environment check when service account file exists."""
+        mock_exists.return_value = True
+        monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/sa.json")
+
+        is_configured, message = GoogleProvider.check_env_config()
+
+        assert is_configured is True
+        assert "Service Account" in message
+        assert "sa.json" in message
+
+    @patch("allos.providers.google.os.path.exists")
+    def test_check_env_with_sa_file_not_exists(self, mock_exists, monkeypatch):
+        """Test environment check when service account file doesn't exist."""
+        mock_exists.return_value = False
+        monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/path/to/missing.json")
+
+        configured, message = GoogleProvider.check_env_config()
+
+        assert configured is False
+        assert "non-existent file" in message
+        assert "/path/to/missing.json" in message
+
+    @patch("google.auth.default")
+    def test_check_env_with_adc_auto_detect(self, mock_auth_default):
+        """Test environment check with ADC auto-detection."""
+        mock_creds = MagicMock()
+        mock_auth_default.return_value = (mock_creds, "auto-detected-project")
+
+        configured, message = GoogleProvider.check_env_config()
+
+        assert configured is True
+        assert "ADC" in message
+        assert "auto-detected-project" in message
+
+    @patch("google.auth.default")
+    def test_check_env_with_adc_default_credentials_error(self, mock_auth_default):
+        """Test environment check when ADC fails."""
+        mock_auth_default.side_effect = DefaultCredentialsError("No credentials")
+
+        configured, message = GoogleProvider.check_env_config()
+
+        assert configured is False
+        assert "No authentication method configured" in message
+
     def test_check_env_config_with_vertex_ai(self, monkeypatch):
         """Test check_env_config with Vertex AI configuration."""
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
         monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "us-west1")
+        monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
 
         from allos.providers.google import GoogleProvider
 
@@ -169,8 +274,8 @@ class TestGoogleProviderCheckEnvConfig:
 
         assert is_configured is True
         assert "Vertex AI" in message
-        assert "PROJECT=Set" in message
-        assert "LOCATION=Set" in message
+        assert "PROJECT=test-project" in message
+        assert "LOCATION=us-west1" in message
 
     def test_check_env_config_vertex_ai_default_location(self, monkeypatch):
         """Test check_env_config with Vertex AI using default location."""
@@ -197,7 +302,7 @@ class TestGoogleProviderCheckEnvConfig:
         is_configured, message = GoogleProvider.check_env_config()
 
         assert is_configured is False
-        assert "Not Set" in message
+        assert "No authentication method" in message
 
 
 class TestGoogleProviderChat:

@@ -27,7 +27,7 @@ class GetWeatherTool(BaseTool):
 
 @pytest.mark.integration
 @pytest.mark.requires_gemini
-def test_google_provider_simple_chat_integration():
+def test_google_gemini_provider_simple_chat_integration():
     """
     Performs a real API call to test simple chat completion.
     This test is skipped unless --run-integration is provided and GEMINI_API_KEY is set.
@@ -50,14 +50,16 @@ def test_google_provider_simple_chat_integration():
 
 
 @pytest.mark.integration
-@pytest.mark.requires_vertex
+@pytest.mark.requires_vertexai
 def test_google_vertexai_provider_simple_chat_integration():
     """
     Performs a real API call to test simple chat completion.
     This test is skipped unless --run-integration is provided and VertexAI is authenticated.
     """
     provider = ProviderRegistry.get_provider(
-        "google", model="gemini-2.5-flash-lite", vertexai=True
+        "google",
+        model="gemini-2.5-flash-lite",
+        vertexai=True,
     )
     messages = [
         Message(
@@ -73,3 +75,59 @@ def test_google_vertexai_provider_simple_chat_integration():
 
     assert response.content is not None
     assert "blue" in response.content.lower()
+
+
+@pytest.mark.integration
+@pytest.mark.requires_gemini
+def test_google_gemini_provider_tool_calling_integration():
+    """Peforms a real API call to test tool calling.
+    This test is skipped unless --run-integration is provided and GEMINI_API_KEY is set.
+    """
+    provider = ProviderRegistry.get_provider("google", model="gemini-2.5-flash-lite")
+    messages = [
+        Message(
+            role=MessageRole.USER, content="What is the weather like in Boston, MA?"
+        ),
+    ]
+    tools = [GetWeatherTool()]
+
+    response = provider.chat(messages, tools=tools)
+    assert response.content is not None or len(response.tool_calls) > 0, (
+        "Expected either text part content or a tool/function call"
+    )
+    assert len(response.tool_calls) > 0, "Expected the model to request a tool call"
+
+    tool_call = response.tool_calls[0]
+    assert tool_call.name == "get_current_weather"
+    assert "location" in tool_call.arguments
+    assert "boston" in tool_call.arguments["location"].lower()
+
+
+@pytest.mark.integration
+@pytest.mark.requires_vertexai
+def test_google_vertex_provider_tool_calling_integration():
+    """Performs a real API call to test tool calling.
+    This test is skipped unless --run-integration is provided and Vertex AI is authenticated."""
+    provider = ProviderRegistry.get_provider(
+        "google",
+        vertexai=True,
+        model="gemini-2.5-flash-lite",
+    )
+
+    messages = [
+        Message(
+            role=MessageRole.USER, content="What is the weather like in Boston, MA?"
+        ),
+    ]
+    tools = [GetWeatherTool()]
+
+    response = provider.chat(messages, tools=tools)
+    assert response.content is not None or len(response.tool_calls) > 0, (
+        "Expected either text part content or a tool/function call"
+    )
+    assert len(response.tool_calls) > 0, "Expected the model to request a tool call"
+
+    tool_call = response.tool_calls[0]
+    assert tool_call.name == "get_current_weather"
+    assert "location" in tool_call.arguments
+    assert "boston" in tool_call.arguments["location"].lower()
