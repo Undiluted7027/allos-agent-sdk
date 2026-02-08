@@ -4,7 +4,7 @@ This guide will walk you through installing the Allos Agent SDK. We recommend us
 
 ## Prerequisites
 
-- Python 3.9+
+- Python 3.10+
 - We recommend installing `uv`, a next-generation Python package manager.
 
 ### Installing `uv`
@@ -36,6 +36,12 @@ This installs the core SDK without any specific provider libraries.
 uv pip install allos-agent-sdk
 ```
 
+## Python Version Requirements
+
+Most providers work with Python 3.10+. However, **Google Gemini/Vertex AI provider requires Python 3.10+** due to dependencies on the Google GenAI SDK and [google-auth library](https://github.com/googleapis/google-auth-library-python).
+
+If you need to use Python 3.9, you can still use all other providers (OpenAI, Anthropic, Ollama, etc.).
+
 ### Installation with Providers
 
 To use a specific provider, you can install it as an "extra".
@@ -49,7 +55,10 @@ This is the recommended approach.
 # Install with support for OpenAI
 uv pip install "allos-agent-sdk[openai]"
 
-# Install with support for Anthropic
+# Install with support for Google Gemini/Vertex AI (requires Python 3.10+)
+uv pip install "allos-agent-sdk[google]"
+
+# Install with support for Anthropic Claude
 uv pip install "allos-agent-sdk[anthropic]"
 
 # Install with support for local models via Ollama

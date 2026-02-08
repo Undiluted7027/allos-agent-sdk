@@ -4,11 +4,21 @@ import json
 import os
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
+from google.genai.pagers import Pager
 
 from allos.providers.base import (
     BaseProvider,
@@ -37,11 +47,18 @@ if TYPE_CHECKING:
 
 # Only runs on Python 3.10
 MODEL_CONTEXT_WINDOWS = {
+    # Gemini 3.x models (Preview)
+    "gemini-3-flash-preview": 1048576,
+    "gemini-3-pro-preview": 1048576,
+    # Gemini 2.5.x models
     "gemini-2.5-flash": 1048576,
     "gemini-2.5-pro": 1048576,
+    # Gemini 2.0.x models
     "gemini-2.0-flash": 1048576,
+    # Gemini 1.5.x models
     "gemini-1.5-flash": 1048576,
     "gemini-1.5-pro": 2097152,
+    # Legacy
     "gemini-1.0-pro": 32768,
 }
 
@@ -172,6 +189,8 @@ class GoogleProvider(BaseProvider):
         self.vertexai = vertexai
         self.location = location
         self._project = project
+
+        self._thought_signatures_used: bool = False
 
         # This will be populated by _verify_model_available()
         self._model_context_window: Optional[int] = None
@@ -499,11 +518,23 @@ class GoogleProvider(BaseProvider):
             pulled_models = self.client.models.list()
             available_model_names = {m.name for m in pulled_models}
             if model_name not in available_model_names:
-                raise ProviderError(
-                    f"Model '{self.model}' not available. "
-                    f"If you're using Gemini API then ensure you use models/{self.model}.",
-                    provider="google",
-                )
+                # Find closest matching models for better error message
+                suggestions = self._find_similar_models(self.model, pulled_models)
+
+                error_msg = f"Model '{self.model}' not available."
+                if suggestions:
+                    error_msg += "\n\nDid you mean one of these?\n"
+                    for suggestion in suggestions[:5]:  # Show top 5 suggestions
+                        error_msg += f"  - {suggestion}\n"
+                else:
+                    shortened_models_list = list(pulled_models)
+                    error_msg += (
+                        f"\n\nAvailable models: {', '.join(sorted([self._extract_model_id(m.name) for m in shortened_models_list[:10] if m.name is not None]))}"
+                        if pulled_models
+                        else ""
+                    )
+
+                raise ProviderError(error_msg, provider="google")
             # Get detailed info
             model_info = next((m for m in pulled_models if m.name == model_name), None)
             # Extract context window from model info
@@ -520,17 +551,115 @@ class GoogleProvider(BaseProvider):
                 provider="google",
             ) from e
 
-    @staticmethod
+    def _extract_model_id(self, full_model_name: str) -> str:
+        """Extract clean model ID from full model name.
+
+        Args:
+            full_model_name: Full model name like 'models/gemini-2.0-flash' or
+                           'publishers/google/models/gemini-2.0-flash'
+
+        Returns:
+            Clean model ID like 'gemini-2.0-flash'
+        """
+        if "/models/" in full_model_name:
+            return full_model_name.split("/models/")[-1]
+        return full_model_name
+
+    def _find_similar_models(
+        self, requested_model: str, available_models: Pager[types.Model]
+    ) -> List[str]:
+        """Find models similar to the requested model.
+
+        Args:
+            requested_model: The model name that was requested
+            available_models: List of available model objects
+
+        Returns:
+            List of similar model names, sorted by similarity
+        """
+        import difflib
+
+        # Extract clean model IDs from available models
+        available_ids = [
+            self._extract_model_id(m.name)
+            for m in available_models
+            if m.name is not None
+        ]
+
+        # Use difflib to find close matches
+        # cutoff=0.4 means at least 40% similar
+        close_matches = difflib.get_close_matches(
+            requested_model, available_ids, n=5, cutoff=0.4
+        )
+
+        # If no close matches, suggest models with similar prefixes
+        if not close_matches:
+            requested_prefix = (
+                requested_model.split("-")[0]
+                if "-" in requested_model
+                else requested_model
+            )
+            prefix_matches = [
+                model_id
+                for model_id in available_ids
+                if model_id.startswith(requested_prefix)
+            ]
+            return sorted(prefix_matches)[:5]
+
+        return close_matches
+
+    def _convert_user_message(self, msg: Message) -> types.Content:
+        """Convert a user message to Google format."""
+        return types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=msg.content or "")],
+        )
+
+    def _convert_assistant_message(self, msg: Message) -> types.Content:
+        """Convert an assistant message to Google format."""
+        parts: List[types.Part] = []
+
+        if msg.content:
+            parts.append(types.Part.from_text(text=msg.content))
+
+        if msg.tool_calls:
+            parts.extend(self._convert_tool_calls(msg))
+
+        return types.Content(role="model", parts=parts)
+
+    def _convert_tool_calls(self, msg: Message) -> List[types.Part]:
+        """Convert tool calls to Google function call parts."""
+        parts = []
+        for tc in msg.tool_calls:
+            fc_part = types.Part.from_function_call(name=tc.name, args=tc.arguments)
+
+            # Attach thought signature if available
+            if msg.thought_signatures and tc.id in msg.thought_signatures:
+                thought_sig = msg.thought_signatures[tc.id]
+                fc_part.thought_signature = thought_sig
+                self._thought_signatures_used = True
+                logger.debug(f"Including thought signature for {tc.id}")
+
+            parts.append(fc_part)
+        return parts
+
+    def _convert_tool_message(self, msg: Message) -> types.Content:
+        """Convert a tool result message to Google format."""
+        return types.Content(
+            role="user",
+            parts=[
+                types.Part.from_function_response(
+                    name=msg.tool_call_id or "",
+                    response={"result": msg.content},
+                )
+            ],
+        )
+
     def _convert_messages(
+        self,
         messages: List[Message],
     ) -> tuple[Optional[str], List[types.Content]]:
-        """Convert Allos messages to Google format.
-
-        :param messages: A list of `allos.providers.base.Message` objects.
-        :type messages: List[Message]
-        :return: (system_instructtion, contents)
-        :rtype: tuple[str | None, Any]
-        """
+        """Convert Allos messages to google format."""
         system_instruction = None
         contents: List[types.Content] = []
 
@@ -538,39 +667,11 @@ class GoogleProvider(BaseProvider):
             if msg.role == MessageRole.SYSTEM:
                 system_instruction = msg.content
             elif msg.role == MessageRole.USER:
-                contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=msg.content or "")],
-                    )
-                )
+                contents.append(self._convert_user_message(msg))
             elif msg.role == MessageRole.ASSISTANT:
-                parts: List[types.Part] = []
-                if msg.content:
-                    parts.append(types.Part.from_text(text=msg.content))
-                if msg.tool_calls:
-                    for tc in msg.tool_calls:
-                        # Reconstructing function call part:
-                        parts.append(
-                            types.Part.from_function_call(
-                                name=tc.name,
-                                args=tc.arguments,
-                            )
-                        )
-                    contents.append(types.Content(role="model", parts=parts))
+                contents.append(self._convert_assistant_message(msg))
             elif msg.role == MessageRole.TOOL:
-                # Tool results are sent as 'user' role with function_response
-                contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=msg.tool_call_id or "",
-                                response={"result": msg.content},
-                            )
-                        ],
-                    )
-                )
+                contents.append(self._convert_tool_message(msg))
         return system_instruction, contents
 
     @staticmethod
@@ -607,29 +708,54 @@ class GoogleProvider(BaseProvider):
             function_declarations.append(func_decl)
         return [types.Tool(function_declarations=function_declarations)]
 
-    @staticmethod
     def _parse_response(
+        self,
         response: types.GenerateContentResponse,
-    ) -> Tuple[Optional[str], List[ToolCall]]:
+    ) -> Tuple[Optional[str], List[ToolCall], Optional[Dict[str, bytes]]]:
         """Parse Google response to Allos format.
 
-        :param response: Description
-        :return: Description
-        :rtype: Tuple[str | None, List[ToolCall]]
+        Returns:
+            Tuple of (content, tool_calls, thought_signatures)
         """
-        content = response.text  # can be None for function_call
+        content = None
         tool_calls = []
+        thought_signatures = {}
 
-        if response.function_calls:
-            for i, fc in enumerate(response.function_calls):
-                tool_calls.append(
-                    ToolCall(
-                        id=f"call_{fc.name}_{int(time.time() * 1000)}_{i}",
-                        name=fc.name or "unknown",
-                        arguments=dict(fc.args) if fc.args else {},
-                    )
-                )
-        return content, tool_calls
+        if response.candidates and len(response.candidates) > 0:
+            if response.candidates[0].content and response.candidates[0].content.parts:
+                # Extract text content and function calls from parts
+                text_parts = []
+                for idx, part in enumerate(response.candidates[0].content.parts):
+                    # Extract text content
+                    if part.text:
+                        text_parts.append(part.text)
+
+                    # Extract function calls
+                    if part.function_call:
+                        fc = part.function_call
+                        tool_call_id = f"call_{fc.name}_{int(time.time() * 1000)}_{idx}"
+                        tool_calls.append(
+                            ToolCall(
+                                id=tool_call_id,
+                                name=fc.name or "unknown",
+                                arguments=dict(fc.args) if fc.args else {},
+                            )
+                        )
+
+                        if part.thought_signature:
+                            thought_signatures[tool_call_id] = part.thought_signature
+                            logger.debug(
+                                f"Extracted thought signature for {tool_call_id}"
+                            )
+
+                # Combine text parts if any
+                content = "".join(text_parts) if text_parts else None
+
+        if thought_signatures:
+            self._thought_signatures_used = True
+            logger.debug("Thought signatures detected in response")
+
+        return content, tool_calls, thought_signatures if thought_signatures else None
 
     def chat(
         self,
@@ -647,6 +773,7 @@ class GoogleProvider(BaseProvider):
 
         config = types.GenerateContentConfig(**config_kwargs)
 
+        self._thought_signatures_used = False
         start_time = time.time()
         builder_kwargs = {
             "model": self.model,
@@ -658,12 +785,17 @@ class GoogleProvider(BaseProvider):
                 model=self.model, contents=contents, config=config
             )
 
+            # Parse response first to extract thought signatures and set the flag
+            content, tool_calls, thought_signatures = self._parse_response(response)
+
+            # Build metadata after parsing so the flag is set correctly
             metadata = self._build_metadata(response, builder_kwargs, start_time)
 
-            content, tool_calls = self._parse_response(response)
-
             return ProviderResponse(
-                content=content, tool_calls=tool_calls, metadata=metadata
+                content=content,
+                tool_calls=tool_calls,
+                thought_signatures=thought_signatures,
+                metadata=metadata,
             )
         except genai_errors.ClientError as e:
             raise ProviderError(
@@ -698,7 +830,39 @@ class GoogleProvider(BaseProvider):
         :return: Description
         :rtype: Iterator[ProviderChunk]
         """
+        config = self._prepare_stream_config(messages, tools, kwargs)
+        builder_kwargs = self._build_request_metadata(messages, tools)
+        self._thought_signatures_used = False
+        start_time = time.time()
+
+        try:
+            accumulated_thought_signatures = {}
+            stream = self.client.models.generate_content_stream(
+                model=self.model, contents=config["contents"], config=config["config"]
+            )
+
+            for chunk in stream:
+                yield from self._process_stream_chunk(
+                    chunk, accumulated_thought_signatures
+                )
+
+            # Yield final metadata chunk once at the end, after flag is set
+            yield self._build_final_chunk(builder_kwargs, start_time)
+        except genai_errors.APIError as e:
+            raise ProviderError(
+                f"Google API streaming error: {e}",
+                provider="google",
+            ) from e
+
+    def _prepare_stream_config(
+        self,
+        messages: List[Message],
+        tools: Optional[List[BaseTool]],
+        kwargs: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Prepare configuration for streaming request."""
         system_instruction, contents = self._convert_messages(messages)
+
         config_kwargs = {**kwargs}
         if system_instruction:
             config_kwargs["system_instruction"] = system_instruction
@@ -706,40 +870,78 @@ class GoogleProvider(BaseProvider):
             config_kwargs["tools"] = self._convert_tools(tools)
 
         config = types.GenerateContentConfig(**config_kwargs)
+        return {"contents": contents, "config": config}
 
-        start_time = time.time()
-        builder_kwargs = {
+    def _build_request_metadata(
+        self, messages: List[Message], tools: Optional[List[BaseTool]]
+    ) -> Dict[str, Any]:
+        """Build metadata for request tracking."""
+        _, contents = self._convert_messages(messages)
+        return {
             "model": self.model,
             "contents": contents,
             "tools": tools or [],
         }
 
-        try:
-            for chunk in self.client.models.generate_content_stream(
-                model=self.model, contents=contents, config=config
-            ):
-                # Yield text content
-                if chunk.text:
-                    yield ProviderChunk(content=chunk.text)
+    def _process_stream_chunk(
+        self,
+        chunk: types.GenerateContentResponse,
+        accumulated_thought_signatures: Dict[str, bytes],
+    ) -> Iterator[ProviderChunk]:
+        """Process a single streaming chunk."""
+        # Extract text content from parts to avoid warning about non-text parts
+        if chunk.candidates and chunk.candidates:
+            candidate = chunk.candidates[0]
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if part.text:
+                        yield ProviderChunk(content=part.text)
 
-                # Yield function Calls
-                if chunk.function_calls:
-                    for i, fc in enumerate(chunk.function_calls):
-                        yield ProviderChunk(
-                            tool_call_done=ToolCall(
-                                id=f"call_{fc.name}_{int(time.time() * 1000)}_{i}",
-                                name=fc.name or "unknown",
-                                arguments=dict(fc.args) if fc.args else {},
-                            )
-                        )
-                # Final metadata chunk
-                # Note: usage_metadata may not be available in all streaming chunks
-                yield self._build_final_chunk(builder_kwargs, start_time)
-        except genai_errors.APIError as e:
-            raise ProviderError(
-                f"Google API streaming error: {e}",
-                provider="google",
-            ) from e
+        # Process function calls
+        if chunk.function_calls:
+            yield from self._process_function_calls(
+                chunk, accumulated_thought_signatures
+            )
+
+            # Yield accumulated thought signatures
+            if accumulated_thought_signatures:
+                self._thought_signatures_used = True
+                yield ProviderChunk(thought_signatures=accumulated_thought_signatures)
+
+    def _process_function_calls(
+        self,
+        chunk: types.GenerateContentResponse,
+        accumulated_thought_signatures: Dict[str, bytes],
+    ) -> Iterator[ProviderChunk]:
+        """Extract and yield function calls from chunk."""
+        if not (chunk.candidates and chunk.candidates):
+            return
+
+        candidate = chunk.candidates[0]
+        if not (candidate.content and candidate.content.parts):
+            return
+
+        for idx, part in enumerate(candidate.content.parts):
+            if not part.function_call:
+                continue
+
+            fc = part.function_call
+            tool_call_id = f"call_{fc.name}_{int(time.time() * 1000)}_{idx}"
+
+            # Store thought signature if present
+            if part.thought_signature:
+                accumulated_thought_signatures[tool_call_id] = part.thought_signature
+                logger.debug(
+                    f"Extracted thought signature for {tool_call_id} in streaming"
+                )
+
+            yield ProviderChunk(
+                tool_call_done=ToolCall(
+                    id=tool_call_id,
+                    name=fc.name or "unknown",
+                    arguments=dict(fc.args) if fc.args else {},
+                )
+            )
 
     def _build_metadata(self, response, builder_kwargs, start_time):
         """Build Metadata from Google response."""
@@ -764,9 +966,18 @@ class GoogleProvider(BaseProvider):
             start_time=start_time,
         )
 
-        return builder.with_response_obj(
-            type("obj", (object,), synthetic_response)()
-        ).build()
+        google_specific = {
+            "vertexai": self.vertexai,
+            "project": self.project if self.vertexai else None,
+            "location": self.location if self.vertexai else None,
+            "used_thought_signatures": self._thought_signatures_used,
+        }
+
+        return (
+            builder.with_response_obj(type("obj", (object,), synthetic_response)())
+            .with_provider_specific(google=google_specific if google_specific else None)
+            .build()
+        )
 
     def _build_final_chunk(self, builder_kwargs, start_time):
         """Build final metadata chunk for streaming."""
@@ -783,9 +994,18 @@ class GoogleProvider(BaseProvider):
             start_time=start_time,
         )
 
-        metadata = builder.with_response_obj(
-            type("obj", (object,), synthetic_response)()
-        ).build()
+        google_specific = {
+            "vertexai": self.vertexai,
+            "project": self.project if self.vertexai else None,
+            "location": self.location if self.vertexai else None,
+            "used_thought_signatures": self._thought_signatures_used,
+        }
+
+        metadata = (
+            builder.with_response_obj(type("obj", (object,), synthetic_response)())
+            .with_provider_specific(google=google_specific if google_specific else None)
+            .build()
+        )
 
         return ProviderChunk(final_metadata=metadata)
 

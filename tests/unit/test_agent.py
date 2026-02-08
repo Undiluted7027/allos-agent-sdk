@@ -1,6 +1,6 @@
 # tests/unit/test_agent.py
 
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -637,3 +637,167 @@ class TestAgentStreaming:
         assert call_kwargs["max_tokens"] == 500
         assert "tools" in call_kwargs
         assert len(call_kwargs["tools"]) == 1
+
+
+class TestAgentThoughtSignatures:
+    """Test thought signatures handling in Agent streaming."""
+
+    def test_agent_streaming_accumulates_thought_signatures(
+        self, mock_get_provider, mock_get_tool, mock_metadata
+    ):
+        """Test that agent accumulates thought signatures during streaming."""
+        mock_tool = MagicMock()
+        mock_tool.name = "search"
+        mock_tool.permission = ToolPermission.ALWAYS_ALLOW
+        mock_tool.execute.return_value = {"result": "found"}
+        mock_get_tool.return_value = mock_tool
+
+        mock_provider = mock_get_provider.return_value
+
+        # Mock streaming response with thought signatures
+        def mock_stream_iteration_1():
+            # Text chunk
+            yield ProviderChunk(content="Searching...")
+
+            # Tool call chunk with thought signature
+            yield ProviderChunk(
+                tool_call_done=ToolCall(
+                    id="call_789", name="search", arguments={"query": "test"}
+                )
+            )
+
+            # Thought signature chunk
+            yield ProviderChunk(
+                thought_signatures={"call_789": b"agent_stream_thought_sig"}
+            )
+
+            # Final metadata
+            yield ProviderChunk(final_metadata=mock_metadata)
+
+        def mock_stream_iteration_2():
+            # Final text response
+            yield ProviderChunk(content="Found the answer")
+            yield ProviderChunk(final_metadata=mock_metadata)
+
+        mock_provider.stream_chat.side_effect = [
+            iter(mock_stream_iteration_1()),
+            iter(mock_stream_iteration_2()),
+        ]
+
+        config = AgentConfig(
+            provider_name="test",
+            model="test-model",
+            tool_names=["search"],
+            auto_approve=True,
+        )
+        agent = Agent(config)
+
+        # Run streaming
+        result_chunks = list(agent.stream_run("Search for test"))
+
+        # Verify we got chunks
+        assert len(result_chunks) > 0
+
+        # Verify thought signatures were handled (no errors)
+        # The chunks should include thought signature data
+        thought_sig_chunks = [
+            c
+            for c in result_chunks
+            if hasattr(c, "thought_signatures") and c.thought_signatures
+        ]
+        # We should have at least one chunk with thought signatures
+        assert len(thought_sig_chunks) >= 1
+
+    def test_agent_streaming_without_thought_signatures(
+        self, mock_get_provider, mock_get_tool, mock_metadata
+    ):
+        """Test agent streaming when no thought signatures are present."""
+        mock_tool = MagicMock()
+        mock_tool.name = "search"
+        mock_get_tool.return_value = mock_tool
+
+        mock_provider = mock_get_provider.return_value
+
+        # Mock streaming response WITHOUT thought signatures
+        def mock_stream():
+            yield ProviderChunk(content="Simple response")
+            yield ProviderChunk(final_metadata=mock_metadata)
+
+        mock_provider.stream_chat.return_value = iter(mock_stream())
+
+        config = AgentConfig(
+            provider_name="test",
+            model="test-model",
+            tool_names=[],
+            auto_approve=True,
+        )
+        agent = Agent(config)
+
+        # Run streaming - should not fail
+        result_chunks = list(agent.stream_run("Simple query"))
+
+        # Should complete successfully without errors
+        assert len(result_chunks) > 0
+
+    def test_agent_streaming_multiple_thought_signatures(
+        self, mock_get_provider, mock_get_tool, mock_metadata
+    ):
+        """Test agent accumulates multiple thought signatures."""
+        mock_tool = MagicMock()
+        mock_tool.name = "search"
+        mock_tool.permission = ToolPermission.ALWAYS_ALLOW
+        mock_tool.execute.return_value = {"result": "found"}
+        mock_get_tool.return_value = mock_tool
+
+        mock_provider = mock_get_provider.return_value
+
+        # Mock streaming with multiple tool calls and signatures
+        def mock_stream_iteration_1():
+            yield ProviderChunk(content="Processing...")
+
+            # First tool call
+            yield ProviderChunk(
+                tool_call_done=ToolCall(
+                    id="call_1", name="search", arguments={"query": "first"}
+                )
+            )
+
+            # Second tool call
+            yield ProviderChunk(
+                tool_call_done=ToolCall(
+                    id="call_2", name="search", arguments={"query": "second"}
+                )
+            )
+
+            # Thought signatures for both
+            yield ProviderChunk(
+                thought_signatures={
+                    "call_1": b"signature_1",
+                    "call_2": b"signature_2",
+                }
+            )
+
+            yield ProviderChunk(final_metadata=mock_metadata)
+
+        def mock_stream_iteration_2():
+            yield ProviderChunk(content="Done")
+            yield ProviderChunk(final_metadata=mock_metadata)
+
+        mock_provider.stream_chat.side_effect = [
+            iter(mock_stream_iteration_1()),
+            iter(mock_stream_iteration_2()),
+        ]
+
+        config = AgentConfig(
+            provider_name="test",
+            model="test-model",
+            tool_names=["search"],
+            auto_approve=True,
+        )
+        agent = Agent(config)
+
+        # Run streaming
+        result_chunks = list(agent.stream_run("Complex query"))
+
+        # Should handle multiple signatures without errors
+        assert len(result_chunks) > 0

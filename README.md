@@ -6,7 +6,7 @@
 
 *Build powerful AI agents without vendor lock-in*
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: Post MVP Phase 2 Active](https://img.shields.io/badge/status-Phase%202%20Active-blue.svg)](./POST_MVP_ROADMAP.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./.github/CONTRIBUTING.md)
@@ -29,7 +29,7 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 
 **The Problem**: Most agentic frameworks force you to choose between vendors, making it expensive and risky to switch models.
 
-**The Solution**: Allos provides a unified interface across OpenAI, Anthropic, Ollama, Google, Groq, Mistral, and more—so you can use the best model for each task without rewriting your code.
+**The Solution**: Allos provides a unified interface across OpenAI, Anthropic, Ollama, Google (Gemini/Vertex AI), Groq, Mistral, and more—so you can use the best model for each task without rewriting your code.
 
 ## ✨ Key Features
 
@@ -92,6 +92,9 @@ uv pip install allos-agent-sdk
 uv pip install "allos-agent-sdk[openai]"
 uv pip install "allos-agent-sdk[anthropic]"
 uv pip install "allos-agent-sdk[all]"  # All providers
+
+# With Google/Gemini support (requires Python 3.10+)
+uv pip install "allos-agent-sdk[google]"
 ```
 
 ### CLI Usage

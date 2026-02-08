@@ -42,12 +42,14 @@ class Message:
         content: The text content of the message. Can be None for tool calls.
         tool_calls: A list of tool calls requested by the assistant.
         tool_call_id: The ID of the tool call this message is a response to (for role='tool').
+        thought_signatures: Maps tool_call_id to signature (Gemini 3)
     """
 
     role: MessageRole
     content: Optional[str] = None
     tool_calls: List[ToolCall] = field(default_factory=list)
     tool_call_id: Optional[str] = None
+    thought_signatures: Optional[Dict[str, bytes]] = None
 
 
 @dataclass
@@ -57,6 +59,7 @@ class ProviderResponse:
     metadata: Metadata
     content: Optional[str] = None
     tool_calls: List[ToolCall] = field(default_factory=list)
+    thought_signatures: Optional[Dict[str, bytes]] = None
     # metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -73,6 +76,7 @@ class ProviderChunk:
     )
     tool_call_delta: Optional[str] = None  # e.g., '{"location": "S'
     tool_call_done: Optional[ToolCall] = None  # The fully formed ToolCall object
+    thought_signatures: Optional[Dict[str, bytes]] = None  # Google Gemini 3 thought signatures
     # usage: Optional[Dict[str, Any]] = None  # e.g., {"input_tokens": 10, ...}
     final_metadata: Optional[Metadata] = None
     error: Optional[str] = None

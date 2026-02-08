@@ -282,11 +282,24 @@ class ProviderSpecificOllama(BaseModel):
     warm_up: bool = False
     warm_up_duration_seconds: Optional[float] = None
 
+
 class ProviderSpecificGoogle(BaseModel):
-    """Container for metadata fields unique to Google's Gemini and Vertex AI API responses."""
+    """Container for metadata fields unique to Google's Gemini and Vertex AI API responses.
+
+    Attributes:
+        vertexai: Whether this request used Vertex AI (True) or Gemini API (False)
+        project: The GCP project ID (Vertex AI only)
+        location: The GCP region (Vertex AI only)
+        used_thought_signatures: Whether thought signatures were present in the request.
+            This is True if any thought signatures were extracted from the response OR
+            if any thought signatures were sent in the request conversation history.
+            Primarily relevant for Gemini 3.x models (required) and Gemini 2.5.x (optional).
+    """
+
     vertexai: bool = False
     project: Optional[str] = None
     location: Optional[str] = None
+    used_thought_signatures: bool = False
 
 
 class ProviderSpecific(BaseModel):
@@ -620,6 +633,9 @@ class MetadataBuilder:
             ollama_data = self._custom_provider_specific.get("ollama")
             if ollama_data:
                 return ProviderSpecific(ollama=ProviderSpecificOllama(**ollama_data))
+            google_data = self._custom_provider_specific.get("google")
+            if google_data:
+                return ProviderSpecific(google=ProviderSpecificGoogle(**google_data))
 
         # Fallback to OpenAI auto-detection for backward compatibility
         system_fingerprint_raw = getattr(self._response_obj, "system_fingerprint", None)

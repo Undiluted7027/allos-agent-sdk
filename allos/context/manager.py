@@ -29,7 +29,10 @@ class ConversationContext:
         self.messages.append(Message(role=MessageRole.USER, content=content))
 
     def add_assistant_message(
-        self, content: Optional[str], tool_calls: Optional[List[ToolCall]] = None
+        self,
+        content: Optional[str],
+        tool_calls: Optional[List[ToolCall]] = None,
+        thought_signatures: Optional[Dict[str, bytes]] = None,
     ) -> None:
         """Adds an assistant message, which may contain text and/or tool calls."""
         self.messages.append(
@@ -37,6 +40,7 @@ class ConversationContext:
                 role=MessageRole.ASSISTANT,
                 content=content,
                 tool_calls=tool_calls or [],
+                thought_signatures=thought_signatures,
             )
         )
 

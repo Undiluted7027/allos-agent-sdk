@@ -296,7 +296,9 @@ class Agent:
 
             # 2. Add the assistant's thinking/action to the context. This is now part of the history.
             self.context.add_assistant_message(
-                llm_response.content, llm_response.tool_calls
+                llm_response.content,
+                llm_response.tool_calls,
+                llm_response.thought_signatures,
             )
 
             # 3. If there are no tool calls, the loop is done. Return the final answer.
@@ -484,7 +486,9 @@ class Agent:
 
             # Update context with iteration results
             self._update_context_after_streaming(
-                iteration_result["content"], iteration_result["tool_calls"]
+                iteration_result["content"],
+                iteration_result["tool_calls"],
+                iteration_result.get("thought_signatures"),
             )
 
             # If no tools were called, we're done
@@ -519,6 +523,7 @@ class Agent:
         """
         accumulated_content: List[str] = []
         iteration_tool_calls: List[ToolCall] = []
+        accumulated_thought_signatures: Dict[str, bytes] = {}
 
         # TTFT Calculation State
         time_to_first_token_ms: Optional[int] = None
@@ -542,6 +547,9 @@ class Agent:
                 iteration_tool_calls.append(chunk.tool_call_done)
                 # cumulative_state["all_tool_details"].append(chunk.tool_call_done)
 
+            if chunk.thought_signatures:
+                accumulated_thought_signatures.update(chunk.thought_signatures)
+
             if chunk.final_metadata:
                 self._update_chunk_metadata(chunk, iteration_tool_calls)
                 self._accumulate_usage_stats(chunk.final_metadata, cumulative_state)
@@ -556,6 +564,7 @@ class Agent:
         return {
             "content": "".join(accumulated_content),
             "tool_calls": iteration_tool_calls,
+            "thought_signatures": accumulated_thought_signatures if accumulated_thought_signatures else None,
             "ttft_ms": time_to_first_token_ms,
         }
 
@@ -598,12 +607,16 @@ class Agent:
             cumulative_state["cost"] += metadata.usage.estimated_cost.total_usd
 
     def _update_context_after_streaming(
-        self, content: str, tool_calls: List[ToolCall]
+        self,
+        content: str,
+        tool_calls: List[ToolCall],
+        thought_signatures: Optional[Dict[str, bytes]] = None,
     ) -> None:
         """Updates conversation context with streaming iteration results."""
         self.context.add_assistant_message(
             content=content if content else None,
             tool_calls=tool_calls,
+            thought_signatures=thought_signatures,
         )
 
     def _yield_final_aggregate_metadata(
