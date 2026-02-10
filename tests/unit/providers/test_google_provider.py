@@ -224,7 +224,7 @@ class TestGoogleProviderInit:
         """Test handling of client initialization errors."""
 
         mock_genai.Client.side_effect = genai_errors.ClientError(
-            403, {"name": "Unauthorized"}
+            403, {"message": "Unauthorized"}
         )
 
         with pytest.raises(ProviderError) as exc_info:
@@ -237,7 +237,7 @@ class TestGoogleProviderInit:
         """Test handling of server errors during init."""
 
         mock_genai.Client.side_effect = genai_errors.ServerError(
-            500, response_json={"name": "Server Down"}
+            500, response_json={"message": "Server Down"}
         )
 
         with pytest.raises(ProviderError) as exc_info:
@@ -520,7 +520,7 @@ class TestGoogleProviderChat:
         ]
 
         mock_client.models.generate_content.side_effect = genai_errors.ClientError(
-            429, {"name": "Rate limit exceeded"}
+            429, {"message": "Rate limit exceeded"}
         )
 
         provider = GoogleProvider(model="gemini-2.0-flash", api_key="test-key")
@@ -837,7 +837,9 @@ class TestGoogleProviderErrorHandling:
     @patch("allos.providers.google.genai")
     def test_init_api_error_catch_all(self, mock_genai):
         """Test handling of generic APIError during init."""
-        mock_genai.Client.side_effect = genai_errors.APIError(520, "Generic API error")
+        mock_genai.Client.side_effect = genai_errors.APIError(
+            520, {"message": "Generic API error"}
+        )
 
         with pytest.raises(ProviderError) as exc_info:
             GoogleProvider(model="gemini-2.0-flash", api_key="test-key")
@@ -852,7 +854,7 @@ class TestGoogleProviderErrorHandling:
 
         # models.list() raises APIError
         mock_client.models.list.side_effect = genai_errors.APIError(
-            410, "Could not list models"
+            410, {"message": "Could not list models"}
         )
 
         with pytest.raises(ProviderError) as exc_info:
@@ -871,7 +873,7 @@ class TestGoogleProviderErrorHandling:
 
         # generate_content raises ServerError
         mock_client.models.generate_content.side_effect = genai_errors.ServerError(
-            500, response_json={"error": "Server overloaded"}
+            500, response_json={"message": "Server overloaded"}
         )
 
         provider = GoogleProvider(model="gemini-2.0-flash", api_key="test-key")
@@ -891,7 +893,7 @@ class TestGoogleProviderErrorHandling:
         ]
 
         mock_client.models.generate_content.side_effect = genai_errors.APIError(
-            500, "Unknown API error"
+            500, {"message": "Unknown API error"}
         )
 
         provider = GoogleProvider(model="gemini-2.0-flash", api_key="test-key")
@@ -912,7 +914,7 @@ class TestGoogleProviderErrorHandling:
 
         # generate_content_stream raises APIError
         mock_client.models.generate_content_stream.side_effect = genai_errors.APIError(
-            500, "Streaming failed"
+            500, {"message": "Streaming failed"}
         )
 
         provider = GoogleProvider(model="gemini-2.0-flash", api_key="test-key")
@@ -1010,7 +1012,7 @@ class TestGoogleProviderInitErrors:
     @patch("allos.providers.google.genai")
     def test_init_client_error(self, mock_genai):
         """Test initialization with genai ClientError (4xx)."""
-        error = genai_errors.ClientError(403, "Invalid API key")
+        error = genai_errors.ClientError(403, {"message": "Invalid API key"})
         error.message = "Invalid API key"
         mock_genai.Client.side_effect = error
 
@@ -1025,7 +1027,7 @@ class TestGoogleProviderInitErrors:
     @patch("allos.providers.google.genai")
     def test_init_server_error(self, mock_genai):
         """Test initialization with genai ServerError (5xx)."""
-        error = genai_errors.ServerError(500, "Internal server error")
+        error = genai_errors.ServerError(500, {"message": "Internal server error"})
         error.message = "Internal server error"
         mock_genai.Client.side_effect = error
 
@@ -1040,7 +1042,7 @@ class TestGoogleProviderInitErrors:
     @patch("allos.providers.google.genai")
     def test_init_api_error(self, mock_genai):
         """Test initialization with generic genai APIError."""
-        error = genai_errors.APIError(500, response_json={"message": "API Error"})
+        error = genai_errors.APIError(500, {"message": "API Error"})
         error.message = "API error"
         mock_genai.Client.side_effect = error
 
