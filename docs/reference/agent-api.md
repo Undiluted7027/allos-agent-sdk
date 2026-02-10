@@ -82,3 +82,61 @@ A class that holds the state of a conversation. It is managed internally by the 
 - `from_json(json_str: str) -> "ConversationContext"`
 
 For details on the `Message` and `ToolCall` objects stored within the context, please see the [Provider API Reference](./provider-api.md).
+
+## Thought Signature Handling (Gemini 3.x Support)
+
+The Agent automatically manages thought signatures required by certain LLM providers (currently Google Gemini 3.x models).
+
+### What are Thought Signatures?
+
+Thought signatures are encrypted representations of a model's internal reasoning process. Some models require these to be preserved and returned across conversation turns, especially during function calling.
+
+### Automatic Handling
+
+The SDK handles thought signatures transparently:
+
+1. **Extraction**: When a provider response includes thought signatures, they are automatically extracted
+2. **Storage**: Thought signatures are stored in the conversation context alongside messages
+3. **Preservation**: When sending conversation history back to the provider, thought signatures are
+   automatically included in the correct message parts
+4. **Validation**: The provider validates thought signatures (Gemini 3.x returns 400 errors if missing)
+
+### Developer Impact
+
+**You don't need to do anything!** The Agent handles this automatically.
+
+However, if you're building custom integrations or working with providers directly:
+
+```python
+from allos.providers import ProviderRegistry, Message, MessageRole
+
+provider = ProviderRegistry.get_provider("google", model="gemini-3-flash-preview")
+
+# First request
+response1 = provider.chat([Message(role=MessageRole.USER, content="Call the weather API")])
+
+# If response includes tool calls with thought signatures, preserve them:
+assistant_msg = Message(
+    role=MessageRole.ASSISTANT,
+    content=response1.content,
+    tool_calls=response1.tool_calls,
+    thought_signatures=response1.thought_signatures  # ← Preserve this
+)
+
+# When sending the conversation back, include the thought signatures
+messages = [
+    Message(role=MessageRole.USER, content="Call the weather API"),
+    assistant_msg,  # Includes thought signatures
+    Message(role=MessageRole.TOOL, tool_call_id="...", content="70°F")
+]
+
+response2 = provider.chat(messages)  # Provider will validate thought signatures
+```
+
+### Affected Providers
+
+Currently implemented for:
+- **Google Gemini 3.x** (Required for function calling)
+- **Google Gemini 2.5.x** (Optional but recommended)
+
+Future providers may adopt this pattern as needed.

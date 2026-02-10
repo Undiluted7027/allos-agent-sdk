@@ -10,7 +10,7 @@ factory to create provider instances on demand.
 import os
 from typing import Any, Dict, List, Optional, Tuple, Type
 
-from ..utils.errors import ConfigurationError
+from ..utils.errors import ConfigurationError, ProviderError
 from .base import BaseProvider
 
 # The global registry dictionary mapping provider names to their classes
@@ -108,6 +108,20 @@ class ProviderRegistry:
         """
         implementation_class = None
         config_overrides = {}
+
+        import sys
+
+        # Check Python version compatibility for Google provider
+        if name == "google" and sys.version_info < (3, 10):
+            raise ProviderError(
+                f"Google provider requires Python 3.10 or higher due to "
+                f"google-auth dependency. Current version: "
+                f"{sys.version_info.major}.{sys.version_info.minor}.\n"
+                f"Available providers on Python 3.9: openai, anthropic, ollama, "
+                f"chat_completions\n"
+                f"Please upgrade to Python 3.10+ or use a different provider.",
+                provider="google",
+            )
 
         # Check if it's a known OpenAI-compatible provider alias
         if name in OPENAI_COMPATIBLE_PROVIDERS:

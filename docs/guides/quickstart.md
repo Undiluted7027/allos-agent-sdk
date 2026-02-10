@@ -18,6 +18,7 @@ Create and run your first "Hello, World!" application using the Allos agent in u
     OPENAI_API_KEY="your_openai_api_key_here"
     # Or: ANTHROPIC_API_KEY="your_key"
     # Or: GROQ_API_KEY="gsk_..."
+    # Or: GEMINI_API_KEY="..."
     ```
 
     **Option B: Local Models (Ollama) - No API Key Required!**

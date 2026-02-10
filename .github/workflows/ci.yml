@@ -14,6 +14,23 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          # Specify which extras to install per Python version
+          - python-version: "3.9"
+            extras: "openai,anthropic,ollama"
+            test-marker: "not requires_python_310"
+          - python-version: "3.10"
+            extras: "all"  # Includes Google
+            test-marker: ""
+          - python-version: "3.11"
+            extras: "all"
+            test-marker: ""
+          - python-version: "3.12"
+            extras: "all"
+            test-marker: ""
+          - python-version: "3.13"
+            extras: "all"
+            test-marker: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -26,11 +43,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - name: Install dependencies and project
-        run: uv sync --locked --all-extras --dev
+      - name: Install dependencies (Python-version-specific)
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.9" ]; then
+            uv sync --locked --extra openai --extra anthropic --extra ollama --dev
+          else
+            uv sync --locked --all-extras --dev
+          fi
 
-      - name: Run tests
-        run: uv run pytest -v --cov=allos --cov-report=xml
+      - name: Run tests (with appropriate markers)
+        run: |
+          if [ -n "${{ matrix.test-marker }}" ]; then
+            uv run pytest -v --cov=allos --cov-report=xml -m "${{ matrix.test-marker }}"
+          else
+            uv run pytest -v --cov=allos --cov-report=xml
+          fi
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

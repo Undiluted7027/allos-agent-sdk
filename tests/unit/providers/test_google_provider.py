@@ -1,6 +1,10 @@
 # tests/unit/providers/test_google_provider.py
 
-"""Unit tests for Google/Gemini provider."""
+"""Tests for Google provider.
+
+NOTE: These tests require Python 3.10+ due to google-auth dependency.
+On Python 3.9, these tests are automatically skipped.
+"""
 
 import json
 import os
@@ -8,23 +12,23 @@ import sys
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+
+# Skip entire module on Python 3.9 or lower
+if sys.version_info < (3, 10):
+    pytest.skip(
+        "Google provider requires Python 3.10+ (google-auth>=2.48.0 dependency). "
+        "All Google provider tests skipped on Python 3.9.",
+        allow_module_level=True,
+    )
+
 from google.auth.exceptions import DefaultCredentialsError
+from google.genai import errors as genai_errors
+from google.genai import types
 
-# Skip entire module if Python < 3.10
-pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 10), reason="Google provider requires Python 3.10+"
-)
-
-# Conditional imports - only import if Python >= 3.10
-if sys.version_info >= (3, 10):
-    from google.genai import errors as genai_errors
-    from google.genai import types
-
-    from allos.providers.google import GoogleProvider
-
-from allos.providers.base import Message, MessageRole, ToolCall  # noqa: E402
-from allos.tools.base import BaseTool, ToolParameter  # noqa: E402
-from allos.utils.errors import ProviderError  # noqa: E402
+from allos.providers.base import Message, MessageRole, ToolCall
+from allos.providers.google import GoogleProvider
+from allos.tools.base import BaseTool, ToolParameter
+from allos.utils.errors import ProviderError
 
 
 class MockTool(BaseTool):

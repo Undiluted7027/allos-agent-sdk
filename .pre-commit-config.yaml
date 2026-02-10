@@ -47,6 +47,9 @@ repos:
           # --- Provider Dependencies ---
           - "openai>=1.10.0"
           - "anthropic>=0.20.0"
+          - "ollama>=0.6.1"
+          - "google-genai>=1.47.0; python_version>='3.10'"
+          - "google-auth>=2.48.0; python_version>='3.10'"
           # --- Stubs for untyped libraries ---
           - "types-PyYAML"
           # --- Dev Dependencies Mypy might need ---

@@ -228,3 +228,8 @@ manual_test_*.sh
 
 # Auth
 creds_*.json
+
+# AI REPL
+CLAUDE.md
+.claude/
+.github/copilot-instructions.md

@@ -119,6 +119,8 @@ class CumulativeState(TypedDict):
         input_tokens: The cumulative count of input tokens sent to the provider.
         output_tokens: The cumulative count of output tokens received from the provider.
         cost: The total estimated cost in USD for the entire run.
+        first_metadata: The first `Metadata` object received from the provider.
+                        Used to preserve provider-specific data from early turns.
         last_metadata: The most recent `Metadata` object received from the provider.
                        This is used as a base for building the final aggregate metadata.
         turn_history: A list of `TurnLog` objects, recording the details of each
@@ -129,6 +131,7 @@ class CumulativeState(TypedDict):
     input_tokens: int
     output_tokens: int
     cost: float
+    first_metadata: Optional[Metadata]
     last_metadata: Optional[Metadata]
     turn_history: List[Any]
 
@@ -269,6 +272,7 @@ class Agent:
             "input_tokens": 0,
             "output_tokens": 0,
             "cost": 0.0,
+            "first_metadata": None,
             "last_metadata": None,
             "turn_history": [],
         }
@@ -366,6 +370,7 @@ class Agent:
                     cumulative_state["input_tokens"],
                     cumulative_state["output_tokens"],
                     cumulative_state["cost"],
+                    cumulative_state.get("first_metadata"),
                 )
             )
         else:
@@ -379,11 +384,37 @@ class Agent:
         total_input_tokens: int,
         total_output_tokens: int,
         total_cost: float,
+        first_metadata: Optional[Metadata] = None,
     ) -> Metadata:
-        """Creates aggregated metadata for entire agentic run."""
+        """Creates aggregated metadata for entire agentic run.
+
+        Args:
+            base_metadata: The last turn's metadata (used as base for most fields)
+            all_tool_details: All tool calls across all turns
+            turn_history: History of all turns
+            total_input_tokens: Aggregated input tokens
+            total_output_tokens: Aggregated output tokens
+            total_cost: Aggregated cost
+            first_metadata: The first turn's metadata (for provider-specific data preservation)
+        """
         from copy import deepcopy
 
         aggregate = deepcopy(base_metadata)
+
+        # Preserve provider-specific metadata from first turn if not present in last turn
+        # This ensures fields like warm_up (Ollama) and system_fingerprint (OpenAI) are retained
+        if first_metadata and first_metadata.provider_specific:
+            if aggregate.provider_specific.openai is None and first_metadata.provider_specific.openai:
+                aggregate.provider_specific.openai = first_metadata.provider_specific.openai
+
+            if aggregate.provider_specific.ollama is None and first_metadata.provider_specific.ollama:
+                aggregate.provider_specific.ollama = first_metadata.provider_specific.ollama
+
+            if aggregate.provider_specific.google is None and first_metadata.provider_specific.google:
+                aggregate.provider_specific.google = first_metadata.provider_specific.google
+
+            if aggregate.provider_specific.anthropic is None and first_metadata.provider_specific.anthropic:
+                aggregate.provider_specific.anthropic = first_metadata.provider_specific.anthropic
 
         # Update turns
         aggregate.turns.total_turns = len(turn_history)
@@ -395,14 +426,6 @@ class Agent:
         # Update tool calls
         aggregate.tools.total_tool_calls = len(all_tool_details)
         aggregate.tools.tool_calls = all_tool_details
-        # aggregate.tools.tool_calls = [
-        #     ToolCallDetail(
-        #         tool_call_id=tc.id,
-        #         tool_name=tc.name,
-        #         arguments=tc.arguments,
-        #     )
-        #     for tc in all_tool_calls
-        # ]
 
         # Update usage
         aggregate.usage.total_tokens = total_input_tokens + total_output_tokens
@@ -442,6 +465,7 @@ class Agent:
             "input_tokens": 0,
             "output_tokens": 0,
             "cost": 0.0,
+            "first_metadata": None,
             "last_metadata": None,
             "turn_history": [],
         }
@@ -599,6 +623,10 @@ class Agent:
         self, metadata: Metadata, cumulative_state: CumulativeState
     ) -> None:
         """Accumulates token usage and cost statistics across iterations."""
+        # Store first metadata if not set (for provider-specific data preservation)
+        if cumulative_state.get("first_metadata") is None:
+            cumulative_state["first_metadata"] = metadata
+
         cumulative_state["last_metadata"] = metadata
         cumulative_state["input_tokens"] += metadata.usage.input_tokens
         cumulative_state["output_tokens"] += metadata.usage.output_tokens
@@ -631,6 +659,7 @@ class Agent:
                 cumulative_state["input_tokens"],
                 cumulative_state["output_tokens"],
                 cumulative_state["cost"],
+                cumulative_state.get("first_metadata"),
             )
             self.last_run_metadata = final_aggregate
             yield ProviderChunk(final_metadata=final_aggregate)

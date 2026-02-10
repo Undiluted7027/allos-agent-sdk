@@ -636,6 +636,9 @@ class MetadataBuilder:
             google_data = self._custom_provider_specific.get("google")
             if google_data:
                 return ProviderSpecific(google=ProviderSpecificGoogle(**google_data))
+            openai_data = self._custom_provider_specific.get("openai")
+            if openai_data:
+                return ProviderSpecific(openai=ProviderSpecificOpenAI(**openai_data))
 
         # Fallback to OpenAI auto-detection for backward compatibility
         system_fingerprint_raw = getattr(self._response_obj, "system_fingerprint", None)

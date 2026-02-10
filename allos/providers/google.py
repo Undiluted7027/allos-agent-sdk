@@ -1,8 +1,20 @@
 # allos/providers/google.py
 
+import sys
+
+# Enforce Python 3.10+ requirement at import time
+if sys.version_info < (3, 10):
+    raise ImportError(
+        f"Google provider requires Python 3.10 or higher.\n"
+        f"Current version: {sys.version_info.major}.{sys.version_info.minor}\n"
+        f"Reason: google-auth dependency requires Python 3.10+\n"
+        f"\nPlease either:\n"
+        f"1. Upgrade to Python 3.10 or higher, OR\n"
+        f"2. Use a different provider (openai, anthropic, ollama)"
+    )
+
 import json
 import os
-import sys
 import time
 from typing import (
     TYPE_CHECKING,
@@ -34,13 +46,6 @@ from allos.utils.errors import ProviderError
 
 from ..utils.logging import logger
 from .registry import provider
-
-if sys.version_info < (3, 10):
-    # pragma: no cover
-    raise ImportError(
-        "Google provider requires version Python 3.10 or higher. "
-        f"Current version: {sys.version_info.major}.{sys.version_info.minor}"
-    )
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -836,7 +841,7 @@ class GoogleProvider(BaseProvider):
         start_time = time.time()
 
         try:
-            accumulated_thought_signatures = {}
+            accumulated_thought_signatures: Dict[str, bytes] = {}
             stream = self.client.models.generate_content_stream(
                 model=self.model, contents=config["contents"], config=config["config"]
             )

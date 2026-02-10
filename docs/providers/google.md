@@ -304,6 +304,50 @@ agent = Agent(config)
 response = agent.run("Read the file 'data.json' and tell me what it contains")
 ```
 
+### What are Thought Signatures?
+
+Gemini 3.x models use "thought signatures" - encrypted representations of the model's internal
+reasoning process. These are required during function calling to maintain reasoning context
+across multiple steps.
+
+#### How Allos Handles Them
+
+The Allos SDK **automatically manages thought signatures** for you:
+
+✅ Extracted from model responses
+✅ Stored in conversation history
+✅ Sent back to the API in subsequent requests
+✅ Validated by the Google API
+
+**You don't need to do anything!** Just use the Agent or Provider normally.
+
+#### When You Might See Errors
+
+If you see an error like:
+```
+Function call is missing a thought_signature in functionCall parts
+```
+
+**Causes**:
+1. Using Gemini 3.x models with an outdated version of the Allos SDK
+2. Manually constructing messages without preserving thought signatures
+3. Using a custom tool execution loop that doesn't preserve message metadata
+
+**Solutions**:
+1. Update to the latest Allos SDK version: `uv pip install --upgrade allos-agent-sdk`
+2. Use the `Agent` class instead of manual provider calls
+3. If using providers directly, ensure you preserve `thought_signatures` in Message objects
+
+#### Model Behavior Differences
+
+| Feature | Gemini 3.x | Gemini 2.5.x | Gemini 2.0.x |
+|---------|------------|--------------|--------------|
+| Thought Signatures | **Required** for function calling | Optional (recommended) | Not used |
+| Validation | Strict (400 error if missing) | No validation | N/A |
+| Context Preservation | Mandatory | Improves quality | N/A |
+
+**Recommendation**: Use Gemini 2.0-flash or 2.5-flash unless you specifically need Gemini 3.x features.
+
 ---
 
 ## Authentication Priority
@@ -348,7 +392,7 @@ uv python install 3.10
 **Error**: `Authentication or configuration error: Invalid API key`
 
 **Solution**:
-1. Verify your API key at [Google AI Studio](https://makersuite.google.com/app/apikey)
+1. Verify your API key at [Google AI Studio](https://aistudio.google.com/app/apikey)
 2. Check environment variable is set: `echo $GOOGLE_API_KEY`
 3. Ensure no spaces or quotes in the key
 
@@ -484,7 +528,7 @@ config = AgentConfig(
 
 ## Additional Resources
 
-- [Google AI Studio](https://makersuite.google.com/) - Get Gemini API keys
+- [Google AI Studio](https://aistudio.google.com/) - Get Gemini API keys
 - [Vertex AI Documentation](https://cloud.google.com/vertex-ai/docs)
 - [Gemini API Documentation](https://ai.google.dev/gemini-api/docs)
 - [Google Auth Library](https://google-auth.readthedocs.io/)

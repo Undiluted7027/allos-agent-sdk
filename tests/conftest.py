@@ -33,6 +33,15 @@ from allos.utils.token_counter import count_tokens
 
 OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
+# Default models for providers
+PROVIDER_MODELS = {
+    "openai": "gpt-4o",
+    "anthropic": "claude-3-haiku-20240307",
+    "ollama": os.getenv("TEST_OLLAMA_MODEL", "qwen3:8b"),  # Reads env or defaults
+    "chat_completions": "gpt-3.5-turbo",
+    "google": "gemini-2.5-flash-lite",
+}
+
 # This sets the env var before the coverage plugin finishes initialization
 if sys.version_info < (3, 10):
     os.environ["OMIT_FOR_VERSION"] = "allos/providers/google.py"
@@ -103,6 +112,14 @@ def pytest_configure(config):
         "requires_vertexai: marks tests as requiring Vertex AI authentication",
     )
     config.addinivalue_line("markers", "slow: marks tests as slow-running tests")
+    config.addinivalue_line(
+        "markers",
+        "requires_python_310: marks tests requiring Python 3.10+ (Google provider)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "skip_on_python_39: alias for requires_python_310",
+    )
 
 
 def _skip_integration_tests(items):
@@ -324,6 +341,70 @@ def mock_provider_factory(
     return _create_mock_provider
 
 
+def get_available_provider_params():
+    """
+    Get pytest parametrize values for all available providers.
+
+    Returns parameters as (provider_name, model_name), with Google conditionally skipped on Python 3.9.
+    """
+    import sys
+
+    # Helper to construct param with model
+    def make_param(name, marks, id_val, model_override=None):
+        model = model_override or PROVIDER_MODELS.get(name)
+
+        if model is None:
+            raise ValueError(
+                f"model was not provided or not configured as default for provider {name}."
+            )
+        return pytest.param(name, model, marks=marks, id=id_val)
+
+    base_providers = [
+        make_param("openai", pytest.mark.requires_openai, "openai"),
+        make_param("anthropic", pytest.mark.requires_anthropic, "anthropic"),
+        make_param("ollama", pytest.mark.requires_ollama, "ollama"),
+        make_param("chat_completions", pytest.mark.requires_openai, "chat_completions"),
+    ]
+
+    if sys.version_info >= (3, 10):
+        base_providers.append(
+            make_param("google", pytest.mark.requires_gemini, "gemini")
+        )
+        base_providers.append(
+            make_param("google", pytest.mark.requires_vertexai, "vertexai")
+        )
+    else:
+        # Skip Google on older Python
+        skip_google = [
+            pytest.mark.skip("Google requires Python 3.10+"),
+            pytest.mark.requires_gemini,
+            pytest.mark.requires_vertexai,
+        ]
+        base_providers.append(make_param("google", skip_google, "google-py39-skip"))
+
+    return base_providers
+
+
+@pytest.fixture
+def skip_if_python_39():
+    """Skip test if running on Python 3.9."""
+    import sys
+
+    if sys.version_info < (3, 10):
+        pytest.skip("Test requires Python 3.10+")
+
+
+@pytest.fixture
+def available_providers():
+    """Return list of providers available on current Python version."""
+    import sys
+
+    providers = ["openai", "anthropic", "ollama", "chat_completions"]
+    if sys.version_info >= (3, 10):
+        providers.append("google")
+    return providers
+
+
 @pytest.fixture
 def mock_tool_factory(mocker: MockerFixture) -> Callable[..., BaseTool]:
     """
@@ -367,12 +448,16 @@ def mock_metadata_factory() -> Callable[..., Metadata]:
         # Extract usage kwargs if provided
         usage_kwargs = kwargs.pop("usage", {})
 
+        # Extract model shortcuts if provided
+        provider = kwargs.pop("provider", "mock")
+        model_id = kwargs.pop("model_id", "mock-model")
+
         # Define the baseline structure with proper types
         base_metadata: dict[str, Any] = {
             "status": "success",
             "model": ModelInfo(
-                provider="mock",
-                model_id="mock-model",  # String, not MagicMock
+                provider=provider,
+                model_id=model_id,
                 configuration=ModelConfiguration(max_output_tokens=8192),
             ),
             "usage": Usage(

@@ -2,7 +2,10 @@
 
 Welcome to the Allos Agent SDK! This guide provides a conceptual overview of the two main ways to use Allos: the **Command-Line Interface (CLI)** for quick tasks and the **Python API** for building custom applications.
 
-Allos works with **10+ LLM providers** out of the box, including OpenAI, Anthropic, Groq, Mistral, Together AI, and local models via Ollama.
+Allos works with **10+ LLM providers** out of the box, including OpenAI, Anthropic, Google (Gemini/Vertex AI), Groq, Mistral, Together AI, and local models via Ollama.
+
+> [!IMPORTANT]
+> **Python 3.10 or higher is required** for the Google (Gemini/Vertex AI) provider. All other providers work with Python 3.9+.
 
 For a runnable code example, see our [5-Minute Quickstart](./guides/quickstart.md).
 
@@ -11,12 +14,16 @@ For a runnable code example, see our [5-Minute Quickstart](./guides/quickstart.m
 First, install the SDK and configure your API keys.
 
 ```bash
-# Install the SDK with all providers
+# Install with all providers (requires Python 3.10+)
 uv pip install "allos-agent-sdk[all]"
+
+# Or install specific providers
+uv pip install "allos-agent-sdk[openai,anthropic]"  # Without Google
+uv pip install "allos-agent-sdk[google]"  # Google only (Python 3.10+)
 
 # Create a .env file for your keys
 echo "OPENAI_API_KEY=your_key_here" > .env
-# echo "GROQ_API_KEY=your_key_here" >> .env
+echo "GOOGLE_API_KEY=your_gemini_key" >> .env  # For Gemini API
 ```
 For more details, see the [Installation Guide](./installation.md).
 

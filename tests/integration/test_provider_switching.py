@@ -5,6 +5,7 @@ import pytest
 
 from allos.providers import Message, MessageRole, ProviderRegistry
 from allos.tools.base import BaseTool, ToolParameter
+from tests.conftest import get_available_provider_params
 
 
 # --- Tool Definition (Shared between tests) ---
@@ -40,50 +41,20 @@ TOOL_CALL_MESSAGES = [
 ]
 
 # --- Pytest Parametrization ---
-# We create a list of providers to test. This makes it easy to add more providers later.
-# We now use our custom markers for more specific skipping.
+# tuples of (provider_name, model_name)
 
-providers_to_test = [
-    pytest.param(
-        "openai",
-        marks=pytest.mark.requires_openai,
-    ),
-    pytest.param(
-        "anthropic",
-        marks=pytest.mark.requires_anthropic,
-    ),
-    pytest.param(
-        "chat_completions",
-        marks=pytest.mark.requires_openai,
-    ),
-    pytest.param("ollama", marks=pytest.mark.requires_ollama),
-    pytest.param("google", marks=pytest.mark.requires_gemini),
-    pytest.param("google", marks=pytest.mark.requires_vertexai),
-]
+providers_to_test = get_available_provider_params()
 
 # --- The Tests ---
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("provider_name", providers_to_test)
-def test_provider_switching_simple_chat(provider_name, default_ollama_model):
+@pytest.mark.parametrize("provider_name, model", providers_to_test)
+def test_provider_switching_simple_chat(provider_name, model):
     """
     Tests simple chat across multiple providers to ensure a consistent interface.
     """
     print(f"\n--- Testing Simple Chat on Provider: {provider_name.upper()} ---")
-
-    # Use a model appropriate for the provider
-    if provider_name == "openai":
-        model = "gpt-4o"
-    elif provider_name == "anthropic":
-        model = "claude-3-haiku-20240307"
-    elif provider_name == "ollama":
-        model = default_ollama_model
-    elif provider_name == "google" or provider_name == "google_vertexai":
-        model = "gemini-2.5-flash-lite"
-
-    else:
-        model = "gpt-3.5-turbo"  # chat_completions default for testing
 
     provider = ProviderRegistry.get_provider(provider_name, model=model)
     response = provider.chat(SIMPLE_CHAT_MESSAGES, temperature=0)
@@ -95,24 +66,12 @@ def test_provider_switching_simple_chat(provider_name, default_ollama_model):
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("provider_name", providers_to_test)
-def test_provider_switching_tool_calling(provider_name, default_ollama_model):
+@pytest.mark.parametrize("provider_name, model", providers_to_test)
+def test_provider_switching_tool_calling(provider_name, model):
     """
     Tests tool calling across multiple providers to ensure a consistent interface.
     """
     print(f"\n--- Testing Tool Calling on Provider: {provider_name.upper()} ---")
-
-    # Use a model appropriate for the provider
-    if provider_name == "openai":
-        model = "gpt-4o"
-    elif provider_name == "anthropic":
-        model = "claude-3-haiku-20240307"
-    elif provider_name == "ollama":
-        model = default_ollama_model
-    elif provider_name == "google" or provider_name == "google_vertexai":
-        model = "gemini-2.5-flash-lite"
-    else:
-        model = "gpt-3.5-turbo"  # chat_completions default for testing
 
     tools = [GetWeatherTool()]
 

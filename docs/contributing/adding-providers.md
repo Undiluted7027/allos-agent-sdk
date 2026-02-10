@@ -110,3 +110,41 @@ from . import nexusai # Add this line
 -   Add integration tests in `tests/integration/test_nexusai_provider.py`. Mark them with the `run_integration_tests` decorator.
 
 Congratulations! You've successfully extended the Allos SDK with a new provider.
+
+## Advanced: Supporting Thought Signatures
+
+Some LLM providers (like Google Gemini 3.x) use "thought signatures" - encrypted reasoning
+state that must be preserved across conversation turns.
+
+If you're implementing a provider that requires this:
+
+1. **Extract thought signatures from the API response**:
+   ```python
+   def _parse_response(self, response):
+       thought_signatures = {}
+       for part in response.parts:
+           if part.thought_signature:
+               thought_signatures[part.id] = part.thought_signature
+       return ProviderResponse(
+           content=...,
+           tool_calls=...,
+           thought_signatures=thought_signatures if thought_signatures else None
+       )
+   ```
+
+2. **Preserve thought signatures in message conversion**:
+   ```python
+   def _convert_messages(self, messages: List[Message]):
+       for msg in messages:
+           if msg.thought_signatures and msg.tool_calls:
+               # Include thought signatures when reconstructing tool call parts
+               for tc in msg.tool_calls:
+                   sig = msg.thought_signatures.get(tc.id)
+                   # Add signature to your API's request format
+   ```
+
+3. **Handle streaming**:
+   - Accumulate thought signatures across chunks
+   - Include in final metadata or in specific chunks
+
+See `allos/providers/google.py` for a complete reference implementation.

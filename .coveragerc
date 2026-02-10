@@ -1,0 +1,15 @@
+[run]
+branch = True
+source = allos
+omit =
+    */tests/*
+    */conftest.py
+    # Conditionally omit Google provider on Python 3.9
+    # (handled via environment variable in conftest.py)
+    allos/providers/google.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    if sys.version_info < (3, 10):  # Version-gated code

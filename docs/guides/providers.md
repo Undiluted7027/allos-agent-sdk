@@ -1,6 +1,6 @@
 # Using LLM Providers
 
-The core feature of the Allos SDK is its provider-agnostic design. This guide shows you how to initialize and switch between different LLM providers like OpenAI, Anthropic, Ollama, and more using a unified interface.
+The core feature of the Allos SDK is its provider-agnostic design. This guide shows you how to initialize and switch between different LLM providers like OpenAI, Anthropic, Ollama, Google (Gemini/Vertex AI) and more using a unified interface.
 
 ## The `ProviderRegistry`
 
@@ -16,9 +16,40 @@ openai_provider = ProviderRegistry.get_provider("openai", model="gpt-4o")
 anthropic_provider = ProviderRegistry.get_provider(
     "anthropic", model="claude-3-5-sonnet-20240620"
 )
+
+# Get an instance of the Google provider (Gemini API)
+google_provider = ProviderRegistry.get_provider(
+    "google", model="gemini-2.0-flash"
+)
+
+# Get an instance of the Google provider (Vertex AI)
+vertex_provider = ProviderRegistry.get_provider(
+    "google",
+    model="gemini-2.0-flash",
+    vertexai=True,
+    project="my-gcp-project"
+)
 ```
 
 The first argument is the provider's unique name (e.g., `"openai"`), and all other keyword arguments are passed directly to the provider's constructor. The `model` argument is always required.
+
+## Supported Providers
+
+| Provider | Name | Best For | Python Version |
+|----------|------|----------|----------------|
+| OpenAI | `openai` | GPT models, production-ready | 3.9+ |
+| Anthropic | `anthropic` | Claude models, reasoning | 3.9+ |
+| Google Gemini | `google` | Gemini models, multimodal | **3.10+** |
+| Ollama | `ollama` | Local models, privacy | 3.9+ |
+| Groq | `groq` | Fast inference | 3.9+ |
+| Chat Completions | `chat_completions` | Any OpenAI-compatible API | 3.9+ |
+
+For detailed information on each provider, see:
+- [OpenAI Provider](../providers/openai.md)
+- [Anthropic Provider](../providers/anthropic.md)
+- [Google Provider](../providers/google.md)
+- [Ollama Provider](../providers/ollama.md)
+- [Chat Completions Provider](../providers/chat-completions.md)
 
 ## Universal Compatibility (OpenAI-Compatible APIs)
 

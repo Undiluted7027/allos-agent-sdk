@@ -1,6 +1,15 @@
 # tests/integration/test_google_real.py
 
+import sys
+
 import pytest
+
+if sys.version_info < (3, 10):
+    pytest.skip(
+        "Google provider requires Python 3.10+ (google-auth>=2.48.0 dependency). "
+        "All Google provider tests skipped on Python 3.9.",
+        allow_module_level=True,
+    )
 
 from allos.providers import Message, MessageRole, ProviderRegistry
 from allos.tools.base import BaseTool, ToolParameter

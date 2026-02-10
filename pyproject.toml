@@ -55,6 +55,7 @@ google = ["google-genai>=1.47.0; python_version>='3.10'", "google-auth>=2.48.0; 
 all = ["allos-agent-sdk[openai,anthropic,ollama,google]"]
 dev = [
     "pytest>=8.4.2",
+    "pytest-order>=1.3.0",
     "black>=25.9.0",
     "ruff>=0.14.3",
     "mypy>=1.18.2",
@@ -129,7 +130,7 @@ convention = "google"
 
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true

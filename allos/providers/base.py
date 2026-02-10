@@ -76,7 +76,9 @@ class ProviderChunk:
     )
     tool_call_delta: Optional[str] = None  # e.g., '{"location": "S'
     tool_call_done: Optional[ToolCall] = None  # The fully formed ToolCall object
-    thought_signatures: Optional[Dict[str, bytes]] = None  # Google Gemini 3 thought signatures
+    thought_signatures: Optional[Dict[str, bytes]] = (
+        None  # Google Gemini 3 thought signatures
+    )
     # usage: Optional[Dict[str, Any]] = None  # e.g., {"input_tokens": 10, ...}
     final_metadata: Optional[Metadata] = None
     error: Optional[str] = None
@@ -167,11 +169,6 @@ class BaseProvider(ABC):
 
     def __repr__(self) -> str:
         """Provides a formal, unambiguous string representation of the provider instance.
-
-        This representation is designed to be developer-friendly, closely resembling
-        a constructor call. It includes the specific provider's class name and the
-        model it is configured to use, making it invaluable for debugging, logging,
-        and interactive inspection.
 
         Returns:
             A string in the format 'ClassName(model='model_name')'.

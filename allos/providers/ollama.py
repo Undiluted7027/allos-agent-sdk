@@ -164,7 +164,7 @@ class OllamaProvider(BaseProvider):
                 f"Failed to initialize Ollama client: {e}", provider="ollama"
             ) from e
 
-    def _verify_model_available(self):
+    def _verify_model_available(self) -> None:
         """Checks if the configured model is available and retrieves its capabilities.
 
         This method verifies that:
@@ -330,7 +330,9 @@ class OllamaProvider(BaseProvider):
                     f"Tool call #{index} missing 'function' attribute, skipping"
                 )
                 return None
-            tool_id = getattr(tc, "id", None) or f"ollama-tool-{int(time.time() * 1000)}"
+            tool_id = (
+                getattr(tc, "id", None) or f"ollama-tool-{int(time.time() * 1000)}"
+            )
 
         # Extract name and arguments from function (dict or typed object)
         if isinstance(function, dict):
@@ -545,7 +547,9 @@ class OllamaProvider(BaseProvider):
 
             # Check for model warm-up (first request taking ≥10s)
             elapsed_time = time.time() - start_time
-            warm_up_detected = self._handle_warmup_tracking(is_first_request, elapsed_time)
+            warm_up_detected = self._handle_warmup_tracking(
+                is_first_request, elapsed_time
+            )
 
             # Parse tool calls and metadata
             tool_calls = self._parse_tool_calls(response_message)
@@ -643,7 +647,9 @@ class OllamaProvider(BaseProvider):
         # Handle final metadata
         if chunk.get("done"):
             elapsed_time = time.time() - start_time
-            warm_up_detected = self._handle_warmup_tracking(is_first_request, elapsed_time)
+            warm_up_detected = self._handle_warmup_tracking(
+                is_first_request, elapsed_time
+            )
             metadata = self._build_metadata(
                 chunk, start_time, warm_up_detected=warm_up_detected, **kwargs
             )

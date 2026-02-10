@@ -34,6 +34,14 @@ Represents a single turn in a conversation.
 - `content: Optional[str]` - The text content of the message.
 - `tool_calls: List[ToolCall]` - A list of tool calls requested by the assistant in this turn.
 - `tool_call_id: Optional[str]` - For `TOOL` role messages, this holds the correlation ID of the tool call this message is a result for. **This should match the `id` of the corresponding `ToolCall` object.**
+- `thought_signatures: Optional[Dict[str, bytes]]` - Maps `tool_call_id` to encrypted thought signatures (required for Gemini 3.x models during function calling).
+
+> [!NOTE] Thought Signatures
+> Thought signatures are encrypted representations of the model's internal reasoning process. They are:
+> - **Required** for Google Gemini 3.x models during function calling
+> - **Recommended** for Google Gemini 2.5.x models for improved quality
+> - Automatically handled by the SDK when using supported providers
+> - Stored as bytes and should be passed back unchanged in multi-turn conversations
 
 ### `MessageRole`
 
@@ -72,6 +80,7 @@ The standardized object returned by every provider's `.chat()` method.
 - `content: Optional[str]` - The text content of the model's response.
 - `tool_calls: List[ToolCall]` - A list of any tool calls requested by the model.
 - `metadata: dict[str, Any]` - A dictionary containing provider-specific information and processing metrics from the API call.
+- `thought_signatures: Optional[Dict[str, bytes]]` - Thought signatures from models that support them (currently Gemini 3.x/2.5). Automatically preserved by the Agent.
 
 ### `ProviderChunk`
 
@@ -82,5 +91,6 @@ The standardized object yielded by every provider's `.stream_chat()` method. Onl
 - `tool_call_start: Optional[Dict[str, Any]]` - Info indicating a tool call has started (name, id).
 - `tool_call_delta: Optional[str]` - Partial JSON string for tool arguments.
 - `tool_call_done: Optional[ToolCall]` - The fully assembled `ToolCall` object (yielded when parsing is complete).
+- `thought_signatures: Optional[Dict[str, bytes]]` - Thought signatures accumulated during streaming.
 - `final_metadata: Optional[Metadata]` - The final usage/cost metadata yielded at the very end of the stream.
 - `error: Optional[str]` - An error message if the stream fails mid-transmission.
