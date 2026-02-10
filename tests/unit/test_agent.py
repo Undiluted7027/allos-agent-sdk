@@ -432,6 +432,77 @@ class TestAgentMetadataInternal:
         assert aggregated.tools.total_tool_calls == 1
         assert aggregated.turns.total_turns == 1
 
+    def test_create_aggregate_metadata_preserves_anthropic_provider_specific(
+        self, mock_get_provider
+    ):
+        """
+        Tests that anthropic provider-specific metadata is preserved in aggregate.
+        Covers line 417 in agent.py: preserving anthropic-specific data from first_metadata.
+        """
+        config = AgentConfig(provider_name="test", model="test")
+        agent = Agent(config)
+
+        # Create base_metadata WITHOUT anthropic data
+        base_metadata = Metadata(
+            status="success",
+            model=ModelInfo(
+                provider="anthropic",
+                model_id="claude-3-haiku-20240307",
+                configuration=ModelConfiguration(max_output_tokens=50),
+            ),
+            usage=Usage(
+                input_tokens=10,
+                output_tokens=10,
+                total_tokens=20,
+                estimated_cost=EstimatedCost(total_usd=0.001),
+            ),
+            latency=Latency(total_duration_ms=100),
+            tools=ToolInfo(tools_available=[]),
+            quality_signals=QualitySignals(),
+            provider_specific=ProviderSpecific(),  # No anthropic data
+            sdk=SdkInfo(sdk_version="0.0.0"),
+        )
+
+        # Create first_metadata WITH anthropic data
+        anthropic_data = {"response_id": "resp_123", "model_version": "claude-3"}
+        first_metadata = Metadata(
+            status="success",
+            model=ModelInfo(
+                provider="anthropic",
+                model_id="claude-3-haiku-20240307",
+                configuration=ModelConfiguration(max_output_tokens=50),
+            ),
+            usage=Usage(
+                input_tokens=10,
+                output_tokens=10,
+                total_tokens=20,
+                estimated_cost=EstimatedCost(total_usd=0.001),
+            ),
+            latency=Latency(total_duration_ms=100),
+            tools=ToolInfo(tools_available=[]),
+            quality_signals=QualitySignals(),
+            provider_specific=ProviderSpecific(anthropic=anthropic_data),
+            sdk=SdkInfo(sdk_version="0.0.0"),
+        )
+
+        tool_details = []
+        turn_history = []
+
+        # Call aggregation method with first_metadata
+        aggregated = agent._create_aggregate_metadata(
+            base_metadata=base_metadata,
+            all_tool_details=tool_details,
+            turn_history=turn_history,
+            total_input_tokens=10,
+            total_output_tokens=10,
+            total_cost=0.001,
+            first_metadata=first_metadata,  # Pass first_metadata
+        )
+
+        # Verify anthropic-specific data was copied from first_metadata
+        assert aggregated.provider_specific.anthropic is not None
+        assert aggregated.provider_specific.anthropic == anthropic_data
+
 
 class TestAgentStreaming:
     """Tests for the stream_run method and its helpers."""

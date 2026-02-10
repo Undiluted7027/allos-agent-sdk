@@ -6,9 +6,15 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from rich.console import Console
 
 from allos.cli.main import print_ollama_models
-from allos.cli.utils import determine_model, validate_api_key
+from allos.cli.utils import (
+    ValidationResult,
+    determine_model,
+    display_validation_error,
+    validate_api_key,
+)
 
 
 class TestValidateApiKey:
@@ -34,7 +40,7 @@ class TestValidateApiKey:
         """Test validation when required env var is missing."""
         result, missing_var = validate_api_key("openai", None)
         assert result is False
-        assert missing_var == "OPENAI_API_KEY (Not Set)"
+        assert missing_var == "OPENAI_API_KEY"
 
     @patch.dict("os.environ", {}, clear=True)
     @patch("allos.cli.utils.ollama_running")
@@ -53,7 +59,7 @@ class TestValidateApiKey:
         mock_ollama_running.return_value = False
         result, missing_var = validate_api_key("ollama", None)
         assert result is False
-        assert missing_var == "Ollama server not running"
+        assert missing_var == "Ollama server not running at http://localhost:11434"
         mock_ollama_running.assert_called_once_with("http://localhost:11434")
 
 
@@ -354,3 +360,152 @@ class TestPrintOllamaModelsCallback:
         assert "Failed to list Ollama models" in captured
         assert "Connection Reset" in captured
         ctx.exit.assert_called_with(1)
+
+
+class TestValidationResult:
+    """Tests for ValidationResult Pydantic model validators."""
+
+    def test_validation_result_error_type_consistency_success_true(self):
+        """Test that error_type raises ValueError when success=True but error_type is set.
+        Covers line 37 in utils.py.
+        """
+        with pytest.raises(
+            ValueError, match="error_type must be None when success is True"
+        ):
+            ValidationResult(
+                success=True,
+                model="gpt-4o",
+                model_defaulted=False,
+                error=None,
+                error_type="api_key",  # This should raise error
+            )
+
+    def test_validation_result_error_type_consistency_success_false(self):
+        """Test that error_type raises ValueError when success=False but error_type is None.
+        Covers line 39 in utils.py.
+        """
+        with pytest.raises(
+            ValueError, match="error_type must be set when success is False"
+        ):
+            ValidationResult(
+                success=False,
+                model=None,
+                model_defaulted=False,
+                error="Some error",
+                error_type=None,  # This should raise error
+            )
+
+    def test_validation_result_error_message_consistency_success_true(self):
+        """Test that error raises ValueError when success=True but error is set.
+        Covers line 47 in utils.py.
+        """
+        with pytest.raises(ValueError, match="error must be None when success is True"):
+            ValidationResult(
+                success=True,
+                model="gpt-4o",
+                model_defaulted=False,
+                error="Some error",  # This should raise error
+                error_type=None,
+            )
+
+    def test_validation_result_error_message_required_success_false(self):
+        """Test that error raises ValueError when success=False but error is empty.
+        Covers line 49 in utils.py.
+        """
+        with pytest.raises(
+            ValueError, match="error message required when success is False"
+        ):
+            ValidationResult(
+                success=False,
+                model=None,
+                model_defaulted=False,
+                error=None,  # This should raise error
+                error_type="api_key",
+            )
+
+
+class TestValidateApiKeyComplexProviders:
+    """Tests for complex provider API key validation (Google, etc.)."""
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("allos.cli.utils.ProviderRegistry.get_env_var_name")
+    @patch("allos.cli.utils.ProviderRegistry.check_provider_env")
+    def test_validate_api_key_google_configured(
+        self, mock_check_env, mock_get_env_var_name
+    ):
+        """Test validation for google when provider env check succeeds.
+        Covers lines 123-125 in utils.py.
+        """
+        # Mock get_env_var_name to return None so it falls through to check_provider_env
+        mock_get_env_var_name.return_value = None
+        # Mock Google provider being configured
+        mock_check_env.return_value = (True, "Google API configured")
+
+        result, message = validate_api_key("google", None)
+
+        assert result is True
+        assert message == ""
+        mock_check_env.assert_called_once_with("google")
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("allos.cli.utils.ProviderRegistry.get_env_var_name")
+    @patch("allos.cli.utils.ProviderRegistry.check_provider_env")
+    def test_validate_api_key_google_not_configured(
+        self, mock_check_env, mock_get_env_var_name
+    ):
+        """Test validation for google when provider env check fails.
+        Covers line 127 in utils.py.
+        """
+        # Mock get_env_var_name to return None so it falls through to check_provider_env
+        mock_get_env_var_name.return_value = None
+        # Mock Google provider not configured
+        error_msg = (
+            "Google API not configured. Set GOOGLE_API_KEY or configure Vertex AI."
+        )
+        mock_check_env.return_value = (False, error_msg)
+
+        result, message = validate_api_key("google", None)
+
+        assert result is False
+        assert message == error_msg
+        mock_check_env.assert_called_once_with("google")
+
+
+class TestDisplayValidationError:
+    """Tests for display_validation_error special cases."""
+
+    def test_display_validation_error_google_provider(self):
+        """Test special error message for Google provider.
+        Covers line 204 in utils.py.
+        """
+        console = Console()
+        validation_result = ValidationResult(
+            success=False,
+            model="gemini-2.5-flash-lite",
+            model_defaulted=True,
+            error="Google API not configured",
+            error_type="api_key",
+        )
+
+        display_validation_error(validation_result, "google", console)
+
+        # The function prints to console
+        # We're just verifying the function executes the google branch
+
+    def test_display_validation_error_ollama_not_running(self):
+        """Test special error message for Ollama when not running.
+        Covers line 211 in utils.py.
+        """
+        console = Console()
+        validation_result = ValidationResult(
+            success=False,
+            model="llama3.1",
+            model_defaulted=False,
+            error="Ollama server not running at http://localhost:11434",
+            error_type="api_key",
+        )
+
+        display_validation_error(validation_result, "ollama", console)
+
+        # The function prints to console
+        # We're just verifying the function executes the ollama branch

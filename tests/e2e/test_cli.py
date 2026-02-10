@@ -62,32 +62,34 @@ def mock_agent_and_load_session(mocker, monkeypatch):
 @pytest.fixture
 def mock_validation(mocker):
     """Mock validation to always succeed"""
+    from allos.cli.utils import ValidationResult
+
     mocker.patch(
         "allos.cli.main.validate_model_and_api_key",
-        return_value={
-            "determined_model": {
-                "check": True,
-                "model": "gpt-4o",
-                "message": "[dim]Model not specified, defaulting to 'gpt-4o' for provider 'openai'.[/dim]",
-            },
-            "validate_api_key": {"check": True},
-        },
+        return_value=ValidationResult(
+            success=True,
+            model="gpt-4o",
+            model_defaulted=True,
+            error=None,
+            error_type=None,
+        ),
     )
 
 
 @pytest.fixture
 def mock_anthropic_validation(mocker):
     """Mock validation for Anthropic specific test cases."""
+    from allos.cli.utils import ValidationResult
+
     mocker.patch(
         "allos.cli.main.validate_model_and_api_key",
-        return_value={
-            "determined_model": {
-                "check": True,
-                "model": "claude-3-haiku-20240307",
-                "message": "[dim]Model not specified, defaulting to 'claude-3-haiku-20240307' for provider 'anthropic'.[/dim]",
-            },
-            "validate_api_key": {"check": True},
-        },
+        return_value=ValidationResult(
+            success=True,
+            model="claude-3-haiku-20240307",
+            model_defaulted=True,
+            error=None,
+            error_type=None,
+        ),
     )
 
 
@@ -145,7 +147,6 @@ def test_active_providers_command(runner: CliRunner, monkeypatch):
     assert "ollama_compat" in result.output
     assert "No API key required"
     assert "ollama" in result.output
-    assert "Optional" in result.output
 
 
 def test_run_command_max_tokens(runner: CliRunner, mock_agent_and_load_session):
@@ -320,9 +321,8 @@ class TestCliRunCommand:
         assert (
             result.exit_code == 0
         )  # The command itself doesn't fail, it prints an error
-        assert "Error" in result.output
-        assert "API key not found" in result.output
-        assert "Please set the " in result.output
+        assert "Configuration Error" in result.output
+        assert "API Key Not Found" in result.output
         assert "OPENAI_API_KEY" in result.output
 
     def test_run_command_session_management(
@@ -642,8 +642,8 @@ class TestCliInteractiveCommand:
         mock_agent_instance = mock_agent_and_load_session["instance"]
         from allos.cli.interactive import _run_repl_loop
 
-        # Simulate user typing "hello", "quit"
-        mock_input.side_effect = ["hello", "quit"]
+        # Simulate user typing "hello", "/quit"
+        mock_input.side_effect = ["hello", "/quit"]
 
         _run_repl_loop(mock_agent_instance)
 
@@ -709,7 +709,7 @@ class TestCliInteractiveCommand:
         from allos.cli.interactive import _run_repl_loop
 
         # Simulate user hitting Enter, then typing spaces, then quitting
-        mock_input.side_effect = ["", "   ", "exit"]
+        mock_input.side_effect = ["", "   ", "/exit"]
 
         _run_repl_loop(mock_agent_instance)
 
@@ -738,7 +738,7 @@ class TestCliInteractiveCommand:
         from allos.cli.interactive import _run_repl_loop
 
         # Simulate user typing a prompt that will cause an error, then quitting
-        mock_input.side_effect = ["do a failing task", "quit"]
+        mock_input.side_effect = ["do a failing task", "/quit"]
         mock_agent_instance.run.side_effect = exception
 
         _run_repl_loop(mock_agent_instance)
@@ -835,7 +835,7 @@ class TestCliInteractiveCommand:
                 "--no-tools",
                 "--auto-approve",
             ],
-            input="exit\n",  # Exit immediately
+            input="/quit\n",  # Exit immediately
         )
 
         assert result.exit_code == 0
@@ -876,7 +876,8 @@ class TestCliInteractiveCommand:
         result = runner.invoke(main, ["--provider", "openai", "--interactive"])
 
         assert result.exit_code == 0
-        assert "API key not found" in result.output
+        assert "Configuration Error" in result.output
+        assert "API Key Not Found" in result.output
         assert "OPENAI_API_KEY" in result.output
 
         # Agent should not be initialized, REPL should not start
@@ -1049,8 +1050,8 @@ class TestCliStreamCommand:
         assert result.exit_code == 0
 
         # Verify error message was printed
-        assert "Error:" in result.output
-        assert "API key not found" in result.output
+        assert "Configuration Error" in result.output
+        assert "API Key Not Found" in result.output
         assert "ANTHROPIC_API_KEY" in result.output
 
         # Agent should NOT be called because validation failed
@@ -1076,8 +1077,8 @@ class TestCliStreamCommand:
         assert result.exit_code == 0
 
         # No error message should be printed
-        assert "Error:" not in result.output
-        assert "API key not found" not in result.output
+        assert "Configuration Error" not in result.output
+        assert "API Key Not Found" not in result.output
 
         # Agent SHOULD be called
         mock_agent_class.assert_called_once()
@@ -1099,8 +1100,9 @@ class TestActiveProvidersCommand:
             result = runner.invoke(main, ["--active-providers"])
 
         assert result.exit_code == 0
-        assert "OLLAMA_HOST (Set)" in result.output
+        assert "ollama" in result.output
         assert "Ready" in result.output
+        assert "Running at http://custom-ollama:11434" in result.output
 
     def test_active_providers_ollama_not_running(
         self, runner: CliRunner, mock_validation, monkeypatch
@@ -1118,7 +1120,7 @@ class TestActiveProvidersCommand:
 
         assert result.exit_code == 0
         assert "ollama" in result.output
-        assert "Ollama not running" in result.output
+        assert "Not running at http://localhost:11434" in result.output
 
     def test_active_providers_ollama_with_env_var_but_not_running(
         self, runner: CliRunner, monkeypatch
@@ -1130,8 +1132,8 @@ class TestActiveProvidersCommand:
             result = runner.invoke(main, ["--active-providers"])
 
         assert result.exit_code == 0
-        assert "OLLAMA_HOST (Set)" in result.output
-        assert "Ollama not running" in result.output
+        assert "ollama" in result.output
+        assert "Not running at http://localhost:9999" in result.output
 
 
 class TestDetermineModel:
@@ -1177,14 +1179,11 @@ class TestValidateModelAndApiKey:
 
         result = validate_model_and_api_key("openai", "gpt-4o", None)
 
-        # Check model determination
-        model_determined = result.get("determined_model", {})
-        assert model_determined["check"] is True
-        assert model_determined["model"] == "gpt-4o"
+        assert result.success is True
+        assert result.model == "gpt-4o"
 
         # Check API key validation
-        api_key_validated = result.get("validate_api_key", {})
-        assert api_key_validated["check"] is True
+        assert result.error_type is None
 
     def test_validate_model_and_api_key_model_required(
         self, runner: CliRunner, monkeypatch
@@ -1198,10 +1197,9 @@ class TestValidateModelAndApiKey:
         result = validate_model_and_api_key("ollama", None, None)
 
         # Check that model determination failed
-        model_determined = result.get("determined_model", {})
-        assert model_determined["check"] is False
-        assert "Model needs to be specified" in model_determined["message"]  # type: ignore
-        assert "--model" in model_determined["message"]  # type: ignore
+        assert result.model is None
+        assert result.success is False and result.error
+        assert "Model must be specified" in result.error
 
     def test_validate_model_and_api_key_missing_api_key(
         self, runner: CliRunner, monkeypatch
@@ -1215,15 +1213,11 @@ class TestValidateModelAndApiKey:
         result = validate_model_and_api_key("openai", "gpt-4o", None)
 
         # Model determination should succeed
-        model_determined = result.get("determined_model", {})
-        assert model_determined["check"] is True
-        assert model_determined["model"] == "gpt-4o"
+        assert result.model == "gpt-4o"
 
         # API key validation should fail
-        api_key_validated = result.get("validate_api_key", {})
-        assert api_key_validated["check"] is False
-        assert "API key not found" in api_key_validated["message"]  # type: ignore
-        assert "OPENAI_API_KEY" in api_key_validated["message"]  # type: ignore
+        assert result.success is False and result.error
+        assert "OPENAI_API_KEY" == result.error
 
     def test_validate_model_and_api_key_with_explicit_key(
         self, runner: CliRunner, monkeypatch
@@ -1237,12 +1231,8 @@ class TestValidateModelAndApiKey:
         result = validate_model_and_api_key("openai", "gpt-4o", "explicit-key")
 
         # Both checks should pass
-        model_determined = result.get("determined_model", {})
-        assert model_determined["check"] is True
-        assert model_determined["model"] == "gpt-4o"
-
-        api_key_validated = result.get("validate_api_key", {})
-        assert api_key_validated["check"] is True
+        assert result.success is True and result.error is None
+        assert result.model == "gpt-4o"
 
     def test_validate_model_and_api_key_uses_default_model(
         self, runner: CliRunner, monkeypatch
@@ -1254,12 +1244,8 @@ class TestValidateModelAndApiKey:
 
         result = validate_model_and_api_key("openai", None, None)
 
-        model_determined = result.get("determined_model", {})
-        assert model_determined["check"] is True
-        assert model_determined["model"] == "gpt-4o"
-        assert (
-            "defaulting to" in model_determined["message"].lower()  # type: ignore
-        )  # pyright: ignore[reportAttributeAccessIssue]
+        assert result.success is True and result.error is None
+        assert result.model == "gpt-4o"
 
     def test_validate_model_and_api_key_anthropic_default(
         self, runner: CliRunner, monkeypatch
@@ -1271,9 +1257,8 @@ class TestValidateModelAndApiKey:
 
         result = validate_model_and_api_key("anthropic", None, None)
 
-        model_determined = result.get("determined_model", {})
-        assert model_determined["check"] is True
-        assert model_determined["model"] == "claude-3-haiku-20240307"
+        assert result.success is True and result.error is None
+        assert result.model == "claude-3-haiku-20240307"
 
 
 class TestRunAgentValidation:
@@ -1291,7 +1276,7 @@ class TestRunAgentValidation:
         result = runner.invoke(main, ["--provider", "ollama", "test prompt"])
 
         assert result.exit_code == 0
-        assert "Model needs to be specified" in result.output
+        assert "Model must be specified" in result.output
         # Agent should not be initialized
         mock_agent_class.assert_not_called()
 
@@ -1307,7 +1292,8 @@ class TestRunAgentValidation:
         result = runner.invoke(main, ["--provider", "openai", "test prompt"])
 
         assert result.exit_code == 0
-        assert "API key not found" in result.output
+        assert "Configuration Error" in result.output
+        assert "API Key Not Found" in result.output
         # Agent should not be initialized
         mock_agent_class.assert_not_called()
 
@@ -1328,7 +1314,7 @@ class TestStreamAgentValidation:
         )
 
         assert result.exit_code == 0
-        assert "Model needs to be specified" in result.output
+        assert "Model must be specified" in result.output
         mock_agent_class.assert_not_called()
 
     def test_stream_agent_uses_anthropic_default_model(
@@ -1376,7 +1362,7 @@ class TestInteractiveValidation:
         result = runner.invoke(main, ["--provider", "ollama", "--interactive"])
 
         assert result.exit_code == 0
-        assert "Model needs to be specified" in result.output
+        assert "Model must be specified" in result.output
         # Agent should not be initialized, REPL should not start
         mock_agent_class.assert_not_called()
         mock_repl.assert_not_called()

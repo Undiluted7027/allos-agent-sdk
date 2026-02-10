@@ -1,4 +1,15 @@
-# allos/providers/google.py
+"""Google provider for Allos Agent SDK.
+
+This module provides integration with Google's Gemini and Vertex AI APIs.
+It supports both the Gemini API and Vertex AI with multiple authentication methods:
+- API key authentication for Gemini API
+- Service account credentials for Vertex AI
+- Application Default Credentials (ADC) for Vertex AI
+- Service account impersonation for Vertex AI
+
+Key classes:
+- GoogleProvider: Main provider implementation with flexible auth support
+"""
 
 import sys
 
@@ -70,12 +81,40 @@ MODEL_CONTEXT_WINDOWS = {
 
 @provider("google")
 class GoogleProvider(BaseProvider):
+    """Google provider for Gemini API and Vertex AI integration.
+
+    Supports flexible authentication including API keys for Gemini API,
+    service account credentials, Application Default Credentials (ADC),
+    and service account impersonation for Vertex AI.
+
+    Attributes:
+    ----------
+    model : str
+        The model identifier (e.g., "gemini-2.0-flash")
+    vertexai : bool
+        Whether to use Vertex AI instead of Gemini API
+    project : Optional[str]
+        GCP project ID for Vertex AI
+    location : str
+        GCP region for Vertex AI (default: "us-central1")
+    client : genai.Client
+        Initialized Google AI client
+
+    Methods:
+    -------
+    chat(messages, tools)
+        Send messages and receive a response with optional tool calling
+    stream_chat(messages, tools)
+        Stream a chat response with optional tool calling
+    get_context_window()
+        Get the model's context window size
+    """
+
     env_var = "GOOGLE_API_KEY"
 
     @classmethod
     def check_env_config(cls) -> Tuple[bool, str]:
         """Check for Gemini API key or Vertex AI configuration."""
-
         # Priority 1: Check Gemini API Keys
         if os.environ.get("GOOGLE_API_KEY"):
             return (True, "GOOGLE_API_KEY (Set)")
@@ -138,28 +177,18 @@ class GoogleProvider(BaseProvider):
         """Initialize Google provider with flexible authentication.
 
         Args:
-            :param model: Model name (e.g., "gemini-2.0-flash")
-            :type model: str
-            :param sub_provider: Name of Sub provider (Vertex AI ONLY)
-            :type sub_provider: str
-            :param api_key: API key for Gemini API (not Vertex AI)
-            :type api_key: Optional[str]
-            :param vertexai: Use Vertex AI instead of Gemini API (Gemini API default)
-            :type vertexai: bool
-            :param project: GCP project ID (auto-detected if not provided)
-            :type project: Optional[str]
-            :param location: GCP region for Vertex AI (default: us-central1)
-            :type location: str
-            :param credentials: Pre-configured credentials object
-            :type credentials: Optional["Credentials"]
-            :param credentials_path: Path to service account JSON file
-            :type credentials_path: Optional[str]
-            :param credentials_json: Service account JSON as dict or string
-            :type credentials_json: Optional[Union[Dict[str, Any], str]]
-            :param impersonate_service_account: Service account email to impersonate
-            :type impersonate_service_account: Optional[str]
-            :param impersonation_scopes: OAuth scopes for impersonation
-            :type impersonation_scopes: Optional[List[str]]
+            model: Model name (e.g., "gemini-2.0-flash").
+            sub_provider: Name of sub provider (Vertex AI only).
+            api_key: API key for Gemini API (not Vertex AI).
+            vertexai: Use Vertex AI instead of Gemini API (Gemini API default).
+            project: GCP project ID (auto-detected if not provided).
+            location: GCP region for Vertex AI (default: us-central1).
+            credentials: Pre-configured credentials object.
+            credentials_path: Path to service account JSON file.
+            credentials_json: Service account JSON as dict or string.
+            impersonate_service_account: Service account email to impersonate.
+            impersonation_scopes: OAuth scopes for impersonation.
+            **kwargs: Additional keyword arguments passed to parent class.
 
         Examples:
             # Gemini API
@@ -768,6 +797,20 @@ class GoogleProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> ProviderResponse:
+        """Send messages to the Google API and receive a response.
+
+        Args:
+            messages: List of messages in the conversation history.
+            tools: Optional list of tools available for the model to call.
+            **kwargs: Additional configuration options passed to GenerateContentConfig.
+
+        Returns:
+            ProviderResponse containing the model's response, tool calls,
+            thought signatures (if used), and metadata.
+
+        Raises:
+            ProviderError: If the Google API request fails.
+        """
         system_instruction, contents = self._convert_messages(messages)
 
         config_kwargs = {**kwargs}
@@ -823,17 +866,19 @@ class GoogleProvider(BaseProvider):
         tools: Optional[List[BaseTool]] = None,
         **kwargs: Any,
     ) -> Iterator[ProviderChunk]:
-        """Docstring for stream_chat
+        """Stream messages to the Google API and receive streamed responses.
 
-        :param self: Description
-        :param messages: Description
-        :type messages: List[Message]
-        :param tools: Description
-        :type tools: Optional[List[BaseTool]]
-        :param kwargs: Description
-        :type kwargs: Any
-        :return: Description
-        :rtype: Iterator[ProviderChunk]
+        Args:
+            messages: List of messages in the conversation history.
+            tools: Optional list of tools available for the model to call.
+            **kwargs: Additional configuration options passed to GenerateContentConfig.
+
+        Yields:
+            ProviderChunk objects containing streamed content, tool calls,
+            thought signatures (if used), and final metadata.
+
+        Raises:
+            ProviderError: If the Google API streaming request fails.
         """
         config = self._prepare_stream_config(messages, tools, kwargs)
         builder_kwargs = self._build_request_metadata(messages, tools)
@@ -1015,6 +1060,16 @@ class GoogleProvider(BaseProvider):
         return ProviderChunk(final_metadata=metadata)
 
     def get_context_window(self) -> int:
+        """Get the context window size for the configured model.
+
+        Returns the model's maximum context window in tokens. If the model's
+        context window was retrieved during initialization, returns that value.
+        Otherwise, attempts to match the model against known context windows,
+        falling back to a default of 4096 tokens for unknown models.
+
+        Returns:
+            int: The context window size in tokens.
+        """
         if self._model_context_window:
             return self._model_context_window
         for model_prefix, size in MODEL_CONTEXT_WINDOWS.items():

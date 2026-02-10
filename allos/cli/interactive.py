@@ -25,7 +25,7 @@ Key functionalities of this module include:
 """
 
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional, Tuple
 
 from rich.console import Console
 from rich.panel import Panel
@@ -35,7 +35,11 @@ from ..providers import ProviderRegistry
 from ..tools import ToolRegistry
 from ..utils.errors import AllosError
 from .logo import LOGO_BANNER
-from .utils import validate_model_and_api_key
+from .utils import (
+    display_provider_info,
+    display_validation_error,
+    validate_model_and_api_key,
+)
 
 console = Console()
 
@@ -50,30 +54,22 @@ def start_interactive_session(
     no_tools: bool,
     session_file: Optional[str],
     auto_approve: bool,
+    stream: bool = False,
 ):
     """Starts and manages an interactive REPL session with an agent."""
-    _print_welcome_message()
+    _print_welcome_message(stream)
 
     try:
         # --- Determine the model ---
         validation_result = validate_model_and_api_key(provider, model, api_key)
 
-        model_determined = validation_result.get("determined_model", {})
-        api_key_validated = validation_result.get("validate_api_key", {})
-
-        if not model_determined["check"]:
-            console.print(model_determined["message"])
+        if not validation_result.success or not validation_result.model:
+            display_validation_error(validation_result, provider, console)
             return
 
-        if model is None:
-            console.print(model_determined["message"])
+        validated_model = validation_result.model
+        display_provider_info(validation_result, provider, console, stream)
 
-        validated_model: str = cast(str, model_determined["model"])
-
-        if not api_key_validated["check"]:
-            console.print(api_key_validated["message"])
-            return
-        console.print(f"[dim] Using {provider} with model {validated_model}.")
         agent = _load_or_create_agent(
             provider,
             validated_model,
@@ -95,7 +91,7 @@ def start_interactive_session(
         _print_panel(f"Failed to initialize agent: {e}", "Initialization Error", "red")
         return
 
-    _run_repl_loop(agent)
+    _run_repl_loop(agent, stream)
 
     if session_file:
         _save_session(agent, session_file)
@@ -106,12 +102,22 @@ def start_interactive_session(
 # --- Helper functions ---
 
 
-def _print_welcome_message() -> None:
+def _print_welcome_message(stream: bool = False) -> None:
     console.print(LOGO_BANNER, style="bold blue")
+    stream_info = (
+        "[cyan]streaming enabled[/]" if stream else "[dim]streaming disabled[/]"
+    )
     console.print(
         Panel(
             "[bold]Welcome to the Allos Interactive Session![/]\n\n"
-            "Type your prompts below. To exit, type `exit`, `quit`, or press Ctrl+D.",
+            f"Mode: {stream_info}\n\n"
+            "Commands:\n"
+            "  [cyan]/stream[/]         - Show streaming status\n"
+            "  [cyan]/stream on[/]      - Enable streaming mode\n"
+            "  [cyan]/stream off[/]     - Disable streaming mode\n"
+            "  [cyan]/help[/]           - Show this help\n"
+            "  [cyan]/exit[/] or [cyan]/quit[/] - Exit session\n\n"
+            "Type your prompts below or use commands starting with [cyan]/[/]",
             title="Interactive Mode",
             border_style="bold blue",
         )
@@ -215,18 +221,34 @@ def _override_agent_config(
         agent.tools = [ToolRegistry.get_tool(name) for name in agent.config.tool_names]
 
 
-def _run_repl_loop(agent: Agent) -> None:
+def _run_repl_loop(agent: Agent, stream: bool = False) -> None:
     """Main REPL loop for user input."""
-    while True:
+    streaming_enabled = stream  # Mutable state for toggling
+    end_flag = False
+    while not end_flag:
         try:
             prompt = console.input("[bold cyan]>>> [/]")
 
-            if prompt.lower() in {"exit", "quit"}:
-                break
+            # Skip empty input
             if not prompt.strip():
                 continue
 
-            agent.run(prompt)
+            # Handle REPL commands
+            if prompt.startswith("/"):
+                streaming_state, end_check = _handle_repl_command(
+                    prompt, streaming_enabled, end_flag
+                )
+                if streaming_state is not None:
+                    streaming_enabled = streaming_state
+                if end_check:
+                    end_flag = end_check
+                continue
+
+            # Execute agent prompt
+            if streaming_enabled:
+                _execute_streaming(agent, prompt)
+            else:
+                _execute_sync(agent, prompt)
 
         except (KeyboardInterrupt, EOFError):
             break
@@ -234,6 +256,82 @@ def _run_repl_loop(agent: Agent) -> None:
             _print_panel(f"An agent error occurred: {e}", "Agent Error", "red")
         except Exception as e:
             _print_panel(f"An unexpected error occurred: {e}", "System Error", "red")
+
+
+def _handle_repl_command(
+    command: str, current_stream_state: bool, end_flag: bool
+) -> Tuple[Optional[bool], bool]:
+    """Handle REPL commands starting with /.
+
+    Returns:
+        New streaming state if changes, None if no state change
+    """
+    parts = command.lower().split()
+    cmd = parts[0]
+
+    new_streaming_state = None
+
+    if cmd == "/help":
+        console.print(
+            Panel(
+                "[bold]Available commands:[/]\n\n"
+                "   [cyan]/stream[/]        - Show streaming status\n"
+                "   [cyan]/stream on[/]     - Enable streaming mode\n"
+                "   [cyan]/stream off[/]    - Disable streaming mode\n"
+                "   [cyan]/help[/]          - Show this help\n"
+                "   [cyan]/exit[/] or [cyan]/quit[/] - Exit session",
+                title="Help",
+                border_style="blue",
+            )
+        )
+
+    elif cmd == "/stream":
+        if len(parts) == 1:
+            # Show current status
+            status = "[green]enabled[/]" if current_stream_state else "[dim]disabled[/]"
+            console.print(f"Streaming is currently {status}")
+            console.print(
+                "[dim]Use [cyan]/stream on[/] or [cyan]/stream off[/] to toggle[/]"
+            )
+
+        elif len(parts) == 2:
+            subcommand = parts[1]
+            if subcommand == "on":
+                if not current_stream_state:
+                    console.print("[green]✓[/] Streaming enabled")
+                    new_streaming_state = True
+            elif subcommand == "off":
+                if current_stream_state:
+                    console.print("[yellow]✓[/] Streaming disabled")
+                    new_streaming_state = False
+            else:
+                console.print(f"[red]Unknown command:[/] {cmd} {subcommand}")
+                console.print("[dim]Type [cyan]/help[/] for available commands[/]")
+                new_streaming_state = None
+    elif cmd == "/exit" or cmd == "/quit":
+        end_flag = True
+
+    return (new_streaming_state, end_flag)
+
+
+def _execute_sync(agent: Agent, prompt: str) -> None:
+    """Execute agent prompt synchronously."""
+    agent.run(prompt)
+
+
+def _execute_streaming(agent: Agent, prompt: str) -> None:
+    """Execute agent prompt with streaming output."""
+    for chunk in agent.stream_run(prompt):
+        if chunk.content:
+            console.print(chunk.content, end="", style="blue")
+        elif chunk.tool_call_start:
+            console.print(
+                f"\n[yellow]└─ Calling Tool: {chunk.tool_call_start['name']}(...)[/]"
+            )
+        elif chunk.error:
+            console.print(f"\n[bold red]Stream Error: {chunk.error}[/]")
+
+    console.print()
 
 
 def _save_session(agent: Agent, session_file: str) -> None:

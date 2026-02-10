@@ -372,7 +372,9 @@ class TestProviderInit:
 
         import allos.providers  # noqa: F401
 
-        registered_providers = ProviderRegistry.list_providers(include_unavailable=False)
+        registered_providers = ProviderRegistry.list_providers(
+            include_unavailable=False
+        )
         assert "anthropic" in registered_providers
         assert "openai" in registered_providers
         assert "ollama" in registered_providers
@@ -517,7 +519,7 @@ class TestProviderRegistryEnvChecks:
                 is_configured, message = ProviderRegistry.check_provider_env("google")
 
                 assert is_configured is False
-                assert "Requires Python 3.10+" in message
+                assert "requires Python 3.10+" in message
 
     def test_check_provider_env_unknown_provider(self):
         """Test check_provider_env for unknown provider."""

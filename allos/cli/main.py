@@ -56,7 +56,11 @@ from ..utils.errors import AllosError
 from ..utils.logging import setup_logging
 from .interactive import start_interactive_session
 from .logo import LOGO_BANNER
-from .utils import validate_model_and_api_key
+from .utils import (
+    display_provider_info,
+    display_validation_error,
+    validate_model_and_api_key,
+)
 
 # --- Helper to load API keys from a .env file if it exists ---
 try:
@@ -165,34 +169,33 @@ def print_active_providers(ctx, param, value):
 
     providers = ProviderRegistry.list_providers()
     table = Table(title="Active Providers Configuration")
-    table.add_column("Provider", style="cyan")
-    table.add_column("Status", style="bold")
-    table.add_column("Env Var", style="dim")
+    table.add_column("Provider", style="cyan", no_wrap=True)
+    table.add_column("Status", style="bold", justify="center")
+    table.add_column("Details", style="dim")
 
     for p in providers:
-        is_configured, var_display = ProviderRegistry.check_provider_env(p)
+        is_configured, details = ProviderRegistry.check_provider_env(p)
 
-        # Special Case: Native Ollama
-        if p == "ollama":
-            OLLAMA_URL = os.getenv("OLLAMA_HOST")
-            var_display = "OLLAMA_HOST (Optional)"
-            if OLLAMA_URL:
-                var_display = "OLLAMA_HOST (Set)"
-            else:
-                OLLAMA_URL = "http://localhost:11434"
-
-            if ollama_running(OLLAMA_URL):
+        # Special Case: Ollama
+        if p in ("ollama", "ollama_compat"):
+            ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            if ollama_running(ollama_host):
                 status = "[green]Ready[/]"
+                details = f"Running at {ollama_host}"
             else:
-                status = "[red]Ollama not running[/]"
+                status = "[red]Unavailable[/]"
+                details = f"Not running at {ollama_host}"
         elif is_configured:
             status = "[green]Ready[/]"
         else:
-            status = "[red]Missing Key"
+            status = "[red]Not Configured[/]"
 
-        table.add_row(p, status, var_display)
+        table.add_row(p, status, details)
 
     console.print(table)
+    console.print(
+        "\n[dim]Tip: Set environment variables or use [bold]--api-key[/] option[/]"
+    )
     ctx.exit()
 
 
@@ -504,6 +507,7 @@ def main(
             no_tools,
             session_file,
             auto_approve,
+            stream,
         )
         return
 
@@ -677,23 +681,13 @@ def run_agent(
     # --- Determine the model ---
     validation_result = validate_model_and_api_key(provider, model, api_key)
 
-    model_determined = validation_result.get("determined_model", {})
-    api_key_validated = validation_result.get("validate_api_key", {})
-
-    if not model_determined["check"]:
-        console.print(model_determined["message"])
+    if not validation_result.success or not validation_result.model:
+        display_validation_error(validation_result, provider, console)
         return
 
-    if model is None:
-        console.print(model_determined["message"])
+    validated_model = validation_result.model
+    display_provider_info(validation_result, provider, console, stream=False)
 
-    validated_model: str = cast(str, model_determined["model"])
-
-    if not api_key_validated["check"]:
-        console.print(api_key_validated["message"])
-        return
-
-    console.print(f"[dim] Using {provider} with model {validated_model}.")
     try:
         # --- Initialize Agent ---
         agent = _initialize_agent(
@@ -767,25 +761,13 @@ def run_agent_stream(
     # Validate inputs
     validation_result = validate_model_and_api_key(provider, model, api_key)
 
-    model_determined = validation_result.get("determined_model", {})
-    api_key_validated = validation_result.get("validate_api_key", {})
-
-    if not model_determined["check"]:
-        console.print(model_determined["message"])
+    if not validation_result.success or not validation_result.model:
+        display_validation_error(validation_result, provider, console)
         return
 
-    if model is None:
-        console.print(model_determined["message"])
+    validated_model = validation_result.model
+    display_provider_info(validation_result, provider, console, stream=True)
 
-    validated_model: str = cast(str, model_determined["model"])
-
-    if not api_key_validated["check"]:
-        console.print(api_key_validated["message"])
-        return
-
-    console.print(
-        f"[dim] Using {provider} with model {validated_model} (streaming).[/dim]"
-    )
     try:
         agent = _initialize_agent(
             provider,

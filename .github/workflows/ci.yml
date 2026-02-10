@@ -46,9 +46,9 @@ jobs:
       - name: Install dependencies (Python-version-specific)
         run: |
           if [ "${{ matrix.python-version }}" = "3.9" ]; then
-            uv sync --locked --extra openai --extra anthropic --extra ollama --dev
+            uv sync --locked --extra openai --extra anthropic --extra ollama --extra dev --dev
           else
-            uv sync --locked --all-extras --dev
+            uv sync --locked --all-extras --extra dev --dev
           fi
 
       - name: Run tests (with appropriate markers)

@@ -232,4 +232,5 @@ creds_*.json
 # AI REPL
 CLAUDE.md
 .claude/
+.agents/
 .github/copilot-instructions.md
