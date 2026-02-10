@@ -43,21 +43,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - name: Install dependencies (Python-version-specific)
-        run: |
-          if [ "${{ matrix.python-version }}" = "3.9" ]; then
-            uv sync --locked --extra openai --extra anthropic --extra ollama --extra dev --dev
-          else
-            uv sync --locked --all-extras
-          fi
+      - name: Install dependencies for Python 3.9
+        if: matrix.python-version == '3.9'
+        run: uv sync --locked --extra openai --extra anthropic --extra ollama --extra dev
 
-      - name: Run tests (with appropriate markers)
-        run: |
-          if [ -n "${{ matrix.test-marker }}" ]; then
-            uv run pytest -v --cov=allos --cov-report=xml -m "${{ matrix.test-marker }}"
-          else
-            uv run pytest -v --cov=allos --cov-report=xml
-          fi
+      - name: Install dependencies for Python 3.10+
+        if: matrix.python-version != '3.9'
+        run: uv sync --locked --all-extras
+
+      - name: Run tests with marker
+        if: matrix.test-marker != ''
+        run: uv run pytest -v --cov=allos --cov-report=xml -m "${{ matrix.test-marker }}"
+
+      - name: Run tests without marker
+        if: matrix.test-marker == ''
+        run: uv run pytest -v --cov=allos --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
