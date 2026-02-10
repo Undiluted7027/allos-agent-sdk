@@ -48,7 +48,7 @@ jobs:
           if [ "${{ matrix.python-version }}" = "3.9" ]; then
             uv sync --locked --extra openai --extra anthropic --extra ollama --extra dev --dev
           else
-            uv sync --locked --all-extras --extra dev --dev
+            uv sync --locked --all-extras
           fi
 
       - name: Run tests (with appropriate markers)
