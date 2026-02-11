@@ -31,7 +31,7 @@ fi
 
 # 3. Install dependencies
 echo "📦 Installing dependencies from pyproject.toml..."
-uv pip install -e ".[dev]"
+uv pip install -e ".[all, dev]"
 echo "${green}✅ Dependencies installed successfully.${reset}"
 
 # 4. Install pre-commit hooks
