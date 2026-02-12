@@ -10,7 +10,7 @@ Create and run your first "Hello, World!" application using the Allos agent in u
     ```
 2.  **Choose your provider**:
 
-    **Option A: Cloud Provider (OpenAI, Anthropic, Groq)**
+    **Option A: Cloud Provider (OpenAI, Anthropic, Groq, Google)**
 
     Create a `.env` file in your project directory with your API key:
     ```env

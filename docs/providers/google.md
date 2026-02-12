@@ -239,12 +239,11 @@ provider = ProviderRegistry.get_provider(
 
 | Model | Context Window | Best For |
 |-------|---------------|----------|
-| `gemini-2.5-flash` | 1,048,576 tokens | Fastest responses, cost-effective |
-| `gemini-2.5-pro` | 1,048,576 tokens | Balanced performance |
-| `gemini-2.0-flash` | 1,048,576 tokens | Latest flash model |
-| `gemini-1.5-flash` | 1,048,576 tokens | Standard fast model |
-| `gemini-1.5-pro` | 2,097,152 tokens | Highest quality, largest context |
-| `gemini-1.0-pro` | 32,768 tokens | Legacy model |
+| `gemini-3-flash-preview` | 1,048,576 tokens | Speed, scale |
+| `gemini-3-pro-preview` | 1,048,576 tokens | Multimodality, agentic |
+| `gemini-2.5-flash` | 1,048,576 tokens | Low-latency, cost-effective |
+| `gemini-2.5-pro` | 1,048,576 tokens | Complex problems |
+| `gemini-2.5-flash-lite` | 1,048,576 tokens | Fastest model |
 
 For the latest model availability, refer to:
 - [Gemini API Models](https://ai.google.dev/gemini-api/docs/models)
@@ -350,7 +349,7 @@ Function call is missing a thought_signature in functionCall parts
 
 ---
 
-## Authentication Priority
+## Authentication Precedence
 
 The Google provider checks for authentication in this order:
 
@@ -472,44 +471,6 @@ allos --active-providers
 - `GOOGLE_CLOUD_PROJECT` - GCP project ID
 - `GOOGLE_CLOUD_LOCATION` - Region (default: `us-central1`)
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON file
-
----
-
-## Migration from Other Providers
-
-### From OpenAI
-
-```python
-# OpenAI
-from allos import Agent, AgentConfig
-
-config = AgentConfig(
-    provider_name="openai",
-    model="gpt-4"
-)
-
-# Google (simple replacement)
-config = AgentConfig(
-    provider_name="google",
-    model="gemini-2.0-flash"
-)
-```
-
-### From Anthropic
-
-```python
-# Anthropic
-config = AgentConfig(
-    provider_name="anthropic",
-    model="claude-3-5-sonnet-20240620"
-)
-
-# Google
-config = AgentConfig(
-    provider_name="google",
-    model="gemini-1.5-pro"  # Similar quality tier
-)
-```
 
 ---
 

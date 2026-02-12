@@ -57,7 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Gemini 3.x models (preview): `gemini-3-flash-preview`, `gemini-3-pro-preview`
   - Gemini 2.5.x models: `gemini-2.5-flash`, `gemini-2.5-pro`
   - Gemini 2.0.x models: `gemini-2.0-flash`
-  - Gemini 1.5.x models: `gemini-1.5-flash`, `gemini-1.5-pro`
   - Multiple authentication methods: API key, service accounts, ADC, impersonation
 - **Thought Signatures**: Automatic handling of Google Gemini 3.x thought signatures
   - New optional fields in `Message`, `ProviderResponse`, `ProviderChunk`

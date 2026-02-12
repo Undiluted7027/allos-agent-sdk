@@ -67,8 +67,8 @@ Different providers have different ways of identifying tool calls. The Allos SDK
 >
 >   -   **For most providers (like Anthropic):** The `id` is a straightforward unique identifier for the tool use block.
 >    -   **For OpenAI's Responses API:** The API uses two types of IDs:
-        -   An **item ID** (e.g., `"fc_..."`) that uniquely identifies the `function_call` object in the response list.
-        -   A **correlation ID** or `call_id` (e.g., `"call_..."`) that is used to link the call to its eventual result.
+>         -   An **item ID** (e.g., `"fc_..."`) that uniquely identifies the `function_call` object in the response list.
+>        -   A **correlation ID** or `call_id` (e.g., `"call_..."`) that is used to link the call to its eventual result.
 >
 >    **The `ToolCall.id` in the Allos SDK always stores the correlation ID (`call_id`).** Our `OpenAIProvider` handles the translation and management of the item IDs (`fc_...`) internally, so you only need to work with the correlation ID when building custom tools or inspecting the agent's context.
 

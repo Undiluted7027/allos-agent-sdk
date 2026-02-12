@@ -261,6 +261,7 @@ Allos supports a massive range of models through native integrations and a unive
 | **Cohere** | ✅ Ready | Command R+ |
 | **Ollama (compat)** | ✅ Ready | OpenAI-compatible endpoint mode |
 | **LocalAI / vLLM** | ✅ Ready | Custom endpoints via `chat_completions` |
+| **Google** | ✅ Ready | Gemini-3.0 Pro, Gemini-2.5 Flash |
 
 ## 🛠️ Built-in Tools
 
@@ -339,7 +340,7 @@ content_agent.run("Research AI trends and write a blog post")
 
 ### 🏗️ Phase 2: Upcoming
 - [x] **Native Ollama**: Advanced local model support with tool calling.
-- [ ] Google Gemini support
+- [x] Google Gemini support
 - [ ] Web search and fetch tools
 - [ ] Advanced context management
 - [ ] Plugin system
@@ -404,6 +405,12 @@ git clone https://github.com/Undiluted7027/allos-agent-sdk.git
 cd allos-agent-sdk
 ```
 
+For better DX, if you are on Linux/MacOS/WSL2, consider:
+```bash
+chmod +x scripts/setup_dev.sh
+./scripts/setup_dev
+```
+
 #### Python Environment
 
 ##### With `pip`
@@ -416,7 +423,7 @@ source venv/bin/activate
 # On Windows: venv\Scripts\activate
 
 # Install in development mode
-pip install -e ".[dev]"
+pip install -e ".[all, dev]"
 
 # Make the test script executable
 chmod +x scripts/run_tests.sh

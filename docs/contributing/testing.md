@@ -6,6 +6,9 @@ Our test suite is built with `pytest` and is divided into three main categories.
 -   **End-to-End (E2E) Tests (`tests/e2e/`):** These tests validate the full application flow, primarily through the CLI. They use a **mocked LLM provider** but interact with the **real filesystem and tools**. They **do not** require real API keys to run.
 -   **Integration Tests (`tests/integration/`):** These tests verify the interaction between different parts of our SDK by making **real API calls** to external services (like OpenAI and Anthropic). They are slower, may incur costs, and require API keys and a special flag to run.
 
+> [!IMPORTANT]
+> **Python 3.10 or higher is required** for the Google (Gemini/Vertex AI) provider related tests. All other provider tests work with Python 3.9+. Use `-m "not_requires_python310"` to skip `GoogleProvider` related tests.
+
 ## Running Tests
 
 We provide a helper script for the most common testing scenario and command-line flags for more specific needs.
@@ -53,6 +56,9 @@ If you are missing a required API key, pytest will skip the relevant tests and p
 **Markers:**
 *   `@pytest.mark.requires_openai`: Used for tests hitting OpenAI directly OR using the `ChatCompletionsProvider` (which uses the `openai` library).
 *   `@pytest.mark.requires_anthropic`: Used for tests hitting Anthropic.
+* `@pytest.mark.requires_ollama`: Used for tests hitting Ollama.
+* `@pytest.mark.requires_gemini`: Used for tests hitting Gemini API.
+* `@pytest.mark.requires_vertexai`: Used for tests hitting Google Vertex AI API.
 
 ## Writing Tests
 
