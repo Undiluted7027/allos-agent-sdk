@@ -6,7 +6,7 @@
 
 *Build powerful AI agents without vendor lock-in*
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: Post MVP Phase 2 Active](https://img.shields.io/badge/status-Phase%202%20Active-blue.svg)](./POST_MVP_ROADMAP.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./.github/CONTRIBUTING.md)
@@ -34,7 +34,7 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 ## ✨ Key Features
 
 ### 🔄 **Provider Agnostic**
-Connect to **10+ providers** out of the box. Switch seamlessly between OpenAI and Anthropic natively, or connect to Grow, Together AI, Mistral, Deepseek, and local models via our compatibility layer. Use GPT-5 for one task, Claude for another, or run models locally—all with the same code.
+Connect to **10+ providers** out of the box. Switch seamlessly between OpenAI and Anthropic natively, or connect to Groq, Together AI, Mistral, Deepseek, and local models via our compatibility layer. Use GPT-5 for one task, Claude for another, or run models locally—all with the same code.
 
 ### 🛠️ **Rich Tool Ecosystem**
 Built-in tools for:
@@ -79,6 +79,11 @@ See the full workflow in action by running our CLI demo script:
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/Undiluted7027/allos-agent-sdk/main/examples/cli_workflow.sh)
 ```
+
+> [!NOTE] Python Support
+> Core SDK supports Python 3.9+.
+>
+> Google provider support requires Python 3.10+.
 
 ### Installation
 
@@ -129,7 +134,7 @@ from allos import Agent, AgentConfig
 # Configure for Together AI (using the Universal Adapter)
 agent = Agent(
     AgentConfig(
-        provider_name="openai",
+        provider_name="together",
         model="gpt-4o",
         tool_names=["read_file", "write_file"],
     )
@@ -148,29 +153,29 @@ print(f"Cost: ${agent.last_run_metadata.usage.estimated_cost.total_usd}")
 ```python
 # Start with OpenAI
 agent_openai = Agent(AgentConfig(
-    provider="openai",
+    provider_name="openai",
     model="gpt-4",
-    tools=["read_file", "write_file"]
+    tool_names=["read_file", "write_file"]
 ))
 
 # Switch to Anthropic for complex reasoning
 agent_claude = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-sonnet-4-5",
-    tools=["read_file", "write_file"]
+    tool_names=["read_file", "write_file"]
 ))
 
 # Switch to Groq for fast responses
 agent_groq = Agent(AgentConfig(
-    provider="groq",
+    provider_name="groq",
     model="groq/compound",
 ))
 
 # Or use local models with native Ollama support
 agent_local = Agent(AgentConfig(
-    provider="ollama",
+    provider_name="ollama",
     model="llama3.1",
-    tools=["read_file", "write_file"]
+    tool_names=["read_file", "write_file"]
 ))
 
 # Same interface, different providers!
@@ -207,9 +212,9 @@ class DatabaseQueryTool(BaseTool):
 
 # Use it
 agent = Agent(AgentConfig(
-    provider="openai",
-    model="gpt-4",
-    tools=["query_database", "read_file"]
+    provider_name="openai",
+    model="gpt-4o",
+    tool_names=["query_database", "read_file"]
 ))
 ```
 
@@ -281,17 +286,17 @@ Allos supports a massive range of models through native integrations and a unive
 ```python
 # SRE Agent - Diagnose and fix production issues (Web Search COMING SOON!)
 sre_agent = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-4-opus",
-    tools=["read_file", "shell_exec", "web_search"]
+    tool_names=["read_file", "shell_exec", "web_search"]
 ))
 sre_agent.run("Investigate why the API latency spiked at 3pm")
 
 # Code Review Agent
 review_agent = Agent(AgentConfig(
-    provider="openai",
+    provider_name="openai",
     model="gpt-4",
-    tools=["read_file", "write_file"]
+    tool_names=["read_file", "write_file"]
 ))
 review_agent.run("Review PR #123 for security issues and best practices")
 ```
@@ -300,17 +305,17 @@ review_agent.run("Review PR #123 for security issues and best practices")
 ```python
 # Data Analysis Agent
 data_agent = Agent(AgentConfig(
-    provider="openai",
+    provider_name="openai",
     model="gpt-4",
-    tools=["read_file", "write_file", "query_database"]
+    tool_names=["read_file", "write_file", "query_database"]
 ))
 data_agent.run("Analyze Q4 sales data and create a summary report")
 
 # Content Creation Agent (Web Search COMING SOON!)
 content_agent = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-sonnet-4-5",
-    tools=["web_search", "read_file", "write_file"]
+    tool_names=["web_search", "read_file", "write_file"]
 ))
 content_agent.run("Research AI trends and write a blog post")
 ```
@@ -364,7 +369,7 @@ While Allos has matured significantly beyond the MVP, some advanced features are
 
 -   **Limited Context Management:** Basic context window checks are implemented, but advanced context compaction and summarization for very long conversations are planned.
 -   **No Async Support:** The core `Agent` and `Tool` classes are synchronous. An async-first version is planned for a future release.
--   **Additional Provider Support:** While we support 10+ providers, native support for Google (Vertex AI), Azure OpenAI, and AWS Bedrock are planned for future releases.
+-   **Additional Provider Support:** While we support 10+ providers, native support for Azure OpenAI, and AWS Bedrock are planned for future releases.
 -   **No Web Tools:** Built-in tools for web search (`web_search`) and fetching URLs (`web_fetch`) are planned but not yet implemented.
 -   **Basic Error Recovery:** While the agent can recover from tool execution errors (like permission denied), it does not yet have sophisticated strategies for retrying failed API calls or self-correcting flawed plans.
 
@@ -408,7 +413,7 @@ cd allos-agent-sdk
 For better DX, if you are on Linux/MacOS/WSL2, consider:
 ```bash
 chmod +x scripts/setup_dev.sh
-./scripts/setup_dev
+./scripts/setup_dev.sh
 ```
 
 #### Python Environment

@@ -15,6 +15,7 @@ A dataclass used to configure an `Agent` instance.
 - `no_tools: bool`: If `True`, the agent will be initialized without any tools, even if `tool_names` is provided. Useful for chat-only interactions or constrained models. Defaults to `False`.
 - `base_url: Optional[str]`: Override the API endpoint URL. Useful for connecting to custom OpenAI-compatible servers.
 - `api_key: Optional[str]`: Explicitly provide an API key. This overrides any environment variables. **Security Note:** This field is excluded from the string representation (`repr`) and is removed before session serialization to prevent leaks.
+- `auto-approve: bool = False`: Explicitly mark all tool calls as auto-approve. The agent will not prompt the user for approval.
 
 ---
 
@@ -72,7 +73,7 @@ A class that holds the state of a conversation. It is managed internally by the 
 ### Methods
 - `add_system_message(content: str)`
 - `add_user_message(content: str)`
-- `add_assistant_message(content: Optional[str], tool_calls: Optional[List[ToolCall]] = None)`
+- `add_assistant_message(content: Optional[str], tool_calls: Optional[List[ToolCall]] = None, thought_signatures: Optional[Dict[str, bytes]] = None)`
 - `add_tool_result_message(tool_call_id: str, content: str)`
 
 ### Serialization

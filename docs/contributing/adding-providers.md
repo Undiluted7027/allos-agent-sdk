@@ -23,6 +23,16 @@ import nexusai
 
 @provider("nexusai") # The decorator that registers the provider
 class NexusAIProvider(BaseProvider):
+    """Example provider template for Allos."""
+
+    env_var = "NEXUSAI_API_KEY"
+
+    @classmethod
+    def check_env_config(cls) -> Tuple[bool, str]:
+        """Return (is_configured, status_message) for CLI readiness checks."""
+        if cls.env_var and os.getenv(cls.env_var):
+            return (True, f"{cls.env_var} (Set)")
+        return (False, f"{cls.env_var} (Not Set)")
 
     def __init__(self, model: str, api_key: Optional[str] = None, **kwargs: Any):
         super().__init__(model, **kwargs)
@@ -36,37 +46,71 @@ class NexusAIProvider(BaseProvider):
         """
         Main method to interact with the NexusAI API.
         """
-        # 1. Convert Allos Messages to the format NexusAI expects.
-        nexus_messages = self._convert_messages(messages)
-
+        start_time = time.time()
         try:
-            # 2. Call the NexusAI API.
-            response = self.client.generate(model=self.model, messages=nexus_messages)
+            # raw_response = self.client.chat(...)
+            raw_response = self._mock_sync_response()
 
-            # 3. Parse the NexusAI response back into a standard Allos ProviderResponse.
-            return self._parse_response(response)
+            content, tool_calls = self._parse_sync(raw_response)
 
-        except nexusai.APIError as e:
-            # 4. Handle provider-specific errors and wrap them in ProviderError.
-            raise ProviderError(f"NexusAI API error: {e}", "nexusai") from e
+            metadata = (
+                MetadataBuilder(
+                    provider_name="nexusai",
+                    request_kwargs=kwargs,
+                    start_time=start_time,
+                )
+                .with_response_obj(raw_response)
+                .build()
+            )
+
+            return ProviderResponse(
+                content=content,
+                tool_calls=tool_calls,
+                metadata=metadata,
+                # Include this only if your provider needs it:
+                # thought_signatures=...
+            )
+        except Exception as e:
+            raise ProviderError(f"NexusAI API error: {e}", provider="nexusai") from e
 
     def stream_chat(self, messages: List[Message], **kwargs: Any) -> Iterator[ProviderChunk]:
         """
         Main method to interact with the NexusAI API (Streaming).
         """
-        nexus_messages = self._convert_messages(messages)
+        start_time = time.time()
+        raw_final_response: Any = None
 
         try:
-            # Assume the client supports a streaming method
-            stream = self.client.stream(model=self.model, messages=nexus_messages)
+            # stream = self.client.stream_chat(...)
+            stream = self._mock_stream_response()
 
             for event in stream:
-                # Convert provider events to Allos ProviderChunks
-                if event.token:
-                    yield ProviderChunk(content=event.token)
-                elif event.is_done:
-                    # In a real implementation, you would build the final metadata here
-                    yield ProviderChunk(final_metadata=None)
+                raw_final_response = event.raw_response
+                if event.text_delta:
+                    yield ProviderChunk(content=event.text_delta)
+
+                # Optional for providers that emit reasoning-state continuity artifacts:
+                # if event.thought_signature and event.tool_call_id:
+                #     yield ProviderChunk(thought_signatures={event.tool_call_id: event.thought_signature})
+
+                # Optional tool streaming pattern:
+                # if event.tool_call_done:
+                #     yield ProviderChunk(tool_call_done=ToolCall(...))
+
+            if raw_final_response is not None:
+                metadata = (
+                    MetadataBuilder(
+                        provider_name="nexusai",
+                        request_kwargs=kwargs,
+                        start_time=start_time,
+                    )
+                    .with_response_obj(raw_final_response)
+                    .build()
+                )
+                yield ProviderChunk(final_metadata=metadata)
+
+        except Exception as e:
+            yield ProviderChunk(error=f"NexusAI streaming error: {e}")
 
     def get_context_window(self) -> int:
         """
@@ -78,11 +122,11 @@ class NexusAIProvider(BaseProvider):
         return 8000
 
     # Add private helper methods for conversion and parsing
-    def _convert_messages(self, messages: List[Message]) -> List[dict]:
+    def _convert_messages(self, messages: List[Message]) -> List[Dict]:
         # ... your implementation ...
         pass
 
-    def _parse_response(self, response) -> ProviderResponse:
+    def _convert_tools(self, tools: List[Tools]) -> List[Dict]:
         # ... your implementation ...
         pass
 ```
@@ -92,6 +136,8 @@ class NexusAIProvider(BaseProvider):
 The most important step is registering the provider so the `ProviderRegistry` can find it.
 
 In `allos/providers/__init__.py`, add a side-effect import for your new provider file.
+
+Registration can be conditional for optional dependencies (same pattern as `allos/providers/__init__.py`).
 
 ```python
 # allos/providers/__init__.py

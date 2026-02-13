@@ -108,11 +108,82 @@ Use the `-i` or `--interactive` flag to start a conversational session.
 ```bash
 # Start a simple interactive session
 allos --interactive
+# or shorthand
+allos -i
+
+# With streaming enabled from start
+allos -i --stream
 
 # Start an interactive session with Anthropic and a persistent session file
 allos -i -p anthropic -s my_anthropic_session.json
 ```
-Inside the interactive session, you can type `exit` or `quit` to end the session.
+Inside the interactive session, you can type `/exit` or `/quit` to end the session.
+
+## Interactive Mode
+
+Interactive mode allows you to have a multi-turn conversation with your AI agent.
+It's ideal for:
+- Iterative development worklows
+- Explorator tasks where requirements evolve
+- Back-and-forth collaboration with the agent
+- Testing different approaches quickly
+
+### Available Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/help` | Show all available commands | `>>> /help` |
+| `/stream` | Show streaming status | `>>> /stream` |
+| `/stream on` | Enable streaming | `>>> /stream on` |
+| `/stream off` | Disable streaming | `>>> /stream off` |
+| `/exit` | Exit session | `>>> /exit` |
+| `/quit` | Exit session (alias) | `>>> /quit` |
+
+### Command Syntax
+- Commands **must** start with `/` to be recognized
+- Commands are **case-sensitive** (`/Help` won't work)
+- Empty input is ignored (press Enter again if you didn't mean to)
+
+### Streaming vs Non-Streaming
+**Streaming ON:** Agent outputs are displayed token-by-token as they're generated. You see immediate feedback.
+
+**Streaming OFF:** Agent completes the entire response before displaying it. Better for formatted output.
+
+#### When to Use Each Mode
+
+**Use Streaming (ON) when:**
+- Working on long-running tasks
+- You want immediate feedback
+- Monitoring agent progress
+- Generating large amounts of text
+
+**Use Non-Streaming (OFF) when:**
+- You want complete, formatted output
+- Agent is generating code that should display all at once
+- Working with structured data
+- You prefer to read complete responses
+
+### Tips and Best Practices
+
+**1. Use Slash Commands for Control**
+- `/help` when you forget available commands
+- `/stream` to check current mode
+- `/exit` to cleanly close session
+
+**2. Toggle Streaming Based on Task**
+- Enable for exploratory tasks
+- Disable for code generation
+- Check status with `/stream`
+
+**3. Context Persists**
+- Agent remembers previous messages
+- You can refer to earlier work
+- Build on previous responses
+
+**4. Exit Cleanly**
+- Use `/exit` or `/quit`
+- Don't just close terminal (loses session)
+- Consider using `--sesion-file` to save work
 
 ## Examples
 
@@ -133,7 +204,7 @@ allos "Why is the sky blue?" --provider ollama --model llama3.1
 
 # Using a custom OpenAI-compatible server
 allos "Why is the sky blue?" \
-  --provider chat_completions \
+  --provider ollama_compat \
   --base-url http://localhost:8000/v1 \
   --model my-local-model \
   --no-tools
@@ -158,3 +229,34 @@ allos -s project.json "Create a file 'test.py' with a function that adds two num
 # Next, load the session and continue the task
 allos -s project.json "Now add a unit test for that function in the same file."
 ```
+
+## Advanced Usage
+
+### Combining with Other Flags
+
+```bash
+# Interactive mode with custom model and max tokens
+allos -i \
+  --provider anthropic \
+  --model claude-opus-4 \
+  --max-tokens 8000 \
+  --stream
+
+# With specific tools enabled
+allos -i \
+  --provider openai \
+  --tools read_file,write_file,shell_exec
+
+# With session saving and auto-approve
+allos -i \
+  --session-file project.json \
+  --auto-approve \
+  --stream
+```
+
+### Keyboard Shortcuts
+
+While in interactive mode:
+- **Ctrl+C**: Interrupt current agent task (if running)
+- **Ctrl+D**: Exit interactive mode (EOF)
+- **Enter**: Submit prompt

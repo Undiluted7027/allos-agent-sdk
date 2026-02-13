@@ -205,18 +205,38 @@ provider = ProviderRegistry.get_provider(
 ```python
 from allos import Agent, AgentConfig
 
+# AgentConfig supports core SDK fields only.
+# For Google-specific options (vertexai/project/location/credentials),
+# use ProviderRegistry.get_provider(...) directly.
 config = AgentConfig(
     provider_name="google",
     model="gemini-2.0-flash",
-    # Vertex AI specific
-    provider_kwargs={
-        "vertexai": True,
-        "project": "your-gcp-project-id",
-        "location": "us-central1",  # Default
-    }
 )
 
 agent = Agent(config)
+response = agent.run("Summarize this architecture.")
+```
+
+> [!IMPORTANT] Agent vs Direct Provider
+> - Use `Agent + AgentConfig` for standard agent workflows.
+> - `AgentConfig` does **not** accept provider-specific kwargs (for example: `vertexai`, `project`, `location`, `credentials_path`, `credentials_json`, `impersonate_service_account`).
+> - For advanced Google/Vertex AI configuration, initialize the provider directly with `ProviderRegistry.get_provider(...)`.
+
+```python
+from allos.providers import ProviderRegistry, Message, MessageRole
+
+provider = ProviderRegistry.get_provider(
+    "google",
+    model="gemini-2.0-flash",
+    vertexai=True,
+    project="your-gcp-project-id",
+    location="us-central1",
+    credentials_path="/path/to/service-account.json",
+)
+
+messages = [Message(role=MessageRole.USER, content="Explain Kubernetes autoscaling.")]
+response = provider.chat(messages)
+print(response.content)
 ```
 
 ### Regional Endpoints
@@ -276,14 +296,14 @@ from allos import Agent, AgentConfig
 config = AgentConfig(
     provider_name="google",
     model="gemini-2.0-flash",
-    stream=True
 )
 
 agent = Agent(config)
 
 # Streaming is handled automatically
 for chunk in agent.run_stream("Tell me a story"):
-    print(chunk, end="", flush=True)
+    if chunk.content:
+        print(chunk.content, end="", flush=True)
 ```
 
 ### Tool Calling
@@ -296,7 +316,7 @@ from allos import Agent, AgentConfig
 config = AgentConfig(
     provider_name="google",
     model="gemini-2.0-flash",
-    tool_names=["read_file", "write_file", "shell"]
+    tool_names=["read_file", "write_file", "shell_exec"]
 )
 
 agent = Agent(config)

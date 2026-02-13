@@ -35,15 +35,15 @@ This uses the legacy `/v1/chat/completions` endpoint standard. Because this stan
 **Advantages:**
 *   **Universal:** Works with almost every LLM provider (Groq, Together, Mistral, DeepSeek).
 *   **Local Models:** Works with Ollama, vLLM, and LM Studio.
-*   **Portable:** Easy to switch endpoints just by changing the `base_url`.
+*   **Portable:** Easy to switch endpoints just by changing the `base-url`.
 
 **Usage:**
 ```bash
-# Using an alias (automatically sets base_url)
+# Using an alias (automatically sets base-url)
 allos --provider groq --model llama-3.1-8b-instant "..."
 
 # Manual configuration
-allos --provider chat_completions --base_url http://localhost:1234/v1 "..."
+allos --provider chat_completions --base-url http://localhost:1234/v1 "..."
 ```
 
 ## Technical Implementation in Allos

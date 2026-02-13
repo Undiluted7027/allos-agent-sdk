@@ -4,7 +4,7 @@ This guide will walk you through installing the Allos Agent SDK. We recommend us
 
 ## Python Version Requirements
 
-Most providers work with Python 3.10+. However, **Google Gemini/Vertex AI provider requires Python 3.10+** due to dependencies on the Google GenAI SDK and [google-auth library](https://github.com/googleapis/google-auth-library-python).
+Core SDK and most providers work with Python 3.9+. However, **Google Gemini/Vertex AI provider requires Python 3.10+** due to dependencies on the Google GenAI SDK and [google-auth library](https://github.com/googleapis/google-auth-library-python).
 
 If you need to use Python 3.9, you can still use all other providers (OpenAI, Anthropic, Ollama, etc.).
 

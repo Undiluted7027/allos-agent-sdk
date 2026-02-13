@@ -144,7 +144,7 @@ allos --provider ollama --model llama3.1:latest "Create a FastAPI app"
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    tools=["web_search", "web_fetch", "write_file"]
+    tool_names=["web_search", "web_fetch", "write_file"]
 ))
 
 agent.run("Research current AI trends and write a summary")
@@ -333,7 +333,7 @@ hooks:
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-opus-4",
-    tools=["delegate", "read_file", "write_file"]
+    tool_names=["delegate", "read_file", "write_file"]
 ))
 
 agent.run("""
@@ -545,7 +545,7 @@ asyncio.run(main())
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    tools=["read_file", "write_file"],
+    tool_names=["read_file", "write_file"],
     mcp_servers=[
         "github://my-org/my-repo",
         "slack://my-workspace",
@@ -775,7 +775,7 @@ hf_tool = load_tool("image-generator")
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    tools=["read_file", hf_tool]
+    tool_names=["read_file", hf_tool]
 ))
 ```
 
@@ -852,7 +852,7 @@ agent = Agent(AgentConfig(
 agent = Agent(AgentConfig(
     provider="openai",
     model="gpt-4-vision",
-    tools=["read_file", "analyze_image"]
+    tool_names=["read_file", "analyze_image"]
 ))
 
 agent.run("Analyze this UI screenshot and suggest improvements",

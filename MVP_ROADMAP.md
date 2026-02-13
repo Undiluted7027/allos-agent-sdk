@@ -451,9 +451,9 @@ from allos import Agent, AgentConfig
 
 # Create agent
 agent = Agent(AgentConfig(
-    provider="openai",
+    provider_name="openai",
     model="gpt-4",
-    tools=["read_file", "write_file", "shell_exec"]
+    tool_names=["read_file", "write_file", "shell_exec"]
 ))
 
 # Run a task

@@ -77,9 +77,9 @@ Different providers have different ways of identifying tool calls. The Allos SDK
 The standardized object returned by every provider's `.chat()` method.
 
 **`allos.providers.base.ProviderResponse`**
+- `metadata: Metadata` - The [metadata](./metadata.md) related to a provider's response
 - `content: Optional[str]` - The text content of the model's response.
 - `tool_calls: List[ToolCall]` - A list of any tool calls requested by the model.
-- `metadata: dict[str, Any]` - A dictionary containing provider-specific information and processing metrics from the API call.
 - `thought_signatures: Optional[Dict[str, bytes]]` - Thought signatures from models that support them (currently Gemini 3.x/2.5). Automatically preserved by the Agent.
 
 ### `ProviderChunk`

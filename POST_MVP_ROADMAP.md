@@ -645,9 +645,9 @@ def basic_ollama_usage():
     print("\n=== Basic Ollama Usage ===")
 
     agent = Agent(AgentConfig(
-        provider="ollama",
+        provider_name="ollama",
         model="qwen2.5-coder:7b",
-        tools=["read_file", "write_file", "shell_exec"]
+        tool_names=["read_file", "write_file", "shell_exec"]
     ))
 
     result = agent.run("Create a simple FastAPI hello world app")
@@ -668,9 +668,9 @@ def compare_providers():
     for provider, model in providers:
         print(f"\nTesting {provider}/{model}...")
         agent = Agent(AgentConfig(
-            provider=provider,
+            provider_name=provider,
             model=model,
-            tools=[]
+            tool_names=[]
         ))
         result = agent.run(task)
         print(f"Response: {result}")
@@ -806,9 +806,9 @@ from allos import Agent, AgentConfig
 
 # Local coding agent
 agent = Agent(AgentConfig(
-    provider="ollama",
+    provider_name="ollama",
     model="qwen2.5-coder:7b",
-    tools=["read_file", "write_file", "shell_exec"],
+    tool_names=["read_file", "write_file", "shell_exec"],
     temperature=0.7
 ))
 
@@ -817,9 +817,9 @@ print(result)
 
 # Streaming mode
 agent_stream = Agent(AgentConfig(
-    provider="ollama",
+    provider_name="ollama",
     model="llama3.2:3b",
-    tools=["read_file"]
+    tool_names=["read_file"]
 ))
 
 for chunk in agent_stream.run_stream("Explain this codebase"):
@@ -989,9 +989,9 @@ class TogetherAIProvider(ChatCompletionsProvider):
 ```python
 # Together AI automatically uses Chat Completions API
 agent = Agent(AgentConfig(
-    provider="together",
+    provider_name="together",
     model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    tools=["read_file", "write_file"]
+    tool_names=["read_file", "write_file"]
 ))
 ```
 
@@ -1027,9 +1027,9 @@ class AnyscaleProvider(ChatCompletionsProvider):
 ```python
 # Anyscale automatically uses Chat Completions API
 agent = Agent(AgentConfig(
-    provider="anyscale",
+    provider_name="anyscale",
     model="meta-llama/Meta-Llama-3.1-8B-Instruct",
-    tools=["read_file", "shell_exec"]
+    tool_names=["read_file", "shell_exec"]
 ))
 ```
 
@@ -1417,9 +1417,9 @@ def research_topic():
     """Research a topic and write a summary"""
 
     agent = Agent(AgentConfig(
-        provider="anthropic",
+        provider_name="anthropic",
         model="claude-sonnet-4-5",
-        tools=["web_search", "web_fetch", "write_file"],
+        tool_names=["web_search", "web_fetch", "write_file"],
         auto_approve=False  # Ask permission for web access
     ))
 
@@ -2220,20 +2220,20 @@ agent.hooks.register('on_error', notify_team)
 ```python
 # Create specialized agents
 code_reviewer = Agent(AgentConfig(
-    provider="claude-opus-4",
-    tools=["read_file", "write_file"],
+    provider_name="claude-opus-4",
+    tool_names=["read_file", "write_file"],
     system_prompt="You are a code review expert..."
 ))
 
 security_auditor = Agent(AgentConfig(
-    provider="gpt-4",
-    tools=["read_file", "shell_exec"],
+    provider_name="gpt-4",
+    tool_names=["read_file", "shell_exec"],
     system_prompt="You are a security expert..."
 ))
 
 # Main agent delegates to subagents
 main_agent = Agent(AgentConfig(
-    provider="claude-sonnet-4-5",
+    provider_name="claude-sonnet-4-5",
     subagents={
         "code_review": code_reviewer,
         "security_audit": security_auditor

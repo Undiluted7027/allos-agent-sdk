@@ -25,6 +25,11 @@ Converts the tool's definition into the format required by a specific LLM provid
 -   **OpenAI Responses API (`openai`)**: Returns the tool definition directly (internal tagging).
 -   **Chat Completions API (`chat_completions`)**: Wraps the definition in `{"type": "function", "function": ...}` as required by legacy and compatible endpoints.
 -   **Anthropic**: Returns the definition in `input_schema` format.
+- **Ollama Native (`ollama`)**: Returns Ollama-compatible function tool schema:
+  `{"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}`.
+
+> [!NOTE] Alias Providers
+> Alias providers that route through Chat Completions (e.g., `groq`, `mistral`, `together`, `openrouter`, `cohere`, `deepseek`, `portkey`, `ollama_compat`) use the `chat_completions` formatting path.
 
 ---
 

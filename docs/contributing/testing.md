@@ -59,6 +59,7 @@ If you are missing a required API key, pytest will skip the relevant tests and p
 * `@pytest.mark.requires_ollama`: Used for tests hitting Ollama.
 * `@pytest.mark.requires_gemini`: Used for tests hitting Gemini API.
 * `@pytest.mark.requires_vertexai`: Used for tests hitting Google Vertex AI API.
+* `@pytest.mark.requires_python310` or `@pytest.mark.skip_on_python39`: Used for tests requiring Python 3.10+
 
 ## Writing Tests
 
@@ -67,3 +68,14 @@ Always place new tests in the appropriate directory (`unit`, `e2e`, or `integrat
 -   **Unit Tests:** Place in `tests/unit/`. Use `pytest-mock` (`@patch`) extensively to isolate the component being tested.
 -   **E2E Tests:** Place in `tests/e2e/`. Mark them with `@pytest.mark.e2e`. Use `click.testing.CliRunner` to invoke the CLI and assert against the output and exit codes.
 -   **Integration Tests:** Place in `tests/integration/`. Mark the test or class with `@pytest.mark.integration`. For provider-specific tests, also add `@pytest.mark.requires_openai` or `@pytest.mark.requires_anthropic` to enable automatic, specific API key checks.
+
+## Quick Commands
+```bash
+# Default workflow (unit + e2e)
+./scripts/run_tests.sh
+
+# Category-specific runs
+uv run pytest --run-e2e
+uv run pytest --run-integration
+uv run pytest --run-performance
+```

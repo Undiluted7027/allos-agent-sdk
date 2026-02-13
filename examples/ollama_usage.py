@@ -53,7 +53,7 @@ def example_1_basic_native():
 
     config = AgentConfig(
         provider_name="ollama",  # Native provider
-        model="qwen3:8b",  # Requires: ollama pull llama3.1
+        model="qwen3:8b",  # Requires: ollama pull qwen3:8b
         no_tools=True,  # No tools for this simple example
     )
 
@@ -303,7 +303,8 @@ def example_7_tool_calling_compat_limitations():
     limitations compared to the native provider:
 
     ⚠️  [bold white]Limitations:[/bold white]
-    - No native tool calling support through this endpoint
+    - Tool behavior via compatibility endpoints can be model and endpoint-dependent
+    - Reliability for tool-heavy loops is lower than native ollama provider
     - Must use `no_tools=True` for reliability
     - Best for simple query/response scenarios
 

@@ -158,8 +158,8 @@ response = openai_provider.chat(messages)
 
 # response is a ProviderResponse object with these attributes:
 # response.content: The string content of the model's text response.
-# response.tool_calls: A list of requested tool calls (for Phase 3).
-# response.metadata: A dictionary with provider-specific call details.
+# response.tool_calls: A list of requested tool calls.
+# response.metadata: Metadata object containing metadata of response.
 
 print(response.metadata)
 ```

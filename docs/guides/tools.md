@@ -26,7 +26,7 @@ Security is a primary concern when allowing an AI agent to interact with a syste
 -   `ASK_USER`: Potentially destructive or sensitive operations that require user confirmation.
 -   `ALWAYS_DENY`: Reserved for tools that should be disabled.
 
-The Agent Core (coming in Phase 4) will use this system to automatically prompt the user for confirmation before executing sensitive tools.
+The Agent Core uses this system to automatically prompt the user for confirmation before executing sensitive tools.
 
 ## Filesystem Tools
 
