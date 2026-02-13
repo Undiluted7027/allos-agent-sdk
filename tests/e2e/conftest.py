@@ -6,10 +6,33 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from allos import Agent, AgentConfig
 from allos.providers.base import ProviderResponse, ToolCall
 from allos.providers.metadata import MetadataBuilder
 from tests.conftest import PROVIDER_MODELS
+
+
+def _reset_ollama_global_state() -> None:
+    """Clear module-level Ollama caches used across provider instances."""
+    try:
+        from allos.providers.ollama import _MODEL_WARMUP_TRACKER, _OLLAMA_CLIENT_POOL
+
+        _OLLAMA_CLIENT_POOL.clear()
+        _MODEL_WARMUP_TRACKER.clear()
+    except Exception:
+        # If optional Ollama dependency is unavailable in this environment,
+        # there is no state to reset for these tests.
+        pass
+
+
+@pytest.fixture(autouse=True)
+def clear_ollama_global_state_between_e2e_tests():
+    """Prevent cross-test leakage of pooled Ollama clients/warm-up state."""
+    _reset_ollama_global_state()
+    yield
+    _reset_ollama_global_state()
 
 
 @contextmanager
@@ -35,9 +58,11 @@ def mock_provider_environment(provider_name: str):
             setup_google_mocks(model_name, mock_genai)
             yield mock_genai
     elif provider_name == "ollama":
+        _reset_ollama_global_state()
         with patch("allos.providers.ollama.Client") as mock_ollama_client:
             setup_ollama_mocks(mock_ollama_client)
             yield mock_ollama_client
+        _reset_ollama_global_state()
     else:
         # OpenAI, Anthropic, chat_completions - mock the client
         client_path = get_client_patch_path(provider_name)
