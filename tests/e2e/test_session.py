@@ -1,5 +1,7 @@
 # tests/e2e/test_session.py
 
+import sys
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,15 +16,30 @@ pytestmark = pytest.mark.e2e
 
 # We can keep the real provider/tool registries, but mock the provider's .chat method
 @patch("allos.agent.agent.Agent._check_tool_permission", return_value=True)
-@patch("allos.providers.google.GoogleProvider._verify_model_available")
-@patch("allos.providers.google.GoogleProvider.chat")
 @patch("allos.providers.ollama.OllamaProvider._verify_model_available")
 @patch("allos.providers.ollama.OllamaProvider.chat")
 @patch("allos.providers.chat_completions.ChatCompletionsProvider.chat")
 @patch("allos.providers.anthropic.AnthropicProvider.chat")
 @patch("allos.providers.openai.OpenAIProvider.chat")
 @pytest.mark.parametrize(
-    "provider_name", ["openai", "anthropic", "chat_completions", "ollama", "google"]
+    "provider_name",
+    [
+        pytest.param("openai", id="openai"),
+        pytest.param("anthropic", id="anthropic"),
+        pytest.param("chat_completions", id="chat_completions"),
+        pytest.param("ollama", id="ollama"),
+        pytest.param(
+            "google",
+            marks=[
+                pytest.mark.requires_python_310,
+                pytest.mark.skipif(
+                    sys.version_info < (3, 10),
+                    reason="Google provider requires Python 3.10+",
+                ),
+            ],
+            id="google",
+        ),
+    ],
 )
 def test_session_save_and_load_with_filesystem(
     mock_openai_chat,
@@ -30,8 +47,6 @@ def test_session_save_and_load_with_filesystem(
     mock_chat_completions_chat,
     mock_ollama_chat,
     mock_verify_ollama,
-    mock_google_chat,
-    mock_verify_google,
     mock_check_permission,
     provider_name,
     work_dir: Path,
@@ -41,78 +56,102 @@ def test_session_save_and_load_with_filesystem(
     Tests the full end-to-end workflow of saving and loading a session to/from the filesystem.
     """
     mock_verify_ollama.return_value = None
-    mock_verify_google.return_value = None
-
-    mock_provider_chat = mock_ollama_chat
-    if provider_name == "openai":
-        mock_provider_chat = mock_openai_chat
-    elif provider_name == "anthropic":
-        mock_provider_chat = mock_anthropic_chat
-    elif provider_name == "chat_completions":
-        mock_provider_chat = mock_chat_completions_chat
-    elif provider_name == "google":
-        mock_provider_chat = mock_google_chat
-
-    # --- 1. SETUP and INITIAL RUN ---
-    # Define the sequence of LLM intents for each turn
-    turn_intents = [
-        {
-            "tool_calls": [
-                ToolCall("1", "write_file", {"path": "test.txt", "content": "hello"})
-            ]
-        },
-        {"content": "File created."},
-    ]
-
-    # Create a dynamic side_effect function for the mock chat
-    def dynamic_chat_side_effect(messages: list[Message], **kwargs) -> ProviderResponse:
-        call_index = mock_provider_chat.call_count - 1
-        intent = turn_intents[call_index]
-
-        # Calculate input tokens based on the current context
-        input_text = " ".join([msg.content or "" for msg in messages])
-        input_tokens = count_tokens(input_text)
-
-        # Use the metadata factory to create a response with correct token counts
-        dynamic_metadata = mock_metadata_factory(usage={"input_tokens": input_tokens})
-
-        return ProviderResponse(
-            content=intent.get("content"),
-            tool_calls=intent.get("tool_calls", []),
-            metadata=dynamic_metadata,
-        )
-
-    mock_provider_chat.side_effect = dynamic_chat_side_effect
-
-    config = AgentConfig(
-        provider_name=provider_name, model="test-model", tool_names=["write_file"]
+    google_chat_patcher = (
+        patch("allos.providers.google.GoogleProvider.chat")
+        if provider_name == "google"
+        else nullcontext()
     )
-    agent = Agent(config)
+    google_verify_patcher = (
+        patch("allos.providers.google.GoogleProvider._verify_model_available")
+        if provider_name == "google"
+        else nullcontext()
+    )
 
-    # Run the agent part-way
-    agent.run("Create a test file.")
+    with (
+        google_chat_patcher as mock_google_chat,
+        google_verify_patcher as mock_verify_google,
+    ):
+        if provider_name == "google":
+            assert mock_verify_google is not None
+            mock_verify_google.return_value = None
 
-    # Context should be: user_prompt, assistant_tool_call, user_tool_result, final_assistant
-    assert len(agent.context) == 4
+        mock_provider_chat = mock_ollama_chat
+        if provider_name == "openai":
+            mock_provider_chat = mock_openai_chat
+        elif provider_name == "anthropic":
+            mock_provider_chat = mock_anthropic_chat
+        elif provider_name == "chat_completions":
+            mock_provider_chat = mock_chat_completions_chat
+        elif provider_name == "google":
+            assert mock_google_chat is not None
+            mock_provider_chat = mock_google_chat
 
-    # Verify that the dynamic metadata was aggregated correctly
-    assert agent.last_run_metadata is not None
-    assert agent.last_run_metadata.usage.total_tokens > 0
-    assert len(agent.last_run_metadata.turns.turn_history) == 2
+        # --- 1. SETUP and INITIAL RUN ---
+        # Define the sequence of LLM intents for each turn
+        turn_intents = [
+            {
+                "tool_calls": [
+                    ToolCall(
+                        "1", "write_file", {"path": "test.txt", "content": "hello"}
+                    )
+                ]
+            },
+            {"content": "File created."},
+        ]
 
-    # --- 2. SAVE SESSION ---
-    session_filepath = work_dir / "test_session.json"
-    agent.save_session(session_filepath)
-    assert session_filepath.exists()
+        # Create a dynamic side_effect function for the mock chat
+        def dynamic_chat_side_effect(
+            messages: list[Message], **kwargs
+        ) -> ProviderResponse:
+            call_index = mock_provider_chat.call_count - 1
+            intent = turn_intents[call_index]
 
-    # --- 3. LOAD SESSION ---
-    # We don't need to mock anything here, as load_session is a classmethod
-    loaded_agent = Agent.load_session(session_filepath)
+            # Calculate input tokens based on the current context
+            input_text = " ".join([msg.content or "" for msg in messages])
+            input_tokens = count_tokens(input_text)
 
-    # --- 4. VERIFY LOADED STATE ---
-    assert isinstance(loaded_agent, Agent)
-    assert loaded_agent.config.provider_name == provider_name
-    assert len(loaded_agent.context) == 4
-    # Verify the content of the loaded context
-    assert loaded_agent.context.messages[0].content == "Create a test file."
-    assert loaded_agent.context.messages[2].role == "tool"
+            # Use the metadata factory to create a response with correct token counts
+            dynamic_metadata = mock_metadata_factory(
+                usage={"input_tokens": input_tokens}
+            )
+
+            return ProviderResponse(
+                content=intent.get("content"),
+                tool_calls=intent.get("tool_calls", []),
+                metadata=dynamic_metadata,
+            )
+
+        mock_provider_chat.side_effect = dynamic_chat_side_effect
+
+        config = AgentConfig(
+            provider_name=provider_name, model="test-model", tool_names=["write_file"]
+        )
+        agent = Agent(config)
+
+        # Run the agent part-way
+        agent.run("Create a test file.")
+
+        # Context should be: user_prompt, assistant_tool_call, user_tool_result, final_assistant
+        assert len(agent.context) == 4
+
+        # Verify that the dynamic metadata was aggregated correctly
+        assert agent.last_run_metadata is not None
+        assert agent.last_run_metadata.usage.total_tokens > 0
+        assert len(agent.last_run_metadata.turns.turn_history) == 2
+
+        # --- 2. SAVE SESSION ---
+        session_filepath = work_dir / "test_session.json"
+        agent.save_session(session_filepath)
+        assert session_filepath.exists()
+
+        # --- 3. LOAD SESSION ---
+        # We don't need to mock anything here, as load_session is a classmethod
+        loaded_agent = Agent.load_session(session_filepath)
+
+        # --- 4. VERIFY LOADED STATE ---
+        assert isinstance(loaded_agent, Agent)
+        assert loaded_agent.config.provider_name == provider_name
+        assert len(loaded_agent.context) == 4
+        # Verify the content of the loaded context
+        assert loaded_agent.context.messages[0].content == "Create a test file."
+        assert loaded_agent.context.messages[2].role == "tool"
