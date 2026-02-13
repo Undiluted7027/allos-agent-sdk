@@ -1,11 +1,15 @@
-# tests/integration/test_agent_workflow.py
+# tests/e2e/test_agent_workflow.py
 
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import Message, ProviderResponse, ToolCall
 from allos.utils.token_counter import count_tokens
+
+pytestmark = pytest.mark.e2e
 
 
 @patch("rich.console.Console.input", return_value="y")  # Auto-approve all tool calls

@@ -20,7 +20,7 @@ from allos import Agent, AgentConfig
 
 config = AgentConfig(
     provider_name="anthropic",
-    model="claude-3-5-sonnet-20240620"
+    model="claude-sonnet-4-5-20250929"
 )
 
 agent = Agent(config)
@@ -30,9 +30,11 @@ agent = Agent(config)
 
 The provider is compatible with all models available through the Anthropic Messages API. Common models include:
 
-- `claude-3-5-sonnet-20240620`
-- `claude-3-opus-20240229`
-- `claude-3-sonnet-20240229`
-- `claude-3-haiku-20240307`
+- `claude-opus-4-6`
+- `claude-sonnet-4-5-20250929`
+- `claude-haiku-4-5-20251001`
+- `claude-opus-4-5-20251101`
+
+and others...
 
 For a full list, refer to the [official Anthropic documentation](https://docs.anthropic.com/claude/reference/models).

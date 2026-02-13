@@ -1,14 +1,18 @@
-# tests/integration/test_tool_execution.py
+# tests/e2e/test_tool_execution.py
 
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
+
+import pytest
 
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import Message, ProviderResponse, ToolCall
 from allos.tools import ToolRegistry
 from allos.utils.errors import ToolError
 from allos.utils.token_counter import count_tokens
+
+pytestmark = pytest.mark.e2e
 
 # --- File Tool Integration Tests ---
 

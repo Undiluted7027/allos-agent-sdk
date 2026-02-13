@@ -1,4 +1,4 @@
-# tests/integration/test_session.py
+# tests/e2e/test_session.py
 
 from pathlib import Path
 from unittest.mock import patch
@@ -8,6 +8,8 @@ import pytest
 from allos.agent import Agent, AgentConfig
 from allos.providers.base import Message, ProviderResponse, ToolCall
 from allos.utils.token_counter import count_tokens
+
+pytestmark = pytest.mark.e2e
 
 
 # We can keep the real provider/tool registries, but mock the provider's .chat method

@@ -36,7 +36,7 @@ OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 # Default models for providers
 PROVIDER_MODELS = {
     "openai": "gpt-4o",
-    "anthropic": "claude-3-haiku-20240307",
+    "anthropic": "claude-haiku-4-5",
     "ollama": os.getenv("TEST_OLLAMA_MODEL", "qwen3:8b"),  # Reads env or defaults
     "chat_completions": "gpt-3.5-turbo",
     "google": "gemini-2.5-flash-lite",

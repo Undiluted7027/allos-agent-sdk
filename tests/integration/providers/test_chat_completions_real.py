@@ -26,6 +26,20 @@ class GetWeatherTool(BaseTool):
         pass
 
 
+def _assert_chat_completions_metadata(response) -> None:
+    """Assert stable metadata shape for real chat_completions calls."""
+    metadata = response.metadata
+    assert metadata is not None
+    assert metadata.model.provider == "chat_completions"
+    assert metadata.model.model_id != ""
+    assert metadata.usage.input_tokens >= 0
+    assert metadata.usage.output_tokens >= 0
+    assert metadata.usage.total_tokens == (
+        metadata.usage.input_tokens + metadata.usage.output_tokens
+    )
+    assert metadata.latency.total_duration_ms >= 0
+
+
 @pytest.mark.integration
 def test_chat_completions_real_simple_chat():
     """Test basic chat functionality against real OpenAI endpoint via the adapter."""
@@ -40,6 +54,7 @@ def test_chat_completions_real_simple_chat():
 
     response = provider.chat(messages, temperature=0)
     assert response.content and "4" in response.content
+    _assert_chat_completions_metadata(response)
 
 
 @pytest.mark.integration
@@ -57,3 +72,4 @@ def test_chat_completions_real_tool_calling():
     assert len(response.tool_calls) > 0
     assert response.tool_calls[0].name == "get_current_weather"
     assert "London" in response.tool_calls[0].arguments.get("location", "")
+    _assert_chat_completions_metadata(response)

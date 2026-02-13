@@ -235,4 +235,6 @@ CLAUDE.md
 .agents/
 .github/copilot-instructions.md
 .codex/
+.kiro/
+
 .rough/

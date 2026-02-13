@@ -48,6 +48,25 @@ providers_to_test = get_available_provider_params()
 # --- The Tests ---
 
 
+def _provider_matches(expected: str, actual: str) -> bool:
+    if expected == "chat_completions" and actual == "openai":
+        return True
+    return expected == actual
+
+
+def _assert_basic_metadata(response, provider_name: str) -> None:
+    metadata = response.metadata
+    assert metadata is not None
+    assert _provider_matches(provider_name, metadata.model.provider)
+    assert metadata.model.model_id != ""
+    assert metadata.usage.input_tokens >= 0
+    assert metadata.usage.output_tokens >= 0
+    assert metadata.usage.total_tokens == (
+        metadata.usage.input_tokens + metadata.usage.output_tokens
+    )
+    assert metadata.latency.total_duration_ms >= 0
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize("provider_name, model", providers_to_test)
 def test_provider_switching_simple_chat(provider_name, model):
@@ -62,6 +81,7 @@ def test_provider_switching_simple_chat(provider_name, model):
     # Assert that we get a valid response
     assert response.content != "None"
     assert response.content and "blue" in response.content.lower()
+    _assert_basic_metadata(response, provider_name)
     print(f"[{provider_name.upper()}] Response: {response.content}")
 
 
@@ -87,6 +107,7 @@ def test_provider_switching_tool_calling(provider_name, model):
     assert tool_call.name == "get_current_weather"
     assert "location" in tool_call.arguments
     assert "boston" in tool_call.arguments["location"].lower()
+    _assert_basic_metadata(response, provider_name)
     print(
         f"[{provider_name.upper()}] Tool Call: {tool_call.name}({tool_call.arguments})"
     )

@@ -34,6 +34,22 @@ class GetWeatherTool(BaseTool):
         pass
 
 
+def _assert_google_metadata(response, expected_vertexai: bool) -> None:
+    """Assert stable metadata shape for real Google calls."""
+    metadata = response.metadata
+    assert metadata is not None
+    assert metadata.model.provider == "google"
+    assert metadata.model.model_id != ""
+    assert metadata.usage.input_tokens >= 0
+    assert metadata.usage.output_tokens >= 0
+    assert metadata.usage.total_tokens == (
+        metadata.usage.input_tokens + metadata.usage.output_tokens
+    )
+    assert metadata.latency.total_duration_ms >= 0
+    assert metadata.provider_specific.google is not None
+    assert metadata.provider_specific.google.vertexai is expected_vertexai
+
+
 @pytest.mark.integration
 @pytest.mark.requires_gemini
 def test_google_gemini_provider_simple_chat_integration():
@@ -56,6 +72,7 @@ def test_google_gemini_provider_simple_chat_integration():
 
     assert response.content is not None
     assert "blue" in response.content.lower()
+    _assert_google_metadata(response, expected_vertexai=False)
 
 
 @pytest.mark.integration
@@ -84,6 +101,7 @@ def test_google_vertexai_provider_simple_chat_integration():
 
     assert response.content is not None
     assert "blue" in response.content.lower()
+    _assert_google_metadata(response, expected_vertexai=True)
 
 
 @pytest.mark.integration
@@ -110,6 +128,7 @@ def test_google_gemini_provider_tool_calling_integration():
     assert tool_call.name == "get_current_weather"
     assert "location" in tool_call.arguments
     assert "boston" in tool_call.arguments["location"].lower()
+    _assert_google_metadata(response, expected_vertexai=False)
 
 
 @pytest.mark.integration
@@ -140,3 +159,4 @@ def test_google_vertex_provider_tool_calling_integration():
     assert tool_call.name == "get_current_weather"
     assert "location" in tool_call.arguments
     assert "boston" in tool_call.arguments["location"].lower()
+    _assert_google_metadata(response, expected_vertexai=True)

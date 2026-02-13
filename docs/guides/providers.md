@@ -14,7 +14,7 @@ openai_provider = ProviderRegistry.get_provider("openai", model="gpt-4o")
 
 # Get an instance of the Anthropic provider
 anthropic_provider = ProviderRegistry.get_provider(
-    "anthropic", model="claude-3-5-sonnet-20240620"
+    "anthropic", model="claude-sonnet-4-5-20250929"
 )
 
 # Get an instance of the Google provider (Gemini API)

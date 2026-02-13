@@ -13,6 +13,7 @@ from allos.providers.metadata import (
     ModelConfiguration,
     ModelInfo,
     ProviderSpecific,
+    ProviderSpecificOpenAI,
     QualitySignals,
     SdkInfo,
     ToolCallDetail,
@@ -872,3 +873,143 @@ class TestAgentThoughtSignatures:
 
         # Should handle multiple signatures without errors
         assert len(result_chunks) > 0
+
+
+@patch("allos.agent.agent.ProviderRegistry.get_provider")
+def test_metadata_preserves_first_provider_specific_when_missing_in_last(
+    mock_get_provider, work_dir, mock_metadata_factory
+):
+    """Aggregate metadata should preserve first-turn provider-specific fields."""
+    mock_provider = mock_get_provider.return_value  # pyright: ignore[reportAttributeAccessIssue]
+    mock_provider.get_context_window.return_value = 32000
+
+    first_metadata = mock_metadata_factory(
+        provider="openai",
+        model_id="first-model",
+        usage={"input_tokens": 10, "output_tokens": 5},
+        provider_specific=ProviderSpecific(
+            openai=ProviderSpecificOpenAI(system_fingerprint="fp_first")
+        ),
+    )
+    last_metadata = mock_metadata_factory(
+        provider="openai",
+        model_id="last-model",
+        usage={"input_tokens": 20, "output_tokens": 7},
+        provider_specific=ProviderSpecific(),  # Explicitly missing openai-specific data
+    )
+
+    mock_provider.chat.side_effect = [
+        ProviderResponse(
+            content=None,
+            tool_calls=[
+                ToolCall(
+                    id="call_1",
+                    name="write_file",
+                    arguments={"path": "note.txt", "content": "hello"},
+                )
+            ],
+            metadata=first_metadata,
+        ),
+        ProviderResponse(
+            content="Done.",
+            tool_calls=[],
+            metadata=last_metadata,
+        ),
+    ]
+
+    agent = Agent(
+        AgentConfig(
+            provider_name="test",
+            model="test",
+            tool_names=["write_file"],
+            auto_approve=True,
+            max_iterations=3,
+        )
+    )
+
+    result = agent.run("Create note.txt with hello")
+    assert "Done." in result
+
+    assert agent.last_run_metadata is not None
+    aggregate = agent.last_run_metadata
+
+    assert aggregate.model.model_id == "last-model"
+    assert aggregate.turns.total_turns == 2
+    assert len(aggregate.turns.turn_history) == 2
+    assert aggregate.tools.total_tool_calls == 1
+
+    assert aggregate.usage.input_tokens == 30  # 10 + 20
+    assert aggregate.usage.output_tokens == 12  # 5 + 7
+    assert aggregate.usage.total_tokens == 42
+
+    assert aggregate.provider_specific.openai is not None
+    assert aggregate.provider_specific.openai.system_fingerprint == "fp_first"
+
+
+@patch("allos.agent.agent.ProviderRegistry.get_provider")
+def test_metadata_keeps_last_provider_specific_when_present(
+    mock_get_provider, work_dir, mock_metadata_factory
+):
+    """Aggregate metadata should keep last-turn provider-specific fields when present."""
+    mock_provider = mock_get_provider.return_value  # pyright: ignore[reportAttributeAccessIssue]
+    mock_provider.get_context_window.return_value = 32000
+
+    first_metadata = mock_metadata_factory(
+        provider="openai",
+        model_id="first-model",
+        usage={"input_tokens": 8, "output_tokens": 4},
+        provider_specific=ProviderSpecific(
+            openai=ProviderSpecificOpenAI(system_fingerprint="fp_first")
+        ),
+    )
+    last_metadata = mock_metadata_factory(
+        provider="openai",
+        model_id="last-model",
+        usage={"input_tokens": 11, "output_tokens": 6},
+        provider_specific=ProviderSpecific(
+            openai=ProviderSpecificOpenAI(system_fingerprint="fp_last")
+        ),
+    )
+
+    mock_provider.chat.side_effect = [
+        ProviderResponse(
+            content=None,
+            tool_calls=[
+                ToolCall(
+                    id="call_1",
+                    name="write_file",
+                    arguments={"path": "report.txt", "content": "ok"},
+                )
+            ],
+            metadata=first_metadata,
+        ),
+        ProviderResponse(
+            content="Finished.",
+            tool_calls=[],
+            metadata=last_metadata,
+        ),
+    ]
+
+    agent = Agent(
+        AgentConfig(
+            provider_name="test",
+            model="test",
+            tool_names=["write_file"],
+            auto_approve=True,
+            max_iterations=3,
+        )
+    )
+
+    result = agent.run("Create report.txt with ok")
+    assert "Finished." in result
+
+    assert agent.last_run_metadata is not None
+    aggregate = agent.last_run_metadata
+
+    assert aggregate.model.model_id == "last-model"
+    assert aggregate.provider_specific.openai is not None
+    assert aggregate.provider_specific.openai.system_fingerprint == "fp_last"
+
+    assert aggregate.usage.input_tokens == 19  # 8 + 11
+    assert aggregate.usage.output_tokens == 10  # 4 + 6
+    assert aggregate.usage.total_tokens == 29

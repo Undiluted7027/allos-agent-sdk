@@ -29,15 +29,27 @@ class GetWeatherTool(BaseTool):
         pass
 
 
+def _assert_anthropic_metadata(response) -> None:
+    """Assert stable metadata shape for real Anthropic calls."""
+    metadata = response.metadata
+    assert metadata is not None
+    assert metadata.model.provider == "anthropic"
+    assert metadata.model.model_id != ""
+    assert metadata.usage.input_tokens >= 0
+    assert metadata.usage.output_tokens >= 0
+    assert metadata.usage.total_tokens == (
+        metadata.usage.input_tokens + metadata.usage.output_tokens
+    )
+    assert metadata.latency.total_duration_ms >= 0
+
+
 @pytest.mark.integration
 def test_anthropic_provider_simple_chat_integration():
     """
     Performs a real API call to test simple chat completion.
     This test is skipped unless --run-integration is provided and ANTHROPIC_API_KEY is set.
     """
-    provider = ProviderRegistry.get_provider(
-        "anthropic", model="claude-3-5-haiku-latest"
-    )
+    provider = ProviderRegistry.get_provider("anthropic", model="claude-haiku-4-5")
     messages = [
         Message(
             role=MessageRole.SYSTEM,
@@ -52,7 +64,7 @@ def test_anthropic_provider_simple_chat_integration():
 
     assert response.content is not None
     assert "blue" in response.content.lower()
-    # assert response.metadata["messages"]["processed"] == 1
+    _assert_anthropic_metadata(response)
 
 
 @pytest.mark.integration
@@ -61,9 +73,7 @@ def test_anthropic_provider_tool_calling_integration():
     Performs a real API call to test tool calling.
     This test is skipped unless --run-integration is provided and ANTHROPIC_API_KEY is set.
     """
-    provider = ProviderRegistry.get_provider(
-        "anthropic", model="claude-3-5-haiku-latest"
-    )
+    provider = ProviderRegistry.get_provider("anthropic", model="claude-haiku-4-5")
     messages = [
         Message(role=MessageRole.USER, content="What is the weather like in Boston?"),
     ]
@@ -73,13 +83,13 @@ def test_anthropic_provider_tool_calling_integration():
 
     # Anthropic models often return both text content (e.g., "thinking...") and a tool call.
     # The critical part is that a tool call was actually made.
-    assert (
-        response.content is not None or len(response.tool_calls) > 0
-    ), "Expected either text content or a tool call"
+    assert response.content is not None or len(response.tool_calls) > 0, (
+        "Expected either text content or a tool call"
+    )
     assert len(response.tool_calls) > 0, "Expected the model to request a tool call"
 
     tool_call = response.tool_calls[0]
     assert tool_call.name == "get_current_weather"
     assert "location" in tool_call.arguments
     assert "boston" in tool_call.arguments["location"].lower()
-    # assert response.metadata["tool_calls"]["processed"] == 1
+    _assert_anthropic_metadata(response)
