@@ -305,7 +305,8 @@ def example_7_tool_calling_compat_limitations():
     ⚠️  [bold white]Limitations:[/bold white]
     - Tool behavior via compatibility endpoints can be model and endpoint-dependent
     - Reliability for tool-heavy loops is lower than native ollama provider
-    - Must use `no_tools=True` for reliability
+    - Tool behavior through compat endpoints is less reliable; prefer native
+        ollama for tool-heavy loops.
     - Best for simple query/response scenarios
 
     ✅  [bold white]Recommendation:[/bold white]

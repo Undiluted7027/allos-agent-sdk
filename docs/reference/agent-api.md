@@ -12,10 +12,11 @@ A dataclass used to configure an `Agent` instance.
 - `tool_names: List[str]`: A list of names of the tools the agent is allowed to use. These names must correspond to tools registered in the `ToolRegistry`.
 - `max_iterations: int`: The maximum number of LLM-tool interaction loops the agent can perform before stopping. Defaults to `10`.
 - `max_tokens: Optional[int]`: The maximum number of tokens the model is allowed to generate. Defaults to `None`.
+- `provider_call_options: Dict[str, Any]`: Default provider kwargs to apply on every provider call inside `run()` / `stream_run()` (for example `temperature`, `top_p`, `logprobs`). Defaults to `{}`.
 - `no_tools: bool`: If `True`, the agent will be initialized without any tools, even if `tool_names` is provided. Useful for chat-only interactions or constrained models. Defaults to `False`.
 - `base_url: Optional[str]`: Override the API endpoint URL. Useful for connecting to custom OpenAI-compatible servers.
 - `api_key: Optional[str]`: Explicitly provide an API key. This overrides any environment variables. **Security Note:** This field is excluded from the string representation (`repr`) and is removed before session serialization to prevent leaks.
-- `auto-approve: bool = False`: Explicitly mark all tool calls as auto-approve. The agent will not prompt the user for approval.
+- `auto_approve: bool = False`: Explicitly mark all tool calls as auto-approve. The agent will not prompt the user for approval.
 
 ---
 
@@ -27,21 +28,37 @@ The main class for orchestrating agentic behavior.
 
 ### Methods
 
-#### `run(prompt: str) -> str`
+#### `run(prompt: str, **provider_call_options: Any) -> str`
 Starts the agentic loop with a given user prompt. The agent will interact with its provider and tools until it generates a final text-based answer or reaches `max_iterations`.
 - **Arguments:**
     - `prompt` (str): The high-level task or question for the agent.
+    - `**provider_call_options` (`Any`): Per-run provider kwargs (for example `temperature=0.2`, `top_p=0.9`). These are applied to every provider turn in this run.
 - **Returns:**
     - `str`: The final text response from the agent.
 - **Raises:**
     - `AllosError`: If `max_iterations` is reached.
 
-#### `stream_run(prompt: str) -> Iterator[ProviderChunk]`
+#### `stream_run(prompt: str, **provider_call_options: Any) -> Iterator[ProviderChunk]`
 Runs the agentic loop in streaming mode. This allows you to process the LLM's response token-by-token as it is generated. It handles tool execution automatically in the background between stream chunks.
 - **Arguments:**
     - `prompt` (str): The high-level task or question.
+    - `**provider_call_options` (`Any`): Per-run provider kwargs (for example `temperature=0.2`, `top_p=0.9`). These are applied to every provider turn in this run.
 - **Returns:**
     - `Iterator[ProviderChunk]`: An iterator yielding chunks of data (text content, tool call status, or errors). See [Provider API](./provider-api.md) for `ProviderChunk` details.
+
+### Provider Call Options
+
+`Agent` merges provider call options with this precedence:
+1. `AgentConfig.provider_call_options`
+2. `AgentConfig.max_tokens` (legacy field, if set)
+3. Runtime kwargs from `run(..., **kwargs)` / `stream_run(..., **kwargs)`
+4. Agent-managed `tools` injection (when tools are enabled)
+
+Reserved keys are rejected in both config defaults and runtime kwargs:
+- `messages`
+- `tools`
+
+Use prompt/context for messages and `tool_names` / `no_tools` for tool control.
 
 #### `save_session(filepath: str | Path) -> None`
 Serializes the agent's `AgentConfig` and its entire `ConversationContext` to a JSON file.

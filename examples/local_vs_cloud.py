@@ -78,13 +78,13 @@ def run_benchmark(
     try:
         agent = Agent(config)
 
-        # start_time = time.perf_counter()
         response = agent.run(prompt)
-        # elapsed = time.perf_counter() - start_time
 
         # Extract token usage from the last response metadata
         input_tokens = 0
         output_tokens = 0
+        duration = 0.0
+        tps = 0.0
         warm_up_detected = False
 
         if agent.context.messages:
@@ -131,8 +131,8 @@ def run_benchmark(
 
 
 def estimate_cost(provider: str, input_tokens: int, output_tokens: int) -> float:
-    """Estimate the cost for a provider based on token usage."""
-    # Approximate pricing per 1M tokens (as of 2025)
+    """Estimate cost using static reference pricing (illustrative only)."""
+    # Approximate pricing per 1M tokens (reference values, not billing truth).
     pricing = {
         "openai": {"input": 2.50, "output": 10.00},  # GPT-4o
         "anthropic": {"input": 3.00, "output": 15.00},  # Claude 3.5 Sonnet
@@ -259,6 +259,10 @@ def main():
     for provider, is_available in available.items():
         status = "[green]Ready[/]" if is_available else "[red]Not Available[/]"
         console.print(f"  {provider}: {status}")
+    console.print(
+        "[dim]Cost values in this demo are reference estimates and may differ from "
+        "actual provider billing.[/dim]"
+    )
 
     if not available["ollama"]:
         console.print(

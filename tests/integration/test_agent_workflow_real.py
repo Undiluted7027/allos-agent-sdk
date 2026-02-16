@@ -24,7 +24,7 @@ def test_agent_run_basic_real(provider_name: str, model: str):
         )
     )
 
-    result = agent.run("Reply with one short sentence about the sky.")
+    result = agent.run("Reply with one short sentence about the sky.", temperature=0)
 
     assert isinstance(result, str)
     assert result.strip() != ""

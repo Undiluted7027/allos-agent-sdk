@@ -15,13 +15,22 @@ Inside the new file, create a class that inherits from `BaseProvider` and implem
 ```python
 # allos/providers/nexusai.py
 
-from typing import List, Optional, Any
-from allos.providers import BaseProvider, Message, ProviderResponse, provider
-from allos.utils.errors import ProviderError
+import os
+import time
+from typing import Any, Iterator, List, Optional, Tuple, Dict
+
 # Assume a fictional 'nexusai' client library
 import nexusai
 
-@provider("nexusai") # The decorator that registers the provider
+
+from allos.providers import BaseProvider, Message, ProviderResponse, provider
+from allos.tools import BaseTool
+from allos.providers.base import ProviderChunk
+from allos.providers.metadata import MetadataBuilder
+from allos.utils.errors import ProviderError
+
+
+@provider("nexusai")  # The decorator that registers the provider
 class NexusAIProvider(BaseProvider):
     """Example provider template for Allos."""
 
@@ -40,12 +49,12 @@ class NexusAIProvider(BaseProvider):
             # Initialize the provider-specific client
             self.client = nexusai.Client(api_key=api_key)
         except Exception as e:
-            raise ProviderError(f"Failed to initialize NexusAI client: {e}", "nexusai")
+            raise ProviderError(
+                f"Failed to initialize NexusAI client: {e}", "nexusai"
+            ) from e
 
     def chat(self, messages: List[Message], **kwargs: Any) -> ProviderResponse:
-        """
-        Main method to interact with the NexusAI API.
-        """
+        """Main method to interact with the NexusAI API."""
         start_time = time.time()
         try:
             # raw_response = self.client.chat(...)
@@ -73,10 +82,10 @@ class NexusAIProvider(BaseProvider):
         except Exception as e:
             raise ProviderError(f"NexusAI API error: {e}", provider="nexusai") from e
 
-    def stream_chat(self, messages: List[Message], **kwargs: Any) -> Iterator[ProviderChunk]:
-        """
-        Main method to interact with the NexusAI API (Streaming).
-        """
+    def stream_chat(
+        self, messages: List[Message], **kwargs: Any
+    ) -> Iterator[ProviderChunk]:
+        """Main method to interact with the NexusAI API (Streaming)."""
         start_time = time.time()
         raw_final_response: Any = None
 
@@ -113,9 +122,7 @@ class NexusAIProvider(BaseProvider):
             yield ProviderChunk(error=f"NexusAI streaming error: {e}")
 
     def get_context_window(self) -> int:
-        """
-        Return the context window size for the model.
-        """
+        """Return the context window size for the model."""
         # Return a known value or look it up
         if self.model == "nexus-pro":
             return 100000
@@ -126,9 +133,10 @@ class NexusAIProvider(BaseProvider):
         # ... your implementation ...
         pass
 
-    def _convert_tools(self, tools: List[Tools]) -> List[Dict]:
+    def _convert_tools(self, tools: List[BaseTool]) -> List[Dict]:
         # ... your implementation ...
         pass
+
 ```
 
 ## Step 3: Register the Provider
@@ -153,7 +161,7 @@ from . import nexusai # Add this line
 ## Step 4: Add Tests
 
 -   Add comprehensive unit tests for your provider in `tests/unit/test_nexusai_provider.py`. Use mocking to avoid making real API calls.
--   Add integration tests in `tests/integration/test_nexusai_provider.py`. Mark them with the `run_integration_tests` decorator.
+-   Add integration tests in `tests/integration/test_nexusai_provider.py`. Mark them with the `@pytest.mark.integration` decorator.
 
 ## Advanced: Supporting Thought Signatures
 

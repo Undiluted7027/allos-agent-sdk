@@ -94,6 +94,9 @@ provider = ProviderRegistry.get_provider(
 
 The native provider includes built-in support for popular Ollama models with their context window sizes:
 
+> [!NOTE] Context Windows & Tool Calling
+> Actual model capabilities/context are resolved from Ollama metadata at runtime and may differ by model tag/version.
+
 | Model | Context Window | Tool Calling |
 |-------|---------------|--------------|
 | `llama3` | 8,192 | No |

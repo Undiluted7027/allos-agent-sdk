@@ -60,7 +60,7 @@ def test_stream_run_basic_real(provider_name: str, model: str):
         )
     )
 
-    chunks = list(agent.stream_run("In one sentence, explain recursion."))
+    chunks = list(agent.stream_run("In one sentence, explain recursion.", temperature=0))
 
     assert len(chunks) > 0
     assert all(isinstance(c, ProviderChunk) for c in chunks)

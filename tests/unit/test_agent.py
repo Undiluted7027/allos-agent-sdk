@@ -333,6 +333,196 @@ class TestAgent:
         call_kwargs = mock_provider.chat.call_args.kwargs
         assert call_kwargs["max_tokens"] == 50
 
+    def test_run_passes_runtime_provider_options(
+        self, mock_get_provider, mock_metadata: Metadata
+    ):
+        """Test that run() forwards runtime provider kwargs."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Answer", metadata=mock_metadata
+        )
+
+        agent = Agent(AgentConfig(provider_name="test", model="test"))
+        agent.run("prompt", temperature=0.2, logprobs=True)
+
+        call_kwargs = mock_provider.chat.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.2
+        assert call_kwargs["logprobs"] is True
+
+    def test_stream_run_passes_runtime_provider_options(
+        self, mock_get_provider, mock_metadata: Metadata
+    ):
+        """Test that stream_run() forwards runtime provider kwargs."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.stream_chat.return_value = iter(
+            [
+                ProviderChunk(content="Hello"),
+                ProviderChunk(final_metadata=mock_metadata),
+            ]
+        )
+
+        agent = Agent(AgentConfig(provider_name="test", model="test"))
+        list(agent.stream_run("prompt", temperature=0.2, top_p=0.9))
+
+        call_kwargs = mock_provider.stream_chat.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.2
+        assert call_kwargs["top_p"] == 0.9
+
+    def test_provider_options_precedence_config_and_runtime(
+        self, mock_get_provider, mock_metadata: Metadata
+    ):
+        """Runtime options should override config defaults; config.max_tokens overrides config defaults."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Answer", metadata=mock_metadata
+        )
+
+        agent = Agent(
+            AgentConfig(
+                provider_name="test",
+                model="test",
+                max_tokens=200,
+                provider_call_options={
+                    "temperature": 0.1,
+                    "max_tokens": 100,
+                    "top_p": 0.8,
+                },
+            )
+        )
+
+        agent.run("prompt", temperature=0.7)
+
+        call_kwargs = mock_provider.chat.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.7
+        assert call_kwargs["max_tokens"] == 200
+        assert call_kwargs["top_p"] == 0.8
+
+    def test_runtime_max_tokens_overrides_config_max_tokens(
+        self, mock_get_provider, mock_metadata: Metadata
+    ):
+        """Runtime max_tokens should override AgentConfig.max_tokens."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Answer", metadata=mock_metadata
+        )
+
+        agent = Agent(
+            AgentConfig(
+                provider_name="test",
+                model="test",
+                max_tokens=200,
+            )
+        )
+
+        agent.run("prompt", max_tokens=50)
+        call_kwargs = mock_provider.chat.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 50
+
+    def test_provider_call_options_must_be_dict(self, mock_get_provider):
+        """provider_call_options must be a dict and should fail fast if invalid."""
+        mock_provider = mock_get_provider.return_value
+        agent = Agent(
+            AgentConfig(
+                provider_name="test",
+                model="test",
+                provider_call_options="invalid",  # type: ignore[arg-type]
+            )
+        )
+
+        with pytest.raises(AllosError, match="must be a dictionary"):
+            agent.run("prompt")
+
+        mock_provider.chat.assert_not_called()
+
+    @pytest.mark.parametrize("reserved_key", ["tools", "messages"])
+    def test_reserved_provider_options_rejected_in_config(
+        self, mock_get_provider, reserved_key: str
+    ):
+        """Reserved provider kwargs in config should raise a clear error."""
+        mock_provider = mock_get_provider.return_value
+        agent = Agent(
+            AgentConfig(
+                provider_name="test",
+                model="test",
+                provider_call_options={reserved_key: "invalid"},
+            )
+        )
+
+        with pytest.raises(AllosError, match="Agent manages these keys internally"):
+            agent.run("prompt")
+
+        mock_provider.chat.assert_not_called()
+
+    @pytest.mark.parametrize("reserved_key", ["tools", "messages"])
+    def test_reserved_provider_options_rejected_in_runtime(
+        self, mock_get_provider, reserved_key: str
+    ):
+        """Reserved runtime kwargs should raise a clear error."""
+        mock_provider = mock_get_provider.return_value
+        agent = Agent(AgentConfig(provider_name="test", model="test"))
+
+        with pytest.raises(AllosError, match="Agent manages these keys internally"):
+            agent.run("prompt", **{reserved_key: "invalid"})
+
+        mock_provider.chat.assert_not_called()
+
+    def test_provider_call_options_not_mutated_after_run(
+        self, mock_get_provider, mock_metadata: Metadata
+    ):
+        """Run-time overrides must not mutate config.provider_call_options."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Answer", metadata=mock_metadata
+        )
+
+        original_options = {"temperature": 0.2}
+        agent = Agent(
+            AgentConfig(
+                provider_name="test",
+                model="test",
+                provider_call_options=dict(original_options),
+            )
+        )
+
+        agent.run("prompt", top_p=0.9)
+        assert agent.config.provider_call_options == original_options
+
+    def test_session_roundtrip_preserves_provider_call_options(
+        self, mock_get_provider, mock_metadata: Metadata, tmp_path
+    ):
+        """Saved sessions should preserve provider_call_options and reapply them."""
+        mock_provider = mock_get_provider.return_value
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Answer", metadata=mock_metadata
+        )
+
+        options = {"temperature": 0.3, "top_p": 0.9}
+        agent = Agent(
+            AgentConfig(
+                provider_name="test",
+                model="test",
+                provider_call_options=options,
+            )
+        )
+
+        agent.run("first")
+
+        session_path = tmp_path / "provider_call_options_session.json"
+        agent.save_session(session_path)
+
+        loaded_agent = Agent.load_session(session_path)
+        assert loaded_agent.config.provider_call_options == options
+
+        mock_provider.chat.reset_mock()
+        mock_provider.chat.return_value = ProviderResponse(
+            content="Second answer", metadata=mock_metadata
+        )
+        loaded_agent.run("second")
+
+        call_kwargs = mock_provider.chat.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.3
+        assert call_kwargs["top_p"] == 0.9
+
     @patch("allos.agent.agent.ToolRegistry.get_tool")
     def test_no_tools_config_prevents_tool_loading(
         self, mock_get_tool, mock_get_provider

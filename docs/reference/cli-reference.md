@@ -245,11 +245,11 @@ allos -i \
 # With specific tools enabled
 allos -i \
   --provider openai \
-  --tools read_file,write_file,shell_exec
+  --tool read_file --tool write_file --tool shell_exec
 
 # With session saving and auto-approve
 allos -i \
-  --session-file project.json \
+  --session project.json \
   --auto-approve \
   --stream
 ```

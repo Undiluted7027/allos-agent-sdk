@@ -47,6 +47,7 @@ if [ -z "$TOGETHER_API_KEY" ]; then
     echo -e "\n[3/5] TOGETHER: Skipping (TOGETHER_API_KEY not found)"
 else
     echo -e "\n[3/5] TOGETHER: Writing Code (Explicit Adapter)..."
+
     allos "Write the Python code for this plan. Do not execute it." \
     --provider chat_completions \
     --model "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo" \
@@ -58,7 +59,7 @@ fi
 # --- 4. OPENAI (The Executor) ---
 # Testing: Max tokens, Tools enabled (default), Auto-approve
 if [ -z "$OPENAI_API_KEY" ]; then
-    echo -e "\n[3/5] OPENAI: Skipping (OPENAI_API_KEY not found)"
+    echo -e "\n[4/5] OPENAI: Skipping (OPENAI_API_KEY not found)"
 else
     echo -e "\n[4/5] OPENAI: Executing Code (--max-tokens, --auto-approve)..."
     allos "Save that code to 'cli_demo.py' and execute it. Report the output." \
@@ -68,6 +69,7 @@ else
       --auto-approve \
       --session "$SESSION_FILE" \
       --tool "write_file" \
+      --tool "shell_exec" \
       --verbose
 fi
 
@@ -75,7 +77,7 @@ fi
 # We switch to Claude to review the output. This tests the Anthropic provider
 # correctly handling a context populated by OpenAI tools.
 if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo -e "\n[4/5] ANTHROPIC: Skipping (ANTHROPIC_API_KEY not found)"
+    echo -e "\n[5/5] ANTHROPIC: Skipping (ANTHROPIC_API_KEY not found)"
 else
     echo -e "\n[5/5] ANTHROPIC: Reviewing Output (Native Provider) ..."
     allos "Analyze the output of the script execution. Did it work as expected? Be brief." \

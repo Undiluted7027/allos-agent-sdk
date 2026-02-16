@@ -103,7 +103,8 @@ class AgentConfig:
     base_url: Optional[str] = None
     # api_key, exclude from repr for security logs (for providers like Together AI)
     api_key: Optional[str] = field(default=None, repr=False)
-    # Provider-specific kwargs can be added here if needed in the future
+    # Default provider call kwargs (e.g., temperature, top_p) applied on each turn.
+    provider_call_options: Dict[str, Any] = field(default_factory=dict)
 
 
 class CumulativeState(TypedDict):
@@ -238,11 +239,57 @@ class Agent:
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
             raise AllosError(f"Failed to load session from '{filepath}': {e}") from e
 
-    def run(self, prompt: str) -> str:
+    def _validate_provider_call_options(
+        self, options: Dict[str, Any], source: str
+    ) -> None:
+        """Validate provider options and reject agent-managed reserved keys."""
+        reserved_keys = {"messages", "tools"}
+        invalid_keys = sorted(set(options.keys()) & reserved_keys)
+        if invalid_keys:
+            raise AllosError(
+                f"Invalid {source}: {', '.join(invalid_keys)}. "
+                f"The Agent manages these keys internally. "
+                f"Use prompt/context for messages and tool_names/no_tools for tools."
+            )
+
+    def _build_provider_call_kwargs(
+        self, run_options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Build effective provider kwargs with precedence and validation."""
+        config_options_raw = self.config.provider_call_options
+        if not isinstance(config_options_raw, dict):
+            raise AllosError("AgentConfig.provider_call_options must be a dictionary.")
+
+        self._validate_provider_call_options(
+            config_options_raw, "AgentConfig.provider_call_options"
+        )
+
+        run_options = run_options or {}
+        self._validate_provider_call_options(run_options, "runtime provider options")
+
+        # Precedence:
+        # 1) Config defaults
+        # 2) Legacy max_tokens on config
+        # 3) Runtime options on run/stream_run
+        # 4) Agent-managed tools injection (if enabled)
+        provider_kwargs: Dict[str, Any] = dict(config_options_raw)
+
+        if self.config.max_tokens is not None:
+            provider_kwargs["max_tokens"] = self.config.max_tokens
+
+        provider_kwargs.update(run_options)
+
+        if self.tools:
+            provider_kwargs["tools"] = self.tools
+
+        return provider_kwargs
+
+    def run(self, prompt: str, **provider_call_options: Any) -> str:
         """Runs the agentic loop to process a user prompt.
 
         Args:
             prompt: The user's initial prompt.
+            **provider_call_options: Per-run provider kwargs (e.g., temperature=0.2).
 
         Returns:
             The final textual response from the agent.
@@ -259,6 +306,10 @@ class Agent:
             AllosError: If the agent reaches its maximum iteration limit without
             producing a final answer.
         """
+        effective_provider_call_options = self._build_provider_call_kwargs(
+            provider_call_options
+        )
+
         # The run method should always add the new prompt. If a user wants to continue,
         # they can manage the context object themselves.
         self.context.add_user_message(prompt)
@@ -282,7 +333,7 @@ class Agent:
             turn_start_time = time.time()
 
             # 1. Get LLM response based on the CURRENT full context
-            llm_response = self._get_llm_response()
+            llm_response = self._get_llm_response(effective_provider_call_options)
 
             turn_duration_ms = int((time.time() - turn_start_time) * 1000)
 
@@ -404,17 +455,37 @@ class Agent:
         # Preserve provider-specific metadata from first turn if not present in last turn
         # This ensures fields like warm_up (Ollama) and system_fingerprint (OpenAI) are retained
         if first_metadata and first_metadata.provider_specific:
-            if aggregate.provider_specific.openai is None and first_metadata.provider_specific.openai:
-                aggregate.provider_specific.openai = first_metadata.provider_specific.openai
+            if (
+                aggregate.provider_specific.openai is None
+                and first_metadata.provider_specific.openai
+            ):
+                aggregate.provider_specific.openai = (
+                    first_metadata.provider_specific.openai
+                )
 
-            if aggregate.provider_specific.ollama is None and first_metadata.provider_specific.ollama:
-                aggregate.provider_specific.ollama = first_metadata.provider_specific.ollama
+            if (
+                aggregate.provider_specific.ollama is None
+                and first_metadata.provider_specific.ollama
+            ):
+                aggregate.provider_specific.ollama = (
+                    first_metadata.provider_specific.ollama
+                )
 
-            if aggregate.provider_specific.google is None and first_metadata.provider_specific.google:
-                aggregate.provider_specific.google = first_metadata.provider_specific.google
+            if (
+                aggregate.provider_specific.google is None
+                and first_metadata.provider_specific.google
+            ):
+                aggregate.provider_specific.google = (
+                    first_metadata.provider_specific.google
+                )
 
-            if aggregate.provider_specific.anthropic is None and first_metadata.provider_specific.anthropic:
-                aggregate.provider_specific.anthropic = first_metadata.provider_specific.anthropic
+            if (
+                aggregate.provider_specific.anthropic is None
+                and first_metadata.provider_specific.anthropic
+            ):
+                aggregate.provider_specific.anthropic = (
+                    first_metadata.provider_specific.anthropic
+                )
 
         # Update turns
         aggregate.turns.total_turns = len(turn_history)
@@ -437,11 +508,14 @@ class Agent:
 
         return aggregate
 
-    def stream_run(self, prompt: str) -> Iterator[ProviderChunk]:
+    def stream_run(
+        self, prompt: str, **provider_call_options: Any
+    ) -> Iterator[ProviderChunk]:
         """Runs the agentic loop in a streaming fashion, yielding chunks back to the caller.
 
         Args:
             prompt: The user's initial prompt.
+            **provider_call_options: Per-run provider kwargs (e.g., temperature=0.2).
 
         Yields:
             ProviderChunk: An iterator of chunks representing the streaming response. Chunks can contain content, tool call data, or final
@@ -458,6 +532,10 @@ class Agent:
             AllosError: If the agent reaches its maximum iteration limit without
             producing a final answer.
         """
+        effective_provider_call_options = self._build_provider_call_kwargs(
+            provider_call_options
+        )
+
         self.context.add_user_message(prompt)
         # Initialize cumulative tracking across all iterations
         cumulative_state: CumulativeState = {
@@ -480,6 +558,7 @@ class Agent:
             iteration_result = yield from self._process_streaming_iteration(
                 cumulative_state,
                 turn_start_time,
+                effective_provider_call_options,
             )
 
             turn_duration_ms = int((time.time() - turn_start_time) * 1000)
@@ -532,12 +611,14 @@ class Agent:
         self,
         cumulative_state: CumulativeState,
         turn_start_time: float,
+        provider_call_options: Optional[Dict[str, Any]] = None,
     ) -> Generator[ProviderChunk, None, Dict[str, Any]]:
         """Processes a single streaming iteration, yielding chunks and accumulating state.
 
         Args:
             cumulative_state: TypedDict tracking cumulative stats across all iterations.
             turn_start_time: Time when the turn started.
+            provider_call_options: Provider-specific arguments.
 
         Yields:
             ProviderChunk: Chunks from the provider stream.
@@ -554,7 +635,7 @@ class Agent:
         first_chunk_received = False
 
         # Get streaming response from provider
-        stream = self._get_provider_stream()
+        stream = self._get_provider_stream(provider_call_options)
 
         # Process each chunk from the stream
         for chunk in stream:
@@ -588,17 +669,21 @@ class Agent:
         return {
             "content": "".join(accumulated_content),
             "tool_calls": iteration_tool_calls,
-            "thought_signatures": accumulated_thought_signatures if accumulated_thought_signatures else None,
+            "thought_signatures": accumulated_thought_signatures
+            if accumulated_thought_signatures
+            else None,
             "ttft_ms": time_to_first_token_ms,
         }
 
-    def _get_provider_stream(self) -> Iterator[ProviderChunk]:
+    def _get_provider_stream(
+        self, provider_call_options: Optional[Dict[str, Any]] = None
+    ) -> Iterator[ProviderChunk]:
         """Gets the streaming iterator from the provider with configured parameters."""
-        chat_kwargs: Dict[str, Any] = {}
-        if self.config.max_tokens:
-            chat_kwargs["max_tokens"] = self.config.max_tokens
-        if self.tools:
-            chat_kwargs["tools"] = self.tools
+        chat_kwargs = (
+            provider_call_options
+            if provider_call_options is not None
+            else self._build_provider_call_kwargs()
+        )
 
         return self.provider.stream_chat(
             messages=self.context.messages[:], **chat_kwargs
@@ -675,7 +760,9 @@ class Agent:
             cumulative_state["all_tool_details"].append(tool_detail)
             self.context.add_tool_result_message(tool_call.id, json.dumps(result))
 
-    def _get_llm_response(self) -> ProviderResponse:
+    def _get_llm_response(
+        self, provider_call_options: Optional[Dict[str, Any]] = None
+    ) -> ProviderResponse:
         """Sends the current context to the provider and gets a response."""
         self.console.print("[dim]🧠 Thinking...[/dim]")
 
@@ -709,14 +796,11 @@ class Agent:
             f"Context size check OK. Estimated tokens: {estimated_tokens}/{context_window}"
         )
 
-        # Prepare kwargs for chat
-        chat_kwargs: Dict[str, Any] = {}
-        if self.config.max_tokens:
-            chat_kwargs["max_tokens"] = self.config.max_tokens
-
-        # Only pass tools if we have them
-        if self.tools:
-            chat_kwargs["tools"] = self.tools
+        chat_kwargs = (
+            provider_call_options
+            if provider_call_options is not None
+            else self._build_provider_call_kwargs()
+        )
 
         # The provider is responsible for handling the message history correctly.
         # We pass a shallow copy to prevent accidental mutation.

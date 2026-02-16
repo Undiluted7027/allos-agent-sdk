@@ -239,6 +239,7 @@ agent = Agent(AgentConfig(
 │ • Groq       │  │ • Web        │  │ • Cache      │
 │ • Mistral    │  │ • Custom     │  │ • Manager    │
 │ • Ollama     │  │              │  │              │
+| • Google     |  |              |  |              |
 └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
@@ -265,6 +266,7 @@ Allos supports a massive range of models through native integrations and a unive
 | **DeepSeek** | ✅ Ready | DeepSeek Chat/Coder |
 | **Cohere** | ✅ Ready | Command R+ |
 | **Ollama (compat)** | ✅ Ready | OpenAI-compatible endpoint mode |
+| **Ollama native** | ✅ Ready | Native Ollama support |
 | **LocalAI / vLLM** | ✅ Ready | Custom endpoints via `chat_completions` |
 | **Google** | ✅ Ready | Gemini-3.0 Pro, Gemini-2.5 Flash |
 

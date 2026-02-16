@@ -301,7 +301,7 @@ config = AgentConfig(
 agent = Agent(config)
 
 # Streaming is handled automatically
-for chunk in agent.run_stream("Tell me a story"):
+for chunk in agent.stream_run("Tell me a story"):
     if chunk.content:
         print(chunk.content, end="", flush=True)
 ```

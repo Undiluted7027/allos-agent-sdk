@@ -22,6 +22,9 @@ config = AgentConfig(
     auto_approve=False,       # require user permission for sensitive tools
     no_tools=False,           # Set True to disable all tools (chat only)
     max_tokens=None,          # Limit output length (required by some providers)
+    provider_call_options={   # Default provider kwargs for every model call
+        "temperature": 0.2,
+    },
 
     # 4. Advanced Connection Settings (Optional)
     # base_url="https://api.custom.com/v1",
@@ -55,7 +58,38 @@ During the `run()` method, the agent will perform its reasoning loop:
 3.  **Observe:** The agent adds the tool's result to the conversation history and loops back to the planning step.
 4.  This continues until the LLM provides a final text answer without requesting any more tools.
 
-## 3. Session Management: Saving and Loading
+## 3. Provider Call Options
+
+You can pass provider generation options either as persistent defaults in `AgentConfig` or as per-run overrides.
+
+```python
+from allos import Agent, AgentConfig
+
+agent = Agent(
+    AgentConfig(
+        provider_name="openai",
+        model="gpt-4o",
+        no_tools=True,
+        provider_call_options={"temperature": 0.1, "top_p": 0.95},
+    )
+)
+
+# Runtime kwargs override config defaults for this run only
+response = agent.run("Summarize this in one sentence.", temperature=0.7)
+```
+
+The same kwargs pattern works with `stream_run(...)`:
+
+```python
+for chunk in agent.stream_run("Explain recursion briefly.", temperature=0):
+    if chunk.content:
+        print(chunk.content, end="")
+```
+
+> [!IMPORTANT]
+> `messages` and `tools` are agent-managed keys. Do not pass them via `provider_call_options` or runtime kwargs. The agent raises `AllosError` if they are supplied.
+
+## 4. Session Management: Saving and Loading
 
 For tasks that span multiple sessions, you can save the agent's state (its configuration and entire conversation history) and load it back later.
 

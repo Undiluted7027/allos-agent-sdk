@@ -7,7 +7,7 @@ Our test suite is built with `pytest` and is divided into three main categories.
 -   **Integration Tests (`tests/integration/`):** These tests verify the interaction between different parts of our SDK by making **real API calls** to external services (like OpenAI and Anthropic). They are slower, may incur costs, and require API keys and a special flag to run.
 
 > [!IMPORTANT]
-> **Python 3.10 or higher is required** for the Google (Gemini/Vertex AI) provider related tests. All other provider tests work with Python 3.9+. Use `-m "not_requires_python310"` to skip `GoogleProvider` related tests.
+> **Python 3.10 or higher is required** for the Google (Gemini/Vertex AI) provider related tests. All other provider tests work with Python 3.9+. Use `-m "not requires_python310"` to skip `GoogleProvider` related tests.
 
 ## Running Tests
 
@@ -33,6 +33,9 @@ uv run pytest --run-e2e
 
 # Run ONLY the Integration tests
 uv run pytest --run-integration
+
+# Run ONLY the Performance Related tests
+uv run pytest --run-performance
 
 # Run ONLY the Unit tests (by specifying the directory)
 uv run pytest tests/unit/
@@ -68,14 +71,3 @@ Always place new tests in the appropriate directory (`unit`, `e2e`, or `integrat
 -   **Unit Tests:** Place in `tests/unit/`. Use `pytest-mock` (`@patch`) extensively to isolate the component being tested.
 -   **E2E Tests:** Place in `tests/e2e/`. Mark them with `@pytest.mark.e2e`. Use `click.testing.CliRunner` to invoke the CLI and assert against the output and exit codes.
 -   **Integration Tests:** Place in `tests/integration/`. Mark the test or class with `@pytest.mark.integration`. For provider-specific tests, also add `@pytest.mark.requires_openai` or `@pytest.mark.requires_anthropic` to enable automatic, specific API key checks.
-
-## Quick Commands
-```bash
-# Default workflow (unit + e2e)
-./scripts/run_tests.sh
-
-# Category-specific runs
-uv run pytest --run-e2e
-uv run pytest --run-integration
-uv run pytest --run-performance
-```
