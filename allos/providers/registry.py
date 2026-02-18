@@ -43,7 +43,7 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "base_url": "https://openrouter.ai/api/v1",
         "implementation": "chat_completions",
     },
-    "cohere": {
+    "cohere_compat": {
         "env_var": "COHERE_API_KEY",
         "base_url": "https://api.cohere.ai/compatibility/v1",
         "implementation": "chat_completions",

@@ -63,6 +63,7 @@ google = [
     "google-genai>=1.47.0; python_version>='3.10'",
     "google-auth>=2.48.0; python_version>='3.10'",
 ]
+cohere = ["cohere>=5.20.5"]
 # For contributors doing linting
 test = [
     "pytest>=8.4.2",
@@ -87,7 +88,7 @@ dev = [
 
 publish = ["build>=1.3.0", "twine>=6.2.0"]
 
-all = ["allos-agent-sdk[openai,anthropic,ollama,google]"]
+all = ["allos-agent-sdk[openai,anthropic,ollama,google,cohere]"]
 
 # Defines the 'allos' command-line script
 [project.scripts]
@@ -153,7 +154,6 @@ convention = "google"
 "allos/context/cache.py" = ["D"]
 "allos/context/compactor.py" = ["D"]
 "allos/plugins/*" = ["D"]
-"allos/providers/cohere.py" = ["D"]
 "allos/templates/*" = ["D"]
 "allos/tools/mcp/*" = ["D"]
 "allos/tools/web/*" = ["D"]

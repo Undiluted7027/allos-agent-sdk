@@ -21,6 +21,7 @@ This directory contains runnable examples for the Allos SDK.
 | `cli_workflow.sh` | Guided CLI walkthrough | Depends | Mixed | CLI-focused |
 | `omnibus_cli.sh` | Multi-provider CLI workflow | Yes | Yes | CLI + session chaining |
 | `provider_call_options.py` | `provider_call_options` and runtime kwargs | Yes | No | `run`/`stream_run` options |
+| `cohere_usage.py` | Native Cohere provider guide | Yes (`COHERE_API_KEY`) | Mixed | Chat, stream, tools, agent, metadata |
 | `google_direct_provider.py` | Advanced Google direct-provider config | Yes | No | Vertex/Gemini kwargs |
 | `streaming_chunks.py` | Provider-direct streaming chunk anatomy | Yes | Optional | Content/tool/metadata chunks |
 | `metadata_inspection.py` | Inspect normalized + provider-specific metadata | Yes | No | Metadata-focused |
@@ -36,6 +37,7 @@ This directory contains runnable examples for the Allos SDK.
 3. Providers:
    - `universal_chat.py`
    - `provider_switching.py`
+   - `cohere_usage.py`
 4. Ollama/local:
    - `local_models.py`
    - `ollama_compat.py`

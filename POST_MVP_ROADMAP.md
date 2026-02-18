@@ -1,8 +1,7 @@
 # Allos Agent SDK - POST-MVP Roadmap
 
-> [!NOTE]
-> **Goal**: Transform Allos from a working MVP into the most flexible, powerful, and developer-friendly agentic SDK <br>
-**Timeline**: Weeks 9-36+ (28+ weeks of active development)<br>
+> **Goal**: Transform Allos from a working MVP into the most flexible, powerful, and developer-friendly agentic SDK
+> **Timeline**: Weeks 9-36+ (28+ weeks of active development)
 > **Current Status**: MVP Launched (Nov 8, 2025), Ready for Phase 2
 
 ---
@@ -25,19 +24,45 @@ Build upon the solid MVP foundation to deliver:
 | Phase | Focus | Timeline | Status | Completion |
 |-------|-------|----------|--------|------------|
 | **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ Complete | 100% |
-| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 🏗️ In Progress (2/7) | 28.6% |
+| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 🎯 Current | 0% |
 | **Phase 3: Advanced Tooling** | Developer experience | Weeks 15-20 | 📋 Planned | 0% |
 | **Phase 4: Enterprise & Scale** | Production features | Weeks 21-28 | 📋 Planned | 0% |
 | **Phase 5: Ecosystem Integration** | Framework compatibility | Weeks 29-36 | 🔮 Future | 0% |
 | **Phase 6: Innovation** | Cutting-edge features | Ongoing | 🔮 Future | 0% |
 
-**Overall Post-MVP Progress**: 28.6%
+**Overall Post-MVP Progress**: 0% (0/6 phases complete)
+
+**Current Date**: November 19, 2025 (11 days post-launch)
+
+---
+
+## 📈 MVP Launch Results (Nov 8 - Nov 19, 2025)
+
+**11 Days Post-Launch Performance**:
+- 🌟 **GitHub**: 6 stars
+- 💼 **LinkedIn**: 39 likes, 8 comments
+- 🔴 **Reddit**: 18 upvotes, 8 comments (across threads)
+- 📝 **Dev.to**: 11 likes, 3 comments, 162 views, +264 followers
+- 📰 **Hashnode**: 8 views (all-time)
+- 📖 **Medium + Towards AI**: 206 presentations, 49 views, 12 reads
+- 🎥 **YouTube**: 24 views (unlisted demo)
+- 📰 **HackerNoon**: Story in editorial
+- 📦 **PyPI**: 374 downloads
+- 🐦 **X.com**: No reach/views
+
+**Key Insights**:
+- Dev.to showing strongest engagement (+264 followers)
+- Medium showing good reach (206 presentations)
+- PyPI downloads indicate real usage (374 in 11 days)
+- Need to improve X.com strategy for Phase 2 launch
+
+---
 
 ## Phase 2: Enhanced Features
 
 **Timeline**: Weeks 9-14 (6 weeks)
 
-**Status**: 🏗️ In Progress (2/7 Complete)
+**Status**: 🎯 Current Phase (Starting Soon)
 
 **Focus**: Essential capabilities for production use
 
@@ -54,14 +79,13 @@ Build upon the solid MVP foundation to deliver:
 | Feature | Duration | Status | Completion |
 |---------|----------|--------|------------|
 | **2.0 Chat Completions Provider** | Days 57-59 | ✅ Complete | 100% |
-| **2.1 Ollama Provider** | Days 60-70 | ✅ Complete | 100% |
+| **2.1 Ollama Provider** | Days 60-70 | 📋 Planned | 0% |
+| **2.2 Google Provider** | Days X - Y | 🗓️ Planned | 0% |
 | **2.2 Additional Providers** | Week 10 | 📋 Planned | 0% |
 | **2.3 Web Tools** | Week 11 | 📋 Planned | 0% |
 | **2.4 Advanced Context** | Week 12 | 📋 Planned | 0% |
 | **2.5 Configuration System** | Week 13 | 📋 Planned | 0% |
 | **2.6 Plugin System** | Week 14 | 📋 Planned | 0% |
-
-**Status: 28.6% Complete (2/7)**
 
 ---
 
@@ -69,61 +93,11 @@ Build upon the solid MVP foundation to deliver:
 
 **Duration**: 3 days (Days 57-59)
 
-**Status**: ✅ Completed (23/23)
+**Status**: ✅ Complete
 
 **Goal**: Create reusable Chat Completions API provider for OpenAI-compatible services
 
 **Motivation**: Enable compatibility with Together AI, Anyscale, and provide alternative for testing
-
-**Code Snapshots:**
-
-**1. One Line to Rule Them All (CLI)**
-Switch between vastly different providers instantly.
-
-```bash
-# OpenAI (Standard)
-allos "Explain quantum physics" --provider openai
-
-# Groq (High Speed)
-allos "Explain quantum physics" --provider groq --model llama-3.1-8b-instant
-
-# Together AI (Open Models)
-allos "Explain quantum physics" --provider together --model meta-llama/Llama-3-70b-chat-hf
-
-# Local Ollama (Privacy)
-allos "Explain quantum physics" --provider ollama_compat --model mistral:latest --no-tools
-```
-
-**2. Python API: Seamless Provider Swapping**
-The same `Agent` code works for any provider.
-
-```python
-from allos import Agent, AgentConfig
-
-# Configuration for a hosted model on Together AI
-config = AgentConfig(
-    provider_name="together",  # Intelligent alias
-    model="meta-llama/Llama-3-70b-chat-hf",
-    # API Key auto-loaded from TOGETHER_API_KEY env var
-)
-
-agent = Agent(config)
-response = agent.run("Write a Python script to sort files.")
-```
-
-**3. Manual Custom Endpoint (For Private/Enterprise deployments)**
-Connect to any OpenAI-compatible endpoint (like vLLM or LocalAI) manually.
-
-```python
-config = AgentConfig(
-    provider_name="chat_completions",
-    model="my-finetuned-model",
-    base_url="https://internal-api.mycompany.com/v1",
-    api_key="internal-key"
-)
-agent = Agent(config)
-```
-
 
 ### Day 57: Chat Completions Architecture & Design
 
@@ -152,52 +126,203 @@ agent = Agent(config)
   - OpenAI Chat Completions API integration
   - Message format conversion
   - Function calling (tool calling)
-  - Streaming support (Pending for full async phase, currently sync)
+  - Streaming support
   - Configurable base_url for compatibility
-- [x] **Universal Compatibility Layer** implemented
-  - [x] **Together AI** - via `--provider together`
-  - [x] **Groq** - via `--provider groq`
-  - [x] **Mistral** - via `--provider mistral`
-  - [x] **DeepSeek** - via `--provider deepseek`
-  - [x] **OpenRouter** - via `--provider openrouter`
-  - [x] **Cohere** - via `--provider cohere`
-  - [x] **Portkey** - via `--provider portkey`
-  - [x] **Ollama Compat** - via `--provider ollama_compat`
-  - [x] Any custom OpenAI-compatible endpoint via `--base-url`
+
+```python
+import openai
+from typing import List, Optional
+from ..base import BaseProvider, Message, ProviderResponse, ToolCall, MessageRole
+
+@provider
+class ChatCompletionsProvider(BaseProvider):
+    """
+    Provider for OpenAI Chat Completions API.
+
+    This provider supports:
+    - OpenAI's Chat Completions endpoint
+    - OpenAI-compatible APIs (Together AI, Anyscale, etc.)
+
+    Note: For OpenAI's advanced features, use OpenAIProvider (Responses API).
+    This provider is for compatibility with OpenAI-compatible services.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        **kwargs
+    ):
+        super().__init__(model, **kwargs)
+        self.base_url = base_url
+
+        try:
+            # Allow custom base_url for OpenAI-compatible APIs
+            self.client = openai.OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                **kwargs
+            )
+
+        except Exception as e:
+            raise ProviderError(
+                f"Failed to initialize ChatCompletions client: {e}",
+                provider="chat_completions",
+            ) from e
+
+
+    def chat(
+        self,
+        messages: List[Message],
+        tools: Optional[List[dict]] = None
+    ) -> ProviderResponse:
+        """Send chat request using Chat Completions API"""
+
+        # Convert messages to Chat Completions format
+        chat_messages = self._convert_to_chat_format(messages)
+
+        # Prepare request
+        request_params = {
+            'model': self.model,
+            'messages': chat_messages,
+            'temperature': self.temperature,
+        }
+
+        # Add tools as functions
+        if tools:
+            request_params['functions'] = self._convert_tools_to_functions(tools)
+            request_params['function_call'] = 'auto'
+
+        # Make request
+        try:
+            response = self.client.chat.completions.create(**request_params)
+            return self._convert_response(response)
+
+        except openai.APIError as e:
+            raise ProviderError(f"OpenAI API error: {str(e)}")
+
+    def _convert_to_chat_format(self, messages: List[Message]) -> List[dict]:
+        """Convert Allos messages to Chat Completions format"""
+        chat_messages = []
+
+        for msg in messages:
+            if msg.role == MessageRole.SYSTEM:
+                chat_messages.append({
+                    'role': 'system',
+                    'content': msg.content
+                })
+            elif msg.role == MessageRole.USER:
+                chat_messages.append({
+                    'role': 'user',
+                    'content': msg.content
+                })
+            elif msg.role == MessageRole.ASSISTANT:
+                message = {'role': 'assistant'}
+
+                if msg.content:
+                    message['content'] = msg.content
+
+                # Handle function calls (tool calls)
+                if msg.tool_calls:
+                    message['tool_calls'] = [
+                        {
+                            'id': tc.id,
+                            'type': 'function',
+                            'function': {
+                                'name': tc.name,
+                                'arguments': json.dumps(tc.arguments),
+                            },
+                        } for tc in msg.tool_calls
+                    ]
+
+                chat_messages.append(message)
+
+            elif msg.role == MessageRole.TOOL:
+                # Tool results as function responses
+                chat_messages.append({
+                    'role': 'function',
+                    "tool_call_id": msg.tool_call_id,
+                    'content': msg.content
+                })
+
+        return chat_messages
+
+    def _convert_tools_to_functions(self, tools: List[dict]) -> List[dict]:
+        """Convert Allos tools to OpenAI functions format"""
+        functions = []
+
+        for tool in tools:
+            properties = {}
+            required_params = []
+            for param in tool.parameters:
+                properties[param.name] = {
+                    "type": param.type,
+                    "description": param.description,
+                }
+                if param.requried:
+                    required_params.append(param.name)
+
+            function_def = {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required_params
+                },
+            }
+
+            # Wrap us in the tool object
+            functions.append({
+                "type": "function",
+                "function": function_def
+            })
+
+        return functions
+
+    def _convert_response(self, response) -> ProviderResponse:
+        """Convert Chat Completions response to Allos format"""
+        message = response.choices[0].message
+
+        # Extract tool calls
+        tool_calls = []
+        if hasattr(message, 'function_call') and message.function_call:
+            tool_calls.append(ToolCall(
+                id=f"call_{response.id}",  # Generate ID
+                name=message.function_call.name,
+                arguments=json.loads(message.function_call.arguments)
+            ))
+
+        return ProviderResponse(
+            content=message.content,
+            tool_calls=tool_calls if tool_calls else None,
+            raw_response=response
+        )
+```
 
 #### Features
 - [x] Support for custom base_url
 - [x] Function calling (OpenAI-style tool calling)
 - [x] Message format conversion
+- [x] Streaming support (REQUIRED Implementing Streaming Across ALL PROVIDERS)
 - [x] Error handling
-- [x] Token counting (relies on estimated token counts)
-
-#### CLI & DX Enhancements
-- [x] **Intelligent Registry (`allos/providers/registry.py`)**
-  - Map aliases (`groq`, `together`) to `chat_completions` implementation.
-  - Auto-inject `base_url` and `api_key` env vars.
-- [x] **CLI Flags (`allos/cli/main.py`)**
-  - `--active-providers`: Show table of ready providers.
-  - `--max-tokens`: Pass max tokens param (fixes Portkey/Anthropic issues).
-  - `--no-tools`: Disable tools for constrained models.
-  - `--base-url` / `--api-key`: Manual overrides.
+- [x] Token counting
 
 ### Day 59: Testing & Documentation
 
 #### Testing
-- [x] **`tests/unit/providers/test_chat_completions_provider.py`**
+- [x] **`tests/unit/test_chat_completions_provider.py`**
   - Mock OpenAI client
   - Test message conversion
   - Test function calling
   - Test with custom base_url
   - Test error handling
-- [x] **`tests/integration/providers/test_chat_completions_real.py`**
-  - Contract test against real OpenAI endpoint.
-- [x] **`tests/integration/test_provider_switching.py`**
-  - Added `chat_completions` to test matrix.
-- [x] **Manual Verification (`manual_test_omnibus.py`)**
-  - Validated complex multi-turn workflow across Groq, Mistral, Together, OpenAI, and Anthropic.
-- [x] **`tests/e2e/test_system_integrity.py`**: Added cross-provider hydration tests ("Frankenstein Test") and parity tests.
+
+#### Integration Tests
+- [x] Test with real OpenAI Chat Completions endpoint
+- [x] Test with Together AI (if API key available)
+- [x] Compare behavior with ResponsesAPI provider
 
 #### Documentation
 - [x] **`docs/providers/chat-completions.md`**
@@ -206,27 +331,13 @@ agent = Agent(config)
   - Limitations compared to Responses API
   - Migration guide
 
-### Success Criteria
-
-✅ Chat Completions provider working with OpenAI
-
-✅ Custom base_url configuration works
-
-✅ Function calling (tool calling) implemented
-
-✅ Message format conversion correct
-
-✅ Tests pass (unit and integration)
-
-✅ Documentation complete (Pending)
-
 ### Deliverables
 
-- [x] ChatCompletionsProvider class
-- [x] Support for custom base_url
-- [x] Function calling implementation
-- [x] Comprehensive tests
-- [x] Documentation and comparison guide
+- ChatCompletionsProvider class
+- Support for custom base_url
+- Function calling implementation
+- Comprehensive tests
+- Documentation and comparison guide
 
 ---
 
@@ -234,25 +345,11 @@ agent = Agent(config)
 
 **Duration**: 11 days (Days 60-70, adjusted from original 57-70)
 
-**Status**: ✅ Complete
+**Status**: 📋 Planned
 
 **Goal**: Enable completely local, private AI agents
 
 **Motivation**: Users want to run agents offline without API costs or privacy concerns
-
-**Implementation Note**: Ollama uses its **native Python library** (`ollama` package), NOT the OpenAI-compatible endpoint, for best feature support and native tool calling.
-
-**Code Example:**
-```bash
-# List available local models with capabilities
-allos --list-ollama-models
-
-# Use with native tool calling
-allos --provider ollama --model llama3.1:latest "Create a FastAPI app"
-
-# Interactive mode with local model
-allos --provider ollama --model qwen3:8b --interactive
-```
 
 ### Day 60-61: Ollama Provider Core (adjusted from Day 57-58)
 
@@ -262,7 +359,6 @@ allos --provider ollama --model qwen3:8b --interactive
 - [x] Plan token counting strategy (model-specific)
 - [x] Design context window detection per model
 - [x] Plan streaming implementation
-- [x] Note: Using native `ollama` library, NOT OpenAI-compatible endpoint
 
 #### Implementation
 - [x] **`allos/providers/ollama.py`**
@@ -274,8 +370,9 @@ allos --provider ollama --model qwen3:8b --interactive
   - Register with `@provider` decorator
   - Options like `temperature` and `num_predict` are passed as `options` parameter in model calls. Like so:
 
+
 #### Testing
-- [x] **`tests/unit/providers/test_ollama_provider.py`**
+- [x] **`tests/unit/test_ollama_provider.py`**
   - Mock Ollama client (native library)
   - Test model availability checking
   - Test message conversion
@@ -292,12 +389,15 @@ allos --provider ollama --model qwen3:8b --interactive
   - Extract tool call IDs
   - Support multiple tool calls in one turn
 
+
+
 #### Streaming Support
 - [x] **Implement streaming chat using native library**
   - Stream tokens as they're generated
   - Yield partial responses
   - Handle tool calls in streaming mode
   - Add `stream` parameter to chat method
+
 
 #### Testing
 - [x] **Integration tests with real Ollama**
@@ -314,30 +414,7 @@ allos --provider ollama --model qwen3:8b --interactive
   - Detect context window from model name
   - Add override via configuration
   - Implement token counting per model family
-  - Dynamic context window and tool calling detection
 
-```python
-# Model context windows
-OLLAMA_CONTEXT_WINDOWS = {
-    'llama3.2': 128000,
-    'llama3.1': 128000,
-    'llama3': 8192,
-    'mistral': 32768,
-    'mixtral': 32768,
-    'qwen2.5': 32768,
-    'codellama': 16384,
-    'deepseek-coder': 16384,
-    # Add more as needed
-}
-
-def _get_context_window(self, model: str) -> int:
-    """Detect context window from model name"""
-    for family, window in OLLAMA_CONTEXT_WINDOWS.items():
-        if model.startswith(family):
-            return window
-    # Default to conservative 8K
-    return 8192
-```
 
 #### Token Counting
 - [x] **Implement token counting**
@@ -387,9 +464,9 @@ def basic_ollama_usage():
     print("\n=== Basic Ollama Usage ===")
 
     agent = Agent(AgentConfig(
-        provider_name="ollama",
+        provider="ollama",
         model="qwen2.5-coder:7b",
-        tool_names=["read_file", "write_file", "shell_exec"]
+        tools=["read_file", "write_file", "shell_exec"]
     ))
 
     result = agent.run("Create a simple FastAPI hello world app")
@@ -410,9 +487,9 @@ def compare_providers():
     for provider, model in providers:
         print(f"\nTesting {provider}/{model}...")
         agent = Agent(AgentConfig(
-            provider_name=provider,
+            provider=provider,
             model=model,
-            tool_names=[]
+            tools=[]
         ))
         result = agent.run(task)
         print(f"Response: {result}")
@@ -432,7 +509,6 @@ if __name__ == "__main__":
 - [x] Update `README.md` provider table
 - [x] Update `docs/guides/providers.md`
 - [x] Add Ollama to quickstart guide
-- [x] Update architecture diagrams
 
 ### Day 68-69: Testing & Polish (adjusted from Day 65-66)
 
@@ -446,63 +522,54 @@ if __name__ == "__main__":
 - [x] Model not available (suggest `ollama pull`)
 - [x] Ollama server not running
 - [x] Network timeout handling
-- [ ] Large context handling
+- ~~[ ] Large context handling~~
 - [x] Streaming interruption
 - [x] Tool calling errors
 
 #### Performance Optimization
 - [x] Connection pooling
-- [ ] Request caching
+- ~~[ ] Request caching~~
 - [x] Model warm-up detection
-- [ ] Memory usage monitoring
+- ~~[ ] Memory usage monitoring~~
 
 #### CLI Integration
 - [x] Add `--list-ollama-models` command
 - [x] Add Ollama-specific help text
 
-### Day 70: Additional Model Families & Final Polish (adjusted from Days 67-70)
-
-#### Expand Model Support
-- [x] **Llama family**:
-  - llama3.2 (1b, 3b, 11b)
-  - llama3.1 (8b, 70b, 405b)
-  - llama3 (8b, 70b)
-
-- [x] **Mistral family**:
-  - mistral (7b)
-  - mixtral (8x7b, 8x22b)
-
-- [x] **Qwen family**:
-  - qwen2.5 (0.5b-72b)
-  - qwen2.5-coder (1.5b-32b)
-
-- [x] **Code models**:
-  - deepseek-coder (1.3b-33b)
-  - codellama (7b-34b)
-  - starcoder2 (3b-15b)
-
-#### Model Capabilities Matrix
-- [x] Create model comparison guide
-- [x] Document tool calling support by model
-- [ ] Performance benchmarks
-- [ ] Cost analysis (electricity vs API)
-
 #### Final Polish
 - [x] Code review and refactoring
 - [x] Documentation review
-- [ ] Example testing
-- [ ] Performance profiling
-- [ ] Security review
+- [x] Example testing
+- [x] Performance profiling
+- ~~[ ] Security review~~
+
+### Success Criteria
+
+✅ Ollama provider fully functional
+
+✅ Native tool calling works with supported models
+
+✅ Streaming responses implemented
+
+✅ Context window detection working
+
+✅ 10+ popular models tested and documented
+
+✅ All tests pass (unit, integration, E2E)
+
+✅ Documentation complete with examples
+
+✅ Performance acceptable (< 2x API latency)
 
 ### Deliverables
 
-- ✅ Working Ollama provider with streaming support
-- ✅ Tool calling for local models (llama3.1+, qwen2+, mistral, gemma2)
-- ✅ Comprehensive documentation (`docs/providers/ollama.md`)
-- ✅ 3+ working examples (`local_models.py`, `ollama_compat.py`, `local_vs_cloud.py`)
-- ✅ Model comparison guide (via `--list-ollama-models`)
-- ✅ Updated CLI with Ollama support
-- ✅ Integration and E2E tests
+- Working Ollama provider with streaming support
+- Tool calling for local models
+- Comprehensive documentation
+- 3+ working examples
+- Model comparison guide
+- Updated CLI with Ollama support
+- Integration and E2E tests
 
 ### Example Usage After This Phase
 
@@ -529,12 +596,10 @@ from allos import Agent, AgentConfig
 
 # Local coding agent
 agent = Agent(AgentConfig(
-    provider_name="ollama",
+    provider="ollama",
     model="qwen2.5-coder:7b",
-    tool_names=["read_file", "write_file", "shell_exec"],
-    provider_call_options={
-        "temperature": 0.7,
-    }
+    tools=["read_file", "write_file", "shell_exec"],
+    temperature=0.7
 ))
 
 result = agent.run("Review the code in src/ and suggest improvements")
@@ -542,9 +607,9 @@ print(result)
 
 # Streaming mode
 agent_stream = Agent(AgentConfig(
-    provider_name="ollama",
+    provider="ollama",
     model="llama3.2:3b",
-    tool_names=["read_file"]
+    tools=["read_file"]
 ))
 
 for chunk in agent_stream.run_stream("Explain this codebase"):
@@ -561,7 +626,7 @@ for chunk in agent_stream.run_stream("Explain this codebase"):
 
 **Goal**: Expand provider ecosystem to 7+ providers
 
-**Architecture Note**: Together AI and Anyscale will extend the `ChatCompletionsProvider` created in Days 57-59, leveraging the OpenAI-compatible Chat Completions API.
+**Architecture Note**: Together AI will extend the `ChatCompletionsProvider` created in Days 57-59, leveraging the OpenAI-compatible Chat Completions API.
 
 ### Day 71-73: Google Gemini Provider
 
@@ -572,41 +637,15 @@ for chunk in agent_stream.run_stream("Explain this codebase"):
   - Vertex AI support (optional)
   - Native tool calling
   - Token counting with tiktoken
-  - Context window: 2M tokens (Gemini 2.5 Pro)
+  - Context window: 2M tokens (Gemini 1.5 Pro)
 
-```python
-import google.generativeai as genai
-
-@provider
-class GoogleProvider(BaseProvider):
-    """Provider for Google Gemini models"""
-
-    def __init__(self, model: str = "gemini-1.5-pro", **kwargs):
-        super().__init__(model, **kwargs)
-        genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-        self.client = genai.GenerativeModel(model)
-        self.context_window = 2_000_000  # 2M tokens!
-```
 
 #### Features
-- [x] Support for Gemini 2.5 Pro, 2.5 Flash, 3.0 Flash, 3.0 Pro
-  - [x] Vertex AI integration with multiple auth methods:
-    - API key (Gemini API)
-    - Service account JSON file
-    - Application Default Credentials (ADC)
-    - Service account impersonation
-  - [x] Native tool calling
-  - [x] **Thought signatures** for Gemini 3.x (required) and 2.5.x (optional)
-  - [x] Streaming support via `stream_chat()`
-  - [x] Dynamic context window detection
-  - [x] Python 3.10+ requirement (enforced at import)
-
-- [x] **`allos/providers/registry.py`**
-  - [x] `OPENAI_COMPATIBLE_PROVIDERS` configuration map
-  - [x] Auto-detection of API keys from environment
-  - [x] Auto-injection of base URLs for aliases
-  - [x] `--active-providers` CLI command
-  - [x] Python version check for Google provider
+- [x] Support for Gemini 2.5 Pro, Gemini 3 Flash
+- [x] Gemini 2.0 support
+- [x] Native tool calling
+- ~~[ ] Multimodal support (future)~~
+- [x] Vertex AI integration
 
 #### Testing
 - [x] Unit tests with mocked responses
@@ -620,169 +659,6 @@ class GoogleProvider(BaseProvider):
   - Model selection guide
   - Tool calling examples
   - Multimodal examples (future)
-
-### Streaming Support - ✅ COMPLETE (From Phase 3.6)
-
-#### Streaming Architecture
-- [x] **`allos/providers/base.py`**
-  - [x] `ProviderChunk` dataclass for streaming chunks
-  - [x] `stream_chat()` abstract method in BaseProvider
-  - [x] Streaming protocol definition
-
-- [x] **Provider Implementations**
-  - [x] OpenAI `stream_chat()` with Responses API events
-  - [x] Anthropic `stream_chat()` with streaming messages
-  - [x] Ollama `stream_chat()` with native streaming
-  - [x] Google `stream_chat()` with genai streaming
-  - [x] Chat Completions `stream_chat()` with SSE
-
-- [x] **Agent Streaming**
-  - [x] `Agent.stream_run()` method
-  - [x] `CumulativeState` TypedDict for tracking
-  - [x] Streaming metadata aggregation
-  - [x] Tool execution during streaming
-
-- [x] **CLI Support**
-  - [x] `--stream` flag for one-shot streaming
-  - [x] `/stream` slash command in interactive mode
-  - [x] Streaming toggle in REPL
-
-#### Testing
-- [x] Unit tests for streaming providers
-- [x] E2E streaming workflow tests
-- [x] Integration tests with real APIs (`test_streaming_real.py`)
-- [x] Streaming with tool calls (`test_agent_stream_tool_loop_real.py`)
-
-**Code Example**:
-```bash
-# CLI streaming
-allos --stream "Write a long story about space exploration"
-
-# Python API
-for chunk in agent.stream_run("Create a web app"):
-    print(chunk.content, end='', flush=True)
-```
-
-### Metadata & Observability System - ✅ COMPLETE
-
-#### Metadata Schema
-- [x] `allos/providers/metadata.py`
-  - [x] `Metadata` Pydantic model with comprehensive schema
-  - [x] `MetadataBuilder` factory pattern
-  - [x] `Usage` tracking (input/output tokens, cache, cost)
-  - [x] `Latency` metrics (total duration, TTFT)
-  - [x] `ToolInfo` and `ToolCallDetail` for tool tracking
-  - [x] `TurnsInfo` and `TurnLog` for turn history
-  - [x] `ProviderSpecific` for provider-unique fields
-  - [x] `QualitySignals` for finish reasons
-- [ ] Checking if each provider is correctly updating its metadata and is accurate with current metadata fields.
-
-#### Provider-Specific Metadata
-- [x] **OpenAI**: `system_fingerprint`
-- [x] **Ollama**: `warm_up`, `warm_up_duration_seconds`
-- [x] **Google**: `vertexai`, `project`, `location`, `used_thought_signatures`
-
-#### First Metadata Preservation
-- [x] Provider-specific traits preserved from first turn
-- [x] Backfill mechanism in `_create_aggregate_metadata()`
-- [x] Ensures warm_up, system_fingerprint retained across turns
-
-#### Agent Integration
-- [x] `agent.last_run_metadata` populated after each run
-- [x] Cumulative token/cost tracking across turns
-- [x] Turn history with per-turn metrics
-
-**Code Example**:
-```python
-result = agent.run("Create a FastAPI app")
-metadata = agent.last_run_metadata
-
-print(f"Tokens: {metadata.usage.total_tokens}")
-print(f"Cost: ${metadata.usage.estimated_cost.total_usd}")
-print(f"Turns: {metadata.turns.total_turns}")
-print(f"Tools used: {metadata.tools.total_tool_calls}")
-```
-
-### Testing So far
-
-#### Test Categories
-
-**Unit Tests** (`tests/unit/`)
-- [x] Provider tests (OpenAI, Anthropic, Ollama, Google, Chat Completions)
-- [x] Tool tests (filesystem, shell)
-- [x] Agent tests (run, stream_run, metadata aggregation)
-- [x] Context manager tests
-- [x] CLI tests
-
-**E2E Tests** (`tests/e2e/`) - 12 test files
-- [x] `test_cli.py` - CLI commands, help, flags
-- [x] `test_agent_workflow.py` - Multi-turn tool chaining
-- [x] `test_cross_provider_workflows.py` - Provider switching
-- [x] `test_metadata_workflows.py` - Metadata lifecycle
-- [x] `test_streaming_workflows.py` - Streaming across providers
-- [x] `test_ollama_workflows.py` - Ollama-specific workflows
-- [x] `test_google_workflows.py` - Google thought signatures
-- [x] `test_tool_execution.py` - File/shell tools, permissions
-- [x] `test_session.py` - Session save/load across providers
-- [x] `test_system_integrity.py` - System-level tests
-- [x] `test_real_tasks.py` - Real-world task workflows
-
-**Integration Tests** (`tests/integration/`) - 18 test files
-- [x] `test_streaming_real.py` - Real streaming across providers
-- [x] `test_session_real.py` - Real session persistence
-- [x] `test_agent_workflow_real.py` - Real agent runs
-- [x] `test_agent_tool_loop_real.py` - Real multi-turn tool calling
-- [x] `test_agent_stream_tool_loop_real.py` - Real streaming with tools
-- [x] `test_cli_stream_real.py` - Real CLI streaming
-- [x] `test_cli_tool_loop_real.py` - Real CLI tool loops
-- [x] `test_metadata_aggregate_real.py` - Real metadata validation
-- [x] `test_session_provider_switch_real.py` - Real provider switching
-- [x] `test_provider_switching.py` - Parametrized provider tests
-- [x] `providers/test_openai_real.py` - OpenAI integration
-- [x] `providers/test_anthropic_real.py` - Anthropic integration
-- [x] `providers/test_google_real.py` - Google integration
-- [x] `providers/test_ollama_real.py` - Ollama integration
-- [x] `providers/test_chat_completions_real.py` - Chat Completions integration
-- [x] `providers/test_alias_endpoints_real.py` - All 8 alias providers
-- [x] `providers/test_error_normalization_real.py` - Error handling
-- [x] `providers/test_google_thought_signatures_real.py` - Thought signature validation
-
-**Performance Tests** (`tests/performance/`)
-- [x] Ollama connection pooling tests
-- [x] Ollama warmup tests
-- [x] Ollama performance benchmarks
-
-#### Test Markers
-- [x] `@pytest.mark.integration` - Requires `--run-integration`
-- [x] `@pytest.mark.e2e` - E2E tests
-- [x] `@pytest.mark.performance` - Performance tests
-- [x] `@pytest.mark.requires_openai/anthropic/ollama/gemini/vertexai`
-- [x] `@pytest.mark.requires_python_310`
-
-### CLI Enhancements Update
-
-**New CLI Flags**:
-- [x] `--active-providers` - Show provider readiness status
-- [x] `--list-ollama-models` - List local Ollama models
-- [x] `--stream` - Enable streaming mode
-- [x] `--no-tools` - Disable all tools
-- [x] `--max-tokens` - Set max output tokens
-- [x] `--base-url` - Custom API endpoint
-- [x] `--api-key` - Override API key
-- [x] `--tool` - Specify individual tools (multiple allowed)
-
-**Interactive Mode Enhancements**:
-- [x] `/stream` - Toggle streaming mode
-- [x] `/help` - Show available commands
-- [x] `/exit` or `/quit` - Exit interactive mode
-- [x] Provider validation before session start
-- [x] Model validation with API key checking
-
-**Validation Utilities** (`allos/cli/utils.py`):
-- [x] `ValidationResult` Pydantic model
-- [x] `validate_model_and_api_key()` function
-- [x] `display_provider_info()` for status table
-- [x] Default model selection per provider
 
 ### Day 74: Cohere Provider
 
@@ -890,9 +766,9 @@ class TogetherAIProvider(ChatCompletionsProvider):
 ```python
 # Together AI automatically uses Chat Completions API
 agent = Agent(AgentConfig(
-    provider_name="together",
+    provider="together",
     model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    tool_names=["read_file", "write_file"]
+    tools=["read_file", "write_file"]
 ))
 ```
 
@@ -928,9 +804,9 @@ class AnyscaleProvider(ChatCompletionsProvider):
 ```python
 # Anyscale automatically uses Chat Completions API
 agent = Agent(AgentConfig(
-    provider_name="anyscale",
+    provider="anyscale",
     model="meta-llama/Meta-Llama-3.1-8B-Instruct",
-    tool_names=["read_file", "shell_exec"]
+    tools=["read_file", "shell_exec"]
 ))
 ```
 
@@ -1318,9 +1194,9 @@ def research_topic():
     """Research a topic and write a summary"""
 
     agent = Agent(AgentConfig(
-        provider_name="anthropic",
+        provider="anthropic",
         model="claude-sonnet-4-5",
-        tool_names=["web_search", "web_fetch", "write_file"],
+        tools=["web_search", "web_fetch", "write_file"],
         auto_approve=False  # Ask permission for web access
     ))
 
@@ -2121,20 +1997,20 @@ agent.hooks.register('on_error', notify_team)
 ```python
 # Create specialized agents
 code_reviewer = Agent(AgentConfig(
-    provider_name="claude-opus-4",
-    tool_names=["read_file", "write_file"],
+    provider="claude-opus-4",
+    tools=["read_file", "write_file"],
     system_prompt="You are a code review expert..."
 ))
 
 security_auditor = Agent(AgentConfig(
-    provider_name="gpt-4",
-    tool_names=["read_file", "shell_exec"],
+    provider="gpt-4",
+    tools=["read_file", "shell_exec"],
     system_prompt="You are a security expert..."
 ))
 
 # Main agent delegates to subagents
 main_agent = Agent(AgentConfig(
-    provider_name="claude-sonnet-4-5",
+    provider="claude-sonnet-4-5",
     subagents={
         "code_review": code_reviewer,
         "security_audit": security_auditor
@@ -2610,7 +2486,7 @@ This POST-MVP roadmap will be updated:
 
 **Building the future of AI agents, together** 🚀
 
-Progress: █████░░░░░░░░░░░░░░░░░░░ 28.6% (Phase 2 of 6)
+Progress: ████░░░░░░░░░░░░░░░░░░░░ 16.7% (Phase 2 of 6)
 
 [Back to README](./README.md) • [MVP Roadmap](./MVP_ROADMAP.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
@@ -2618,8 +2494,8 @@ Progress: █████░░░░░░░░░░░░░░░░░░�
 
 *Created: November 19, 2025*
 
-*Last Updated: February 3, 2026*
+*Last Updated: November 19, 2025*
 
-*Next Review: February 28, 2026*
+*Next Review: December 1, 2025*
 
 </div>

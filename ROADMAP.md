@@ -11,7 +11,7 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 | Phase | Focus | Timeline | Status |
 |-------|-------|----------|--------|
 | **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ 100% Complete |
-| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 🏗️ In Progress 28.6% (2/7) |
+| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 📋 Planned |
 | **Phase 3: Advanced Tooling** | Developer experience | Weeks 15-20 | 📋 Planned |
 | **Phase 4: Enterprise & Scale** | Production features | Weeks 21-28 | 🔮 Future |
 | **Phase 5: Ecosystem Integration** | Framework compatibility | Weeks 29-36 | 🔮 Future |
@@ -45,7 +45,7 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 
 **Completion Target**: End of Week 8
 
-**Current Status**: 100% complete - All technical work done, demo video published
+**Current Status**: 96.79% complete - All technical work done, demo video published
 
 **MVP Launch**: Launched on on Nov 8, 2025!
 
@@ -66,22 +66,20 @@ These limitations are by design and are addressed in subsequent phases of this r
 
 **Goal**: Add essential capabilities for production use
 
-### 2.1 Local Models Support (Weeks 9-10) ✅ Complete
+### 2.1 Local Models Support (Weeks 9-10)
 
 **Motivation**: Enable completely local, private AI agents
 
 #### Ollama Provider
-- [x] **`allos/providers/ollama.py`**
+- [ ] **`allos/providers/ollama.py`**
   - Connect to local Ollama server
   - Support all Ollama models (Llama, Mistral, Qwen, etc.)
-  - Model verification on initialization
-  - Streaming support via `stream_chat()`
-  - Dynamic context window detection via `ollama.show()`
-- [x] Native tool calling for supported models (llama3.1+, qwen2+, mistral, gemma2)
-- [x] Documentation for local setup (`docs/providers/ollama.md`)
-- [x] Examples with popular local models (`local_models.py`, `local_vs_cloud.py`)
-- [x] `--list-ollama-models` CLI command to show local models with capabilities
-- [x] Token counting support for Ollama models via tiktoken mappings
+  - Handle model pulling/downloading
+  - Streaming support
+  - Context window detection per model
+- [ ] Tool calling emulation for models without native support
+- [ ] Documentation for local setup
+- [ ] Examples with popular local models
 
 **Impact**: Run agents completely offline, no API costs
 
@@ -90,13 +88,10 @@ These limitations are by design and are addressed in subsequent phases of this r
 curl -fsSL https://ollama.ai/install.sh | sh
 
 # Pull a model
-ollama pull llama3.1
+ollama pull qwen2.5-coder:7b
 
-# List available models with capabilities
-allos --list-ollama-models
-
-# Use with Allos (native tool calling supported)
-allos --provider ollama --model llama3.1:latest "Create a FastAPI app"
+# Use with Allos
+allos --provider ollama --model qwen2.5-coder:7b "Create a FastAPI app"
 ```
 
 ### 2.2 Additional Providers (Week 10)
@@ -144,7 +139,7 @@ allos --provider ollama --model llama3.1:latest "Create a FastAPI app"
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    tool_names=["web_search", "web_fetch", "write_file"]
+    tools=["web_search", "web_fetch", "write_file"]
 ))
 
 agent.run("Research current AI trends and write a summary")
@@ -333,7 +328,7 @@ hooks:
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-opus-4",
-    tool_names=["delegate", "read_file", "write_file"]
+    tools=["delegate", "read_file", "write_file"]
 ))
 
 agent.run("""
@@ -545,7 +540,7 @@ asyncio.run(main())
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    tool_names=["read_file", "write_file"],
+    tools=["read_file", "write_file"],
     mcp_servers=[
         "github://my-org/my-repo",
         "slack://my-workspace",
@@ -775,7 +770,7 @@ hf_tool = load_tool("image-generator")
 agent = Agent(AgentConfig(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    tool_names=["read_file", hf_tool]
+    tools=["read_file", hf_tool]
 ))
 ```
 
@@ -852,7 +847,7 @@ agent = Agent(AgentConfig(
 agent = Agent(AgentConfig(
     provider="openai",
     model="gpt-4-vision",
-    tool_names=["read_file", "analyze_image"]
+    tools=["read_file", "analyze_image"]
 ))
 
 agent.run("Analyze this UI screenshot and suggest improvements",
@@ -1150,8 +1145,8 @@ Share your thoughts:
 
 ---
 
-*Last Updated: February 3, 2026*
+*Last Updated: November 18, 2025*
 
-*Next Review: February 28, 2026*
+*Next Review: November 30, 2025*
 
 </div>

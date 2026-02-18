@@ -14,7 +14,7 @@ Allos includes an Intelligent Registry that automatically configures the correct
 | `groq` | Groq | `GROQ_API_KEY` |
 | `mistral` | Mistral AI | `MISTRAL_API_KEY` |
 | `deepseek` | DeepSeek | `DEEPSEEK_API_KEY` |
-| `cohere` | Cohere | `COHERE_API_KEY` |
+| ~~`cohere`~~ | ~~Cohere~~ | ~~`COHERE_API_KEY`~~ |
 | `openrouter` | OpenRouter | `OPENROUTER_API_KEY` |
 | `portkey` | Portkey | `PORTKEY_API_KEY` |
 | `ollama_compat` | Ollama | `No environment variable` |

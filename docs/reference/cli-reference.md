@@ -48,7 +48,7 @@ Runs the agent in streaming mode. The output will be printed to the console toke
 
 #### `-p, --provider <name>`
 Specifies the LLM provider to use.
-- **Choices:** `openai`, `anthropic`, `google`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, `cohere`, `openrouter`, `portkey`, `ollama`, `ollama_compat`.
+- **Choices:** `openai`, `anthropic`, `google`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, ~~`cohere`~~, `openrouter`, `portkey`, `ollama`, `ollama_compat`.
 - **Default:** `openai`
 
 > [!TIP]

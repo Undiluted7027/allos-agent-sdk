@@ -264,7 +264,7 @@ Allos supports a massive range of models through native integrations and a unive
 | **Mistral** | ✅ Ready | Mistral Large, Small |
 | **Together AI** | ✅ Ready | Llama 3, Qwen, DeepSeek |
 | **DeepSeek** | ✅ Ready | DeepSeek Chat/Coder |
-| **Cohere** | ✅ Ready | Command R+ |
+| ~~Cohere~~ | ~~✅ Ready~~ | ~~Command R+~~ |
 | **Ollama (compat)** | ✅ Ready | OpenAI-compatible endpoint mode |
 | **Ollama native** | ✅ Ready | Native Ollama support |
 | **LocalAI / vLLM** | ✅ Ready | Custom endpoints via `chat_completions` |

@@ -38,7 +38,7 @@ def _provider_matches(expected_alias: str, actual: str) -> bool:
         "mistral",
         "deepseek",
         "openrouter",
-        "cohere",
+        "cohere_compat",
         "portkey",
         "ollama_compat",
     } and actual in {"chat_completions", "openai"}:
@@ -120,7 +120,7 @@ ALIAS_CASES = [
         default_model="openai/gpt-4o-mini",
     ),
     _alias_case(
-        "cohere",
+        "cohere_compat",
         env_var="COHERE_API_KEY",
         default_model="command-a-03-2025",
         tool_smoke_enabled=True,

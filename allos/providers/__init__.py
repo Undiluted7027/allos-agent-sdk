@@ -70,6 +70,11 @@ try:
 except (ImportError, AttributeError):
     logger.debug("Skipped optional provider: google")
 
+try:
+    from . import cohere  # noqa: F401
+except (ImportError, AttributeError):
+    logger.debug("Skipped optional provider: cohere")
+
 __all__ = [
     "BaseProvider",
     "Message",
