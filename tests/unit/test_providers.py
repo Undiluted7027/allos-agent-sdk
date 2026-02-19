@@ -395,7 +395,9 @@ class TestProviderInit:
         assert "anthropic" in registered_providers
         assert "openai" in registered_providers
         assert "ollama" in registered_providers
-        assert "google" in registered_providers
+
+        if sys.version_info >= (3, 10):
+            assert "google" in registered_providers
         assert "cohere" not in registered_providers
 
     def test_init_handles_all_libraries_missing(self, monkeypatch):

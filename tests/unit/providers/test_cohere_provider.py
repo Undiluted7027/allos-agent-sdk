@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import patch
 
 import pytest
@@ -34,7 +34,7 @@ def _event(event_type: str, **kwargs: Any) -> Any:
     return SimpleNamespace(type=event_type, **kwargs)
 
 
-def _model(name: str, context_length: int | None = 128000) -> Any:
+def _model(name: str, context_length: Optional[int] = 128000) -> Any:
     return SimpleNamespace(name=name, context_length=context_length)
 
 
@@ -208,7 +208,7 @@ def test_convert_messages_formats_all_roles(provider_and_client):
 
 
 def test_convert_tools_builds_schema():
-    converted = CohereProvider._convert_tools([DummyTool()]) # pyright: ignore[reportAttributeAccessIssue]
+    converted = CohereProvider._convert_tools([DummyTool()])  # pyright: ignore[reportAttributeAccessIssue]
     tool = converted[0]
 
     assert tool.type == "function"
@@ -270,7 +270,9 @@ def test_parse_response_no_content_branch(provider_and_client):
         tool_calls=[
             SimpleNamespace(
                 id="call_1",
-                function=SimpleNamespace(name="get_weather", arguments='{"location":"SF"}'),
+                function=SimpleNamespace(
+                    name="get_weather", arguments='{"location":"SF"}'
+                ),
             )
         ],
     )
@@ -287,7 +289,9 @@ def test_parse_response_non_dict_tool_args_branch(provider_and_client):
         tool_calls=[
             SimpleNamespace(
                 id="call_1",
-                function=SimpleNamespace(name="get_weather", arguments='["not-a-dict"]'),
+                function=SimpleNamespace(
+                    name="get_weather", arguments='["not-a-dict"]'
+                ),
             )
         ],
     )
@@ -318,7 +322,7 @@ def test_parse_response_non_dict_tool_args_branch(provider_and_client):
     ],
 )
 def test_extract_usage_tokens(usage, expected):
-    assert CohereProvider._extract_usage_tokens(usage) == expected # pyright: ignore[reportAttributeAccessIssue]
+    assert CohereProvider._extract_usage_tokens(usage) == expected  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_safe_parse_tool_arguments_handles_non_dict(provider_and_client):
@@ -444,7 +448,9 @@ def test_stream_chat_emits_text_tool_chunks_and_final_metadata(provider_and_clie
             delta=SimpleNamespace(
                 finish_reason="COMPLETE",
                 error=None,
-                usage=SimpleNamespace(tokens=SimpleNamespace(input_tokens=20, output_tokens=6)),
+                usage=SimpleNamespace(
+                    tokens=SimpleNamespace(input_tokens=20, output_tokens=6)
+                ),
             ),
         ),
     ]
@@ -536,7 +542,9 @@ def test_stream_chat_message_end_error_yields_error_chunk(provider_and_client):
                 delta=SimpleNamespace(
                     finish_reason="ERROR",
                     error="provider-side failure",
-                    usage=SimpleNamespace(tokens=SimpleNamespace(input_tokens=3, output_tokens=0)),
+                    usage=SimpleNamespace(
+                        tokens=SimpleNamespace(input_tokens=3, output_tokens=0)
+                    ),
                 ),
             ),
         ]
@@ -554,7 +562,10 @@ def test_stream_chat_message_end_error_yields_error_chunk(provider_and_client):
 def test_on_content_delta_no_text_branch(provider_and_client):
     provider, _, _ = provider_and_client
     chunks = provider._on_content_delta(
-        _event("content-delta", delta=SimpleNamespace(message=SimpleNamespace(content=None))),
+        _event(
+            "content-delta",
+            delta=SimpleNamespace(message=SimpleNamespace(content=None)),
+        ),
         {},
     )
     assert chunks == []
@@ -565,9 +576,7 @@ def test_on_tool_call_start_guard_branches(provider_and_client):
     state = provider._initialize_stream_state()
 
     assert provider._on_tool_call_start(_event("tool-call-start"), state) == []
-    assert (
-        provider._on_tool_call_start(_event("tool-call-start", index=0), state) == []
-    )
+    assert provider._on_tool_call_start(_event("tool-call-start", index=0), state) == []
     assert (
         provider._on_tool_call_start(
             _event(
@@ -591,7 +600,11 @@ def test_on_tool_call_start_guard_branches(provider_and_client):
 def test_on_tool_call_delta_guard_branches(provider_and_client):
     provider, _, _ = provider_and_client
     state = provider._initialize_stream_state()
-    state["in_progress_tool_calls"][0] = {"id": "call_1", "name": "tool_x", "arguments": ""}
+    state["in_progress_tool_calls"][0] = {
+        "id": "call_1",
+        "name": "tool_x",
+        "arguments": "",
+    }
 
     assert provider._on_tool_call_delta(_event("tool-call-delta"), state) == []
     assert provider._on_tool_call_delta(_event("tool-call-delta", index=2), state) == []
@@ -600,7 +613,11 @@ def test_on_tool_call_delta_guard_branches(provider_and_client):
         _event(
             "tool-call-delta",
             index=0,
-            delta=SimpleNamespace(message=SimpleNamespace(tool_calls=SimpleNamespace(function=SimpleNamespace(arguments=None)))),
+            delta=SimpleNamespace(
+                message=SimpleNamespace(
+                    tool_calls=SimpleNamespace(function=SimpleNamespace(arguments=None))
+                )
+            ),
         ),
         state,
     )
@@ -654,7 +671,9 @@ def test_stream_chat_flushes_incomplete_tool_calls(provider_and_client):
                 delta=SimpleNamespace(
                     finish_reason="COMPLETE",
                     error=None,
-                    usage=SimpleNamespace(tokens=SimpleNamespace(input_tokens=5, output_tokens=3)),
+                    usage=SimpleNamespace(
+                        tokens=SimpleNamespace(input_tokens=5, output_tokens=3)
+                    ),
                 ),
             ),
         ]
@@ -690,7 +709,9 @@ def test_stream_chat_tool_parse_error_yields_error_chunk(provider_and_client):
                 index=0,
                 delta=SimpleNamespace(
                     message=SimpleNamespace(
-                        tool_calls=SimpleNamespace(function=SimpleNamespace(arguments='{"x":'))
+                        tool_calls=SimpleNamespace(
+                            function=SimpleNamespace(arguments='{"x":')
+                        )
                     )
                 ),
             ),
@@ -701,7 +722,9 @@ def test_stream_chat_tool_parse_error_yields_error_chunk(provider_and_client):
                 delta=SimpleNamespace(
                     finish_reason="COMPLETE",
                     error=None,
-                    usage=SimpleNamespace(tokens=SimpleNamespace(input_tokens=1, output_tokens=1)),
+                    usage=SimpleNamespace(
+                        tokens=SimpleNamespace(input_tokens=1, output_tokens=1)
+                    ),
                 ),
             ),
         ]
