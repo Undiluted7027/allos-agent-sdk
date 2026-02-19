@@ -113,6 +113,19 @@ def test_ollama_invalid_model_error_normalized_real():
 
 
 @pytest.mark.integration
+@pytest.mark.requires_cohere
+def test_cohere_invalid_model_error_normalized_real():
+    with pytest.raises(ProviderError) as exc_info:
+        ProviderRegistry.get_provider("cohere", model="__allos_invalid_model__")
+
+    _assert_normalized_provider_error(
+        exc_info,
+        "cohere",
+        expected_keywords=["model", "not available", "verify"],
+    )
+
+
+@pytest.mark.integration
 @pytest.mark.requires_gemini
 @pytest.mark.skipif(
     sys.version_info < (3, 10),
@@ -146,6 +159,23 @@ def test_openai_malformed_auth_error_normalized_real():
         exc_info,
         "openai",
         expected_keywords=["auth", "api key", "invalid", "unauthorized"],
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.requires_cohere
+def test_cohere_malformed_auth_error_normalized_real():
+    with pytest.raises(ProviderError) as exc_info:
+        ProviderRegistry.get_provider(
+            "cohere",
+            model=PROVIDER_MODELS["cohere"],
+            api_key="__allos_invalid_api_key__",
+        )
+
+    _assert_normalized_provider_error(
+        exc_info,
+        "cohere",
+        expected_keywords=["auth", "invalid", "unauthorized", "configuration"],
     )
 
 

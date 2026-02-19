@@ -328,6 +328,7 @@ class TestCrossProviderWorkflows:
             "anthropic": "allos.providers.anthropic.anthropic.Anthropic",
             "ollama": "allos.providers.ollama.ollama.Client",
             "google": "allos.providers.google.genai.Client",
+            "cohere": "allos.providers.cohere.cohere.ClientV2",
             "chat_completions": "allos.providers.chat_completions.openai.OpenAI",
         }
         return mapping.get(provider_name, "allos.providers.base.BaseProvider")

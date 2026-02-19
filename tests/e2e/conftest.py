@@ -57,6 +57,10 @@ def mock_provider_environment(provider_name: str):
         with patch("allos.providers.google.genai") as mock_genai:
             setup_google_mocks(model_name, mock_genai)
             yield mock_genai
+    elif provider_name == "cohere":
+        with patch("allos.providers.cohere.cohere.ClientV2") as mock_cohere_client:
+            setup_cohere_mocks(model_name, mock_cohere_client)
+            yield mock_cohere_client
     elif provider_name == "ollama":
         _reset_ollama_global_state()
         with patch("allos.providers.ollama.Client") as mock_ollama_client:
@@ -77,6 +81,7 @@ def get_client_patch_path(provider_name: str) -> str:
         "anthropic": "allos.providers.anthropic.anthropic.Anthropic",
         "ollama": "allos.providers.ollama.Client",
         "google": "allos.providers.google.genai.Client",
+        "cohere": "allos.providers.cohere.cohere.ClientV2",
         "chat_completions": "allos.providers.chat_completions.openai.OpenAI",
     }
     return mapping.get(provider_name, "allos.providers.base.BaseProvider")
@@ -120,6 +125,31 @@ def setup_ollama_mocks(mock_ollama_client):
     return mock_client_instance
 
 
+def setup_cohere_mocks(model_name: str, mock_cohere_client):
+    """Setup required mocks for Cohere provider initialization."""
+    mock_client_instance = MagicMock()
+    mock_cohere_client.return_value = mock_client_instance
+    mock_client_instance.models.list.return_value = type(
+        "CohereModelsList",
+        (object,),
+        {
+            "models": [
+                type(
+                    "CohereModel",
+                    (object,),
+                    {"name": model_name, "context_length": 128000},
+                )(),
+                type(
+                    "CohereModel",
+                    (object,),
+                    {"name": "command-r-plus-08-2024", "context_length": 128000},
+                )(),
+            ]
+        },
+    )()
+    return mock_client_instance
+
+
 def create_test_metadata_with_builder(
     provider_name: str,
     model_id: str,
@@ -133,7 +163,7 @@ def create_test_metadata_with_builder(
     Consolidates metadata creation logic used across all e2e tests.
 
     Args:
-        provider_name: Provider name (openai, anthropic, ollama, google)
+        provider_name: Provider name (openai, anthropic, ollama, google, cohere)
         model_id: Model identifier
         input_tokens: Number of input tokens
         output_tokens: Number of output tokens

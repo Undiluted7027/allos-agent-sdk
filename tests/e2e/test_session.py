@@ -16,6 +16,8 @@ pytestmark = pytest.mark.e2e
 
 # We can keep the real provider/tool registries, but mock the provider's .chat method
 @patch("allos.agent.agent.Agent._check_tool_permission", return_value=True)
+@patch("allos.providers.cohere.CohereProvider._verify_model_available")
+@patch("allos.providers.cohere.CohereProvider.chat")
 @patch("allos.providers.ollama.OllamaProvider._verify_model_available")
 @patch("allos.providers.ollama.OllamaProvider.chat")
 @patch("allos.providers.chat_completions.ChatCompletionsProvider.chat")
@@ -39,6 +41,7 @@ pytestmark = pytest.mark.e2e
             ],
             id="google",
         ),
+        pytest.param("cohere", id="cohere"),
     ],
 )
 def test_session_save_and_load_with_filesystem(
@@ -47,6 +50,8 @@ def test_session_save_and_load_with_filesystem(
     mock_chat_completions_chat,
     mock_ollama_chat,
     mock_verify_ollama,
+    mock_cohere_chat,
+    mock_verify_cohere,
     mock_check_permission,
     provider_name,
     work_dir: Path,
@@ -56,6 +61,7 @@ def test_session_save_and_load_with_filesystem(
     Tests the full end-to-end workflow of saving and loading a session to/from the filesystem.
     """
     mock_verify_ollama.return_value = None
+    mock_verify_cohere.return_value = None
     google_chat_patcher = (
         patch("allos.providers.google.GoogleProvider.chat")
         if provider_name == "google"
@@ -85,6 +91,8 @@ def test_session_save_and_load_with_filesystem(
         elif provider_name == "google":
             assert mock_google_chat is not None
             mock_provider_chat = mock_google_chat
+        elif provider_name == "cohere":
+            mock_provider_chat = mock_cohere_chat
 
         # --- 1. SETUP and INITIAL RUN ---
         # Define the sequence of LLM intents for each turn

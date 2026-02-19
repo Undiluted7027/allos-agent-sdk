@@ -32,6 +32,7 @@ PROVIDER_CASES = [
     ("openai", PROVIDER_MODELS["openai"], [pytest.mark.requires_openai]),
     ("anthropic", PROVIDER_MODELS["anthropic"], [pytest.mark.requires_anthropic]),
     ("ollama", PROVIDER_MODELS["ollama"], [pytest.mark.requires_ollama]),
+    ("cohere", PROVIDER_MODELS["cohere"], [pytest.mark.requires_cohere]),
     (
         "chat_completions",
         PROVIDER_MODELS["chat_completions"],

@@ -40,6 +40,7 @@ PROVIDER_MODELS = {
     "ollama": os.getenv("TEST_OLLAMA_MODEL", "qwen3:8b"),  # Reads env or defaults
     "chat_completions": "gpt-3.5-turbo",
     "google": "gemini-2.5-flash-lite",
+    "cohere": "command-r7b-12-2024",
 }
 
 # This sets the env var before the coverage plugin finishes initialization
@@ -100,6 +101,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "requires_anthropic: marks tests as requiring an Anthropic API key"
+    )
+    config.addinivalue_line(
+        "markers", "requires_cohere: marks tests as requiring a Cohere API key"
     )
     config.addinivalue_line(
         "markers", "requires_ollama: marks tests as requiring ollama local client"
@@ -199,6 +203,7 @@ def _apply_integration_key_skips(items):
         "requires_openai": lambda: bool(os.getenv("OPENAI_API_KEY")),
         "requires_anthropic": lambda: bool(os.getenv("ANTHROPIC_API_KEY")),
         "requires_gemini": lambda: bool(os.getenv("GEMINI_API_KEY")),
+        "requires_cohere": lambda: bool(os.getenv("COHERE_API_KEY")),
         "requires_ollama": _ollama_running,
         "requires_vertexai": _check_vertexai_conf,
     }
@@ -251,10 +256,12 @@ def mock_api_keys(monkeypatch):
     )
     TEST_GEMINI_API_KEY = os.getenv("TEST_GEMINI_API_KEY", "test-gemini-api-key")
     TEST_GOOGLE_API_KEY = os.getenv("TEST_GOOGLE_API_KEY", "test-google-api-key")
+    TEST_COHERE_API_KEY = os.getenv("TEST_COHERE_API_KEY", "test-cohere-api-key")
     monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
     monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
     monkeypatch.setenv("GEMINI_API_KEY", TEST_GEMINI_API_KEY)
     monkeypatch.setenv("GOOGLE_API_KEY", TEST_GOOGLE_API_KEY)
+    monkeypatch.setenv("COHERE_API_KEY", TEST_COHERE_API_KEY)
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
 
@@ -364,6 +371,7 @@ def get_available_provider_params():
         make_param("anthropic", pytest.mark.requires_anthropic, "anthropic"),
         make_param("ollama", pytest.mark.requires_ollama, "ollama"),
         make_param("chat_completions", pytest.mark.requires_openai, "chat_completions"),
+        make_param("cohere", pytest.mark.requires_cohere, "cohere"),
     ]
 
     if sys.version_info >= (3, 10):
@@ -399,7 +407,7 @@ def available_providers():
     """Return list of providers available on current Python version."""
     import sys
 
-    providers = ["openai", "anthropic", "ollama", "chat_completions"]
+    providers = ["openai", "anthropic", "ollama", "chat_completions", "cohere"]
     if sys.version_info >= (3, 10):
         providers.append("google")
     return providers

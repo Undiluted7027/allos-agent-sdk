@@ -380,6 +380,24 @@ class TestProviderInit:
         assert "ollama" in registered_providers
         assert "google" not in registered_providers
 
+    def test_init_handles_missing_cohere_library(self, monkeypatch):
+        """
+        Tests that `allos.providers` can be imported even if 'cohere' is not installed.
+        """
+        monkeypatch.setitem(sys.modules, "cohere", None)
+        self._unload_provider_modules(monkeypatch)
+
+        import allos.providers  # noqa: F401
+
+        registered_providers = ProviderRegistry.list_providers(
+            include_unavailable=False
+        )
+        assert "anthropic" in registered_providers
+        assert "openai" in registered_providers
+        assert "ollama" in registered_providers
+        assert "google" in registered_providers
+        assert "cohere" not in registered_providers
+
     def test_init_handles_all_libraries_missing(self, monkeypatch):
         """
         Tests that `allos.providers` can be imported even if all optional provider
@@ -389,6 +407,7 @@ class TestProviderInit:
         monkeypatch.setitem(sys.modules, "anthropic", None)
         monkeypatch.setitem(sys.modules, "ollama", None)
         monkeypatch.setitem(sys.modules, "google", None)
+        monkeypatch.setitem(sys.modules, "cohere", None)
         self._unload_provider_modules(monkeypatch)
 
         import allos.providers  # noqa: F401
@@ -399,7 +418,9 @@ class TestProviderInit:
         assert "google" not in providers
         # But we expect 'ollama_compat' to be there as it's an alias
         assert "ollama_compat" in providers
+        assert "cohere_compat" in providers
         assert "ollama" not in providers
+        assert "cohere" not in providers
 
     def test_get_env_var_name_for_unknown_provider_returns_none(self):
         """Test that get_env_var_name returns None for a completely unknown provider."""
