@@ -13,7 +13,6 @@ source = { editable = "." }
 dependencies = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "click", version = "8.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "cohere" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -25,6 +24,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "anthropic" },
+    { name = "cohere" },
     { name = "google-auth", marker = "python_full_version >= '3.10'" },
     { name = "google-genai", marker = "python_full_version >= '3.10'" },
     { name = "ollama" },
@@ -32,6 +32,9 @@ all = [
 ]
 anthropic = [
     { name = "anthropic" },
+]
+cohere = [
+    { name = "cohere" },
 ]
 dev = [
     { name = "black", version = "25.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -79,13 +82,13 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "allos-agent-sdk", extras = ["openai", "anthropic", "ollama", "google"], marker = "extra == 'all'" },
+    { name = "allos-agent-sdk", extras = ["openai", "anthropic", "ollama", "google", "cohere"], marker = "extra == 'all'" },
     { name = "allos-agent-sdk", extras = ["test", "lint"], marker = "extra == 'dev'" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.72.0" },
     { name = "black", marker = "extra == 'lint'", specifier = ">=25.9.0" },
     { name = "build", marker = "extra == 'publish'", specifier = ">=1.3.0" },
     { name = "click", specifier = ">=8.1.8" },
-    { name = "cohere", specifier = ">=5.20.5" },
+    { name = "cohere", marker = "extra == 'cohere'", specifier = ">=5.20.5" },
     { name = "google-auth", marker = "python_full_version >= '3.10' and extra == 'google'", specifier = ">=2.48.0" },
     { name = "google-genai", marker = "python_full_version >= '3.10' and extra == 'google'", specifier = ">=1.47.0" },
     { name = "httpx", specifier = ">=0.28.1,<1" },
@@ -107,7 +110,7 @@ requires-dist = [
     { name = "types-requests", marker = "extra == 'lint'", specifier = ">=2.32.4.20260107" },
     { name = "urllib3", specifier = ">=2.6.3" },
 ]
-provides-extras = ["openai", "anthropic", "ollama", "google", "test", "lint", "dev", "publish", "all"]
+provides-extras = ["openai", "anthropic", "ollama", "google", "cohere", "test", "lint", "dev", "publish", "all"]
 
 [[package]]
 name = "annotated-doc"
