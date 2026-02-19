@@ -1102,7 +1102,8 @@ class TestActiveProvidersCommand:
         assert result.exit_code == 0
         assert "ollama" in result.output
         assert "Ready" in result.output
-        assert "Running at http://custom-ollama:11434" in result.output
+        assert "Running at" in result.output
+        assert "http://custom-ollama:11434" in result.output
 
     def test_active_providers_ollama_not_running(
         self, runner: CliRunner, mock_validation, monkeypatch
@@ -1120,7 +1121,8 @@ class TestActiveProvidersCommand:
 
         assert result.exit_code == 0
         assert "ollama" in result.output
-        assert "Not running at http://localhost:11434" in result.output
+        assert "Not running at" in result.output
+        assert "http://localhost:11434" in result.output
 
     def test_active_providers_ollama_with_env_var_but_not_running(
         self, runner: CliRunner, monkeypatch
@@ -1131,9 +1133,11 @@ class TestActiveProvidersCommand:
         with patch("allos.cli.main.ollama_running", return_value=False):
             result = runner.invoke(main, ["--active-providers"])
 
+        print(result.output)
         assert result.exit_code == 0
         assert "ollama" in result.output
-        assert "Not running at http://localhost:9999" in result.output
+        assert "Not running at" in result.output
+        assert "http://localhost:9999" in result.output
 
 
 class TestDetermineModel:

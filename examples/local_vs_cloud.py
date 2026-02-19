@@ -11,6 +11,7 @@ This example provides a side-by-side comparison covering:
 Requirements:
 - Ollama running locally with llama3.1: `ollama pull llama3.1`
 - OpenAI API key: OPENAI_API_KEY environment variable
+- Cohere API key (optional): COHERE_API_KEY environment variable
 Usage: python examples/local_vs_cloud.py
 """
 
@@ -58,6 +59,10 @@ def check_provider_availability() -> dict:
     # Check Anthropic (optional bonus)
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
     available["anthropic"] = bool(anthropic_key)
+
+    # Check Cohere (optional bonus)
+    cohere_key = os.getenv("COHERE_API_KEY")
+    available["cohere"] = bool(cohere_key)
 
     return available
 
@@ -130,7 +135,7 @@ def run_benchmark(
         )
 
 
-def estimate_cost(provider: str, input_tokens: int, output_tokens: int) -> float:
+def estimate_cost(provider: str, input_tokens: int, output_tokens: int) -> Optional[float]:
     """Estimate cost using static reference pricing (illustrative only)."""
     # Approximate pricing per 1M tokens (reference values, not billing truth).
     pricing = {
@@ -138,10 +143,11 @@ def estimate_cost(provider: str, input_tokens: int, output_tokens: int) -> float
         "anthropic": {"input": 3.00, "output": 15.00},  # Claude 3.5 Sonnet
         "groq": {"input": 0.05, "output": 0.08},  # Llama 3.3 70B
         "ollama": {"input": 0.00, "output": 0.00},  # Free (local)
+        "cohere": {"input": 0.0375, "output": 0.15} # Command R7B
     }
 
     if provider not in pricing:
-        return 0.0
+        return None
 
     rates = pricing[provider]
     input_cost = (input_tokens / 1_000_000) * rates["input"]
@@ -175,10 +181,11 @@ def display_comparison_table(results: list[BenchmarkResult]):
                 "-",
             )
         else:
-            cost = estimate_cost(
-                result.provider, result.input_tokens, result.output_tokens
-            )
-            cost_str = f"${cost:.6f}" if cost > 0 else "[green]Free[/]"
+            cost = estimate_cost(result.provider, result.input_tokens, result.output_tokens)
+            if cost is None:
+                cost_str = "[dim]N/A[/]"
+            else:
+                cost_str = f"${cost:.6f}" if cost > 0 else "[green]Free[/]"
             privacy = (
                 "[green]Local[/]" if result.provider == "ollama" else "[yellow]Cloud[/]"
             )
@@ -213,7 +220,7 @@ def display_privacy_comparison():
   - Full control over model and data
   - Ideal for: Sensitive data, PII, confidential documents
 
-[bold yellow]Cloud Providers (OpenAI, Anthropic)[/]
+[bold yellow]Cloud Providers (OpenAI, Anthropic, Cohere)[/]
   - Data sent to provider's servers
   - Subject to provider's data policies
   - Higher quality models available
@@ -244,17 +251,8 @@ def display_use_case_guide():
     console.print(Panel(guide, title="Use Case Guide", border_style="green"))
 
 
-def main():
-    """Run the local vs cloud comparison benchmark."""
-    console.print(
-        Panel.fit(
-            "[bold white]Local vs Cloud: A Comparison[/]",
-            style="bold blue",
-        )
-    )
-
-    # Check availability
-    available = check_provider_availability()
+def print_provider_availability(available: dict) -> None:
+    """Print provider readiness and cost-estimate note."""
     console.print("\n[bold]Provider Availability:[/]")
     for provider, is_available in available.items():
         status = "[green]Ready[/]" if is_available else "[red]Not Available[/]"
@@ -264,6 +262,9 @@ def main():
         "actual provider billing.[/dim]"
     )
 
+
+def print_missing_provider_hints(available: dict) -> None:
+    """Print setup hints for unavailable providers."""
     if not available["ollama"]:
         console.print(
             "\n[yellow]Ollama not running. Start with: [bold]ollama serve[/][/]"
@@ -272,25 +273,18 @@ def main():
         console.print(
             "\n[yellow]OpenAI not configured. Set OPENAI_API_KEY environment variable.[/]"
         )
+    if not available["cohere"]:
+        console.print(
+            "\n[yellow]Cohere not configured. Set COHERE_API_KEY environment variable.[/]"
+        )
 
-    if not any(available.values()):
-        console.print("\n[red]No providers available for comparison.[/]")
-        return
 
-    # Run benchmarks
-    console.print("\n[bold]Running benchmarks...[/]")
-
-    # Simple reasoning task (no tools)
-    test_prompt = (
-        "Explain in 2-3 sentences why the sky is blue. Be concise and scientific."
-    )
-    console.print(f'\n[dim]Test prompt: "{test_prompt}"[/dim]')
-
+def run_available_benchmarks(available: dict, test_prompt: str) -> list[BenchmarkResult]:
+    """Run all benchmarks for currently available providers."""
     results = []
 
     if available["ollama"]:
         with console.status("[cyan]Testing Ollama (local)...[/]", spinner="dots"):
-            # Use llama3.1:latest for exact model match
             result = run_benchmark("ollama", "llama3.1:latest", test_prompt)
             results.append(result)
 
@@ -305,6 +299,43 @@ def main():
                 "anthropic", "claude-3-5-haiku-20241022", test_prompt
             )
             results.append(result)
+
+    if available["cohere"]:
+        with console.status("[blue]Testing Cohere (cloud)...[/]", spinner="dots"):
+            result = run_benchmark("cohere", "command-r7b-12-2024", test_prompt)
+            results.append(result)
+
+    return results
+
+
+def main():
+    """Run the local vs cloud comparison benchmark."""
+    console.print(
+        Panel.fit(
+            "[bold white]Local vs Cloud: A Comparison[/]",
+            style="bold blue",
+        )
+    )
+
+    # Check availability
+    available = check_provider_availability()
+    print_provider_availability(available)
+    print_missing_provider_hints(available)
+
+    if not any(available.values()):
+        console.print("\n[red]No providers available for comparison.[/]")
+        return
+
+    # Run benchmarks
+    console.print("\n[bold]Running benchmarks...[/]")
+
+    # Simple reasoning task (no tools)
+    test_prompt = (
+        "Explain in 2-3 sentences why the sky is blue. Be concise and scientific."
+    )
+    console.print(f'\n[dim]Test prompt: "{test_prompt}"[/dim]')
+
+    results = run_available_benchmarks(available, test_prompt)
 
     # Display results
     console.print()

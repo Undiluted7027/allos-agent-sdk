@@ -32,6 +32,7 @@ def main():
         ("groq", "llama-3.3-70b-versatile", "Groq (Llama 3.3)"),
         ("openai", "gpt-4o", "OpenAI (GPT-4o)"),
         ("anthropic", "claude-3-7-sonnet-20250219", "Anthropic (Sonnet)"),
+        ("cohere", "command-r7b-12-2024", "Cohere (Command R7B)"),
         ("mistral", "mistral-large-latest", "Mistral (Large)"),
     ]
 

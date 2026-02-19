@@ -7,7 +7,7 @@ This document provides a technical reference for the core `Agent` class, its con
 A dataclass used to configure an `Agent` instance.
 
 **`allos.agent.AgentConfig`**
-- `provider_name: str`: The name of the LLM provider to use (e.g., `"openai"`, `"anthropic"`, `"chat_completions"`, `"groq"`).
+- `provider_name: str`: The name of the LLM provider to use (e.g., `"openai"`, `"anthropic"`, `"cohere"`, `"chat_completions"`, `"groq"`).
 - `model: str`: The specific model name for the chosen provider (e.g., `"gpt-4o"`, `"llama-3.1-8b-instant"`).
 - `tool_names: List[str]`: A list of names of the tools the agent is allowed to use. These names must correspond to tools registered in the `ToolRegistry`.
 - `max_iterations: int`: The maximum number of LLM-tool interaction loops the agent can perform before stopping. Defaults to `10`.

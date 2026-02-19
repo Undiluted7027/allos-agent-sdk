@@ -48,17 +48,17 @@ Runs the agent in streaming mode. The output will be printed to the console toke
 
 #### `-p, --provider <name>`
 Specifies the LLM provider to use.
-- **Choices:** `openai`, `anthropic`, `google`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, ~~`cohere`~~, `openrouter`, `portkey`, `ollama`, `ollama_compat`.
+- **Choices:** `openai`, `anthropic`, `cohere`, `google`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, `cohere_compat`, `openrouter`, `portkey`, `ollama`, `ollama_compat`.
 - **Default:** `openai`
 
 > [!TIP]
 > For local models via Ollama, use `ollama` (native provider with full tool support) or `ollama_compat` (OpenAI-compatible mode).
 
 > [!IMPORTANT]
-> When using the `ollama` provider, the `--model` parameter is **required**. There is no default model for Ollama.
+> When using the `ollama` and `cohere` providers, the `--model` parameter is **required**. There is no default model for these providers.
 
 #### `-m, --model <model_name>`
-Specifies the exact model name to use. If not provided, a sensible default will be chosen for the selected provider (e.g., `gpt-4o` for OpenAI).
+Specifies the exact model name to use. Defaults exist only for some providers (currently `openai`, `anthropic`, and `google`). For `cohere`, `ollama`, and most alias providers, this flag is required.
 
 #### `--base-url <url>`
 Overrides the API base URL. This is primarily used with the `chat_completions` provider to connect to custom or local endpoints (e.g., `http://localhost:8000/v1`).

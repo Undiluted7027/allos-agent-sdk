@@ -2,7 +2,7 @@
 
 The Allos SDK includes a sophisticated observability layer that normalizes data from different LLM providers into a single, consistent **Metadata Schema**.
 
-Whether you are using OpenAI, Anthropic, or a local Ollama model, the usage metrics, latency timings, and cost estimates will always be accessible via the same standardized object.
+Whether you are using OpenAI, Anthropic, Cohere, or a local Ollama model, the usage metrics, latency timings, and cost estimates will always be accessible via the same standardized object.
 
 ## Accessing Metadata
 
@@ -100,7 +100,7 @@ When running an `Agent`, this object tracks the "Reason-Act" loop.
 Provider-specific metadata fields that are unique to particular LLM providers.
 
 > [!IMPORTANT]
-> The `provider_specific.ollama` fields (warm-up detection) are **exclusive to the native Ollama provider** and are not available for other providers (OpenAI, Anthropic, Groq, etc.).
+> The `provider_specific.ollama` fields (warm-up detection) are **exclusive to the native Ollama provider** and are not available for other providers (OpenAI, Anthropic, Cohere, Groq, etc.).
 
 #### `ProviderSpecificOllama`
 For the native Ollama provider, this contains information about model warm-up:

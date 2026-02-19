@@ -6,7 +6,7 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 
 ## Key Features
 
-*   **Universal Compatibility:** Connect to OpenAI, Anthropic, Google (Gemini/Vertex AI), Groq, Mistral, Together AI, DeepSeek, and local models (Ollama/vLLM) with a single interface.
+*   **Universal Compatibility:** Connect to OpenAI, Anthropic, Cohere, Google (Gemini/Vertex AI), Groq, Mistral, Together AI, DeepSeek, and local models (Ollama/vLLM) with a single interface.
 *   **Rich Tool Ecosystem:** Built-in tools for file operations and shell execution.
 *   **Developer Friendly:** Robust CLI, interactive mode, and intelligent diagnostics.
 

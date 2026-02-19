@@ -6,7 +6,7 @@ This guide will walk you through installing the Allos Agent SDK. We recommend us
 
 Core SDK and most providers work with Python 3.9+. However, **Google Gemini/Vertex AI provider requires Python 3.10+** due to dependencies on the Google GenAI SDK and [google-auth library](https://github.com/googleapis/google-auth-library-python).
 
-If you need to use Python 3.9, you can still use all other providers (OpenAI, Anthropic, Ollama, etc.).
+If you need to use Python 3.9, you can still use all other providers (OpenAI, Anthropic, Cohere, Ollama, etc.).
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ uv pip install allos-agent-sdk
 To use a specific provider, you can install it as an "extra".
 
 > [!NOTE] Universal Compatibility
-> Installing the `openai` extra also enables the **Chat Completions Provider**, which allows you to connect to **Together AI, Groq, Mistral, DeepSeek, LocalAI, vLLM**, and any other OpenAI-compatible service.
+> Installing the `openai` extra also enables the **Chat Completions Provider**, which allows you to connect to **Together AI, Groq, Mistral, DeepSeek, OpenRouter, Portkey, Cohere compatibility mode, LocalAI, vLLM**, and any other OpenAI-compatible service.
 
 This is the recommended approach.
 
@@ -60,6 +60,9 @@ uv pip install "allos-agent-sdk[google]"
 
 # Install with support for Anthropic Claude
 uv pip install "allos-agent-sdk[anthropic]"
+
+# Install with support for Cohere (native provider)
+uv pip install "allos-agent-sdk[cohere]"
 
 # Install with support for local models via Ollama
 uv pip install "allos-agent-sdk[ollama]"

@@ -1,6 +1,6 @@
 # Using LLM Providers
 
-The core feature of the Allos SDK is its provider-agnostic design. This guide shows you how to initialize and switch between different LLM providers like OpenAI, Anthropic, Ollama, Google (Gemini/Vertex AI) and more using a unified interface.
+The core feature of the Allos SDK is its provider-agnostic design. This guide shows you how to initialize and switch between different LLM providers like OpenAI, Anthropic, Cohere, Ollama, Google (Gemini/Vertex AI) and more using a unified interface.
 
 ## The `ProviderRegistry`
 
@@ -29,6 +29,11 @@ vertex_provider = ProviderRegistry.get_provider(
     vertexai=True,
     project="my-gcp-project"
 )
+
+# Get an instance of the Cohere provider (native)
+cohere_provider = ProviderRegistry.get_provider(
+    "cohere", model="command-r7b-12-2024"
+)
 ```
 
 The first argument is the provider's unique name (e.g., `"openai"`), and all other keyword arguments are passed directly to the provider's constructor. The `model` argument is always required.
@@ -39,6 +44,7 @@ The first argument is the provider's unique name (e.g., `"openai"`), and all oth
 |----------|------|----------|----------------|
 | OpenAI | `openai` | GPT models, production-ready | 3.9+ |
 | Anthropic | `anthropic` | Claude models, reasoning | 3.9+ |
+| Cohere | `cohere` | Native Cohere chat + tool calling | 3.9+ |
 | Google Gemini | `google` | Gemini models, multimodal | **3.10+** |
 | Ollama | `ollama` | Local models, privacy | 3.9+ |
 | Groq | `groq` | Fast inference | 3.9+ |
@@ -47,6 +53,7 @@ The first argument is the provider's unique name (e.g., `"openai"`), and all oth
 For detailed information on each provider, see:
 - [OpenAI Provider](../providers/openai.md)
 - [Anthropic Provider](../providers/anthropic.md)
+- [Cohere Provider](../providers/cohere.md)
 - [Google Provider](../providers/google.md)
 - [Ollama Provider](../providers/ollama.md)
 - [Chat Completions Provider](../providers/chat-completions.md)

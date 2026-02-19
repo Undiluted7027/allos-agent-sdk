@@ -29,7 +29,7 @@ Converts the tool's definition into the format required by a specific LLM provid
   `{"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}`.
 
 > [!NOTE] Alias Providers
-> Alias providers that route through Chat Completions (e.g., `groq`, `mistral`, `together`, `openrouter`, ~~`cohere`~~, `deepseek`, `portkey`, `ollama_compat`) use the `chat_completions` formatting path.
+> Alias providers that route through Chat Completions (e.g., `groq`, `mistral`, `together`, `openrouter`, `cohere_compat`, `deepseek`, `portkey`, `ollama_compat`) use the `chat_completions` formatting path.
 
 ---
 

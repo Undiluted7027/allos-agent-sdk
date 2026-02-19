@@ -22,6 +22,7 @@ This directory contains runnable examples for the Allos SDK.
 | `omnibus_cli.sh` | Multi-provider CLI workflow | Yes | Yes | CLI + session chaining |
 | `provider_call_options.py` | `provider_call_options` and runtime kwargs | Yes | No | `run`/`stream_run` options |
 | `cohere_usage.py` | Native Cohere provider guide | Yes (`COHERE_API_KEY`) | Mixed | Chat, stream, tools, agent, metadata |
+| `cohere_compat.py` | Cohere via OpenAI-compatible endpoint | Yes (`COHERE_API_KEY`) | No | Compatibility mode (`cohere_compat`) |
 | `google_direct_provider.py` | Advanced Google direct-provider config | Yes | No | Vertex/Gemini kwargs |
 | `streaming_chunks.py` | Provider-direct streaming chunk anatomy | Yes | Optional | Content/tool/metadata chunks |
 | `metadata_inspection.py` | Inspect normalized + provider-specific metadata | Yes | No | Metadata-focused |
@@ -38,6 +39,7 @@ This directory contains runnable examples for the Allos SDK.
    - `universal_chat.py`
    - `provider_switching.py`
    - `cohere_usage.py`
+   - `cohere_compat.py`
 4. Ollama/local:
    - `local_models.py`
    - `ollama_compat.py`
@@ -52,6 +54,7 @@ This directory contains runnable examples for the Allos SDK.
 - Cloud providers typically use env vars such as:
   - `OPENAI_API_KEY`
   - `ANTHROPIC_API_KEY`
+  - `COHERE_API_KEY`
   - `GROQ_API_KEY`
   - `MISTRAL_API_KEY`
   - `TOGETHER_API_KEY`
@@ -59,3 +62,8 @@ This directory contains runnable examples for the Allos SDK.
 - For local Ollama examples, run:
   - `ollama serve`
   - pull required models (for example `ollama pull llama3.1`)
+
+## Cohere Modes
+
+- `cohere` (native): Use `cohere_usage.py` for native Cohere chat, streaming, tool-calling, and metadata behavior.
+- `cohere_compat` (compat endpoint): Use `cohere_compat.py` when you specifically want the OpenAI-compatible endpoint path.

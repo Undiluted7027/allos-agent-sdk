@@ -10,13 +10,14 @@ Create and run your first "Hello, World!" application using the Allos agent in u
     ```
 2.  **Choose your provider**:
 
-    **Option A: Cloud Provider (OpenAI, Anthropic, Groq, Google)**
+    **Option A: Cloud Provider (OpenAI, Anthropic, Cohere, Groq, Google)**
 
     Create a `.env` file in your project directory with your API key:
     ```env
     # .env
     OPENAI_API_KEY="your_openai_api_key_here"
     # Or: ANTHROPIC_API_KEY="your_key"
+    # Or: COHERE_API_KEY="your_key"
     # Or: GROQ_API_KEY="gsk_..."
     # Or: GEMINI_API_KEY="..."
     ```

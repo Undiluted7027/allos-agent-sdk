@@ -23,6 +23,7 @@ PROMPT = "Write a comprehensive history of the Internet, covering ARPANET to Web
 PROVIDERS = [
     {"name": "OpenAI", "provider": "openai", "model": "gpt-4o"},
     {"name": "Anthropic", "provider": "anthropic", "model": "claude-3-haiku-20240307"},
+    {"name": "Cohere", "provider": "cohere", "model": "command-r7b-12-2024"},
     {"name": "Groq", "provider": "groq", "model": "llama-3.1-8b-instant"},
     {"name": "Mistral", "provider": "mistral", "model": "mistral-small-latest"},
 ]

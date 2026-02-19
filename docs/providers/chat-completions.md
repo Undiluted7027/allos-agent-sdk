@@ -2,7 +2,7 @@
 
 The `ChatCompletionsProvider` is a universal adapter designed to work with **any** API that is compatible with the OpenAI Chat Completions specification (`/v1/chat/completions`).
 
-This provider powers the integration for services like Together AI, Groq, Mistral, DeepSeek, and local servers like vLLM.
+This provider powers the integration for services like Together AI, Groq, Mistral, DeepSeek, OpenRouter, Portkey, Cohere's compatibility endpoint, and local servers like vLLM.
 
 ## Supported Providers & Aliases
 
@@ -14,7 +14,7 @@ Allos includes an Intelligent Registry that automatically configures the correct
 | `groq` | Groq | `GROQ_API_KEY` |
 | `mistral` | Mistral AI | `MISTRAL_API_KEY` |
 | `deepseek` | DeepSeek | `DEEPSEEK_API_KEY` |
-| ~~`cohere`~~ | ~~Cohere~~ | ~~`COHERE_API_KEY`~~ |
+| `cohere_compat` | Cohere (compat endpoint) | `COHERE_API_KEY` |
 | `openrouter` | OpenRouter | `OPENROUTER_API_KEY` |
 | `portkey` | Portkey | `PORTKEY_API_KEY` |
 | `ollama_compat` | Ollama | `No environment variable` |
@@ -42,6 +42,9 @@ config = AgentConfig(
 )
 agent = Agent(config)
 ```
+
+> [!NOTE]
+> For Cohere, prefer the native `cohere` provider when possible. Use `cohere_compat` only when you specifically want the OpenAI Chat Completions compatibility endpoint.
 
 ### Manual Configuration (Custom Endpoints)
 
@@ -76,7 +79,7 @@ This includes thousands of open-source models (Llama, Mistral, Qwen, Gemma) host
 *   [**Groq:**](https://console.groq.com/docs/models) `llama-3.1-8b-instant`, `llama-3.1-70b-versatile`, `mixtral-8x7b-32768`
 *   [**Together AI:**](https://docs.together.ai/docs/serverless-models#chat-models) `meta-llama/Llama-3-70b-chat-hf`, `mistralai/Mixtral-8x7B-Instruct-v0.1`, `Qwen/Qwen1.5-72B-Chat`
 *   [**Mistral API:**](https://docs.mistral.ai/getting-started/models) `mistral-small-latest`, `mistral-medium-latest`, `mistral-large-latest`
-*   [**Cohere:**](https://docs.cohere.com/docs/models) `command-r`, `command-r-plus`
+*   [**Cohere (compat endpoint):**](https://docs.cohere.com/docs/models) `command-r`, `command-r-plus`
 *   [**DeepSeek:**](https://api-docs.deepseek.com/quick_start/pricing) `deepseek-chat`, `deepseek-coder`
 *   [**OpenRouter:**](https://docs.openrouter.ai/models) `meta-llama/Llama-3-70b-chat-hf`, `mistralai/Mixtral-8x7B-Instruct-v0.1`, `Qwen/Qwen1.5-72B-Chat`
 *   [**Portkey:**](https://docs.portkey.ai/models) `meta-llama/Llama-3-70b-chat-hf`, `mistralai/Mixtral-8x7B-Instruct-v0.1`, `Qwen/Qwen1.5-72B-Chat` [**Uses Model Catalog**](https://portkey.ai/docs/virtual_key_old/product/model-catalog)

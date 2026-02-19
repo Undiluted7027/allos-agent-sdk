@@ -257,11 +257,13 @@ def mock_api_keys(monkeypatch):
     TEST_GEMINI_API_KEY = os.getenv("TEST_GEMINI_API_KEY", "test-gemini-api-key")
     TEST_GOOGLE_API_KEY = os.getenv("TEST_GOOGLE_API_KEY", "test-google-api-key")
     TEST_COHERE_API_KEY = os.getenv("TEST_COHERE_API_KEY", "test-cohere-api-key")
+    TEST_OLLAMA_API_KEY = os.getenv("TEST_OLLAMA_API_KEY", "test-ollama-api-key")
     monkeypatch.setenv("OPENAI_API_KEY", TEST_OPENAI_API_KEY)
     monkeypatch.setenv("ANTHROPIC_API_KEY", TEST_ANTHROPIC_API_KEY)
     monkeypatch.setenv("GEMINI_API_KEY", TEST_GEMINI_API_KEY)
     monkeypatch.setenv("GOOGLE_API_KEY", TEST_GOOGLE_API_KEY)
     monkeypatch.setenv("COHERE_API_KEY", TEST_COHERE_API_KEY)
+    monkeypatch.setenv("OLLAMA_API_KEY", TEST_OLLAMA_API_KEY)
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
 

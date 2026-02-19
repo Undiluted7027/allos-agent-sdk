@@ -29,7 +29,7 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 
 **The Problem**: Most agentic frameworks force you to choose between vendors, making it expensive and risky to switch models.
 
-**The Solution**: Allos provides a unified interface across OpenAI, Anthropic, Ollama, Google (Gemini/Vertex AI), Groq, Mistral, and more—so you can use the best model for each task without rewriting your code.
+**The Solution**: Allos provides a one interface across OpenAI, Anthropic, Ollama, Google (Gemini/Vertex AI), Cohere, Groq, Mistral, and more—so you can use the best model for each task without rewriting your code.
 
 ## ✨ Key Features
 
@@ -96,6 +96,7 @@ uv pip install allos-agent-sdk
 # With specific providers
 uv pip install "allos-agent-sdk[openai]"
 uv pip install "allos-agent-sdk[anthropic]"
+uv pip install "allos-agent-sdk[cohere]"
 uv pip install "allos-agent-sdk[all]"  # All providers
 
 # With Google/Gemini support (requires Python 3.10+)
@@ -135,7 +136,7 @@ from allos import Agent, AgentConfig
 agent = Agent(
     AgentConfig(
         provider_name="together",
-        model="gpt-4o",
+        model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
         tool_names=["read_file", "write_file"],
     )
 )
@@ -168,7 +169,7 @@ agent_claude = Agent(AgentConfig(
 # Switch to Groq for fast responses
 agent_groq = Agent(AgentConfig(
     provider_name="groq",
-    model="groq/compound",
+    model="llama-3.1-8b-instant",
 ))
 
 # Or use local models with native Ollama support
@@ -264,7 +265,8 @@ Allos supports a massive range of models through native integrations and a unive
 | **Mistral** | ✅ Ready | Mistral Large, Small |
 | **Together AI** | ✅ Ready | Llama 3, Qwen, DeepSeek |
 | **DeepSeek** | ✅ Ready | DeepSeek Chat/Coder |
-| ~~Cohere~~ | ~~✅ Ready~~ | ~~Command R+~~ |
+| **Cohere (compat)** | ✅ Ready | Command R+ |
+| **Cohere native** | ✅ Ready | Command R+, Command A |
 | **Ollama (compat)** | ✅ Ready | OpenAI-compatible endpoint mode |
 | **Ollama native** | ✅ Ready | Native Ollama support |
 | **LocalAI / vLLM** | ✅ Ready | Custom endpoints via `chat_completions` |
@@ -290,7 +292,7 @@ Allos supports a massive range of models through native integrations and a unive
 sre_agent = Agent(AgentConfig(
     provider_name="anthropic",
     model="claude-4-opus",
-    tool_names=["read_file", "shell_exec", "web_search"]
+    tool_names=["read_file", "shell_exec"]
 ))
 sre_agent.run("Investigate why the API latency spiked at 3pm")
 
