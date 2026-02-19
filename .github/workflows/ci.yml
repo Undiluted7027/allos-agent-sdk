@@ -17,7 +17,7 @@ jobs:
         include:
           # Specify which extras to install per Python version
           - python-version: "3.9"
-            extras: "openai,anthropic,ollama"
+            extras: "openai,anthropic,ollama,cohere"
             test-marker: "not requires_python_310"
           - python-version: "3.10"
             extras: "all"  # Includes Google
@@ -45,7 +45,7 @@ jobs:
 
       - name: Install dependencies for Python 3.9
         if: matrix.python-version == '3.9'
-        run: uv sync --locked --extra openai --extra anthropic --extra ollama --extra dev
+        run: uv sync --locked --extra openai --extra anthropic --extra ollama --extra cohere --extra dev
 
       - name: Install dependencies for Python 3.10+
         if: matrix.python-version != '3.9'
