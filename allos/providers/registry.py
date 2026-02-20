@@ -28,6 +28,19 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "base_url": "https://api.groq.com/openai/v1",
         "implementation": "chat_completions",
     },
+    "xai":  # Also supports OpenAI's responses API
+    {
+        "env_var": "XAI_API_KEY",
+        "base_url": "https://api.x.ai/v1",
+        "implementation": "chat_completions",
+        "provider": "X.AI",
+    },
+    "chutes": {
+        "env_var": "CHUTES_API_TOKEN",
+        "base_url": "https://llm.chutes.ai/v1",
+        "implementation": "chat_completions",
+        "provider": "Chutes",
+    },
     "mistral": {
         "env_var": "MISTRAL_API_KEY",
         "base_url": "https://api.mistral.ai/v1",
@@ -54,14 +67,14 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "provider": "openai",
         "implementation": "chat_completions",
     },
-    "zai": {
+    "zai": { # Also supports Anthropic's Messages API via base_url = https://api.z.ai/api/anthropic
         "env_var": "ZAI_API_KEY",
         "base_url": "https://api.z.ai/api/paas/v4",
         "provider": "z.ai",
         "implementation": "chat_completions",
     },
-    "zenmusk": {
-        "env_var": "ZENMUSK_API_KEY",
+    "zenmux": { # Also supports OpenAI's Responses API and Anthropic's Messages API
+        "env_var": "ZENMUX_API_KEY",
         "base_url": "https://zenmux.ai/api/v1",
         "provider": "ZenMusk",
         "implementation": "chat_completions",
@@ -78,10 +91,53 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "provider": "Nvidia",
         "implementation": "chat_completions",
     },
-    "fastrouter": {
+    "fastrouter": { # Also supports OpenAI's Responses API
         "env_var": "FASTROUTER_API_KEY",
         "base_url": "https://api.fastrouter.ai/api/v1",
         "provider": "FastRouter",
+        "implementation": "chat_completions",
+    },
+    "helicone": {
+        "env_var": "HELICONE_API_KEY",
+        "base_url": "https://ai-gateway.helicone.ai",
+        "provider": "Helicone",
+        "implementation": "chat_completions",
+    },
+    "baseten": {
+        "env_var": "BASETEN_API_KEY",
+        "base_url": "https://inference.baseten.co/v1",
+        "provider": "Baseten",
+        "implementation": "chat_completions",
+    },
+    "jiekou": {
+        "env_var": "JIEKOU_API_KEY",
+        "base_url": "https://api.jiekou.ai/openai",
+        "provider": "Jiekou.ai",
+        "implementation": "chat_completions",
+    },
+    "meganova": {
+        "env_var": "MEGANOVA_API_KEY",
+        "base_url": "https://inference.meganova.ai/v1",
+        "provider": "Mega Nova",
+        "implementation": "chat_completions",
+    },
+    "perplexity": {
+        "env_var": "PERPLEXITY_API_KEY",
+        "base_url": "https://api.perplexity.ai/",
+        "provider": "Perplexity",
+        "implementation": "chat_completions",
+    },
+    "hugging_face_compat": {
+        "env_var": "HF_TOKEN",
+        "base_url": "https://router.huggingface.co/v1",
+        "provider": "Hugging Face (Compat.)",
+        "implementation": "chat_completions",
+    },
+    "friendli":  # Needs endpoint customization to choose between serverless and dedicated. Default is serverless
+    {
+        "env_var": "FRIENDLI_TOKEN",
+        "base_url": "https://api.friendli.ai/serverless/v1",
+        "provider": "Friendli",
         "implementation": "chat_completions",
     },
     "iflow": {
@@ -102,10 +158,22 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "provider": "Llama",
         "implementation": "chat_completions",
     },
-    "inference": {
+    "cerebras": {
         "env_var": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "provider": "Cerebras",
+        "implementation": "chat_completions",
+    },
+    "cortecs": {
+        "env_var": "CORTECS_API_KEY",
+        "base_url": "https://api.cortecs.ai/v1",
+        "provider": "Cortecs",
+        "implementation": "chat_completions",
+    },
+    "inference": {
+        "env_var": "INFERENCE_API_KEY",
+        "base_url": "https://api.inference.net/v1",
+        "provider": "Inference.net",
         "implementation": "chat_completions",
     },
     "deep_infra": {
@@ -114,13 +182,13 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "provider": "Deep Infra",
         "implementation": "chat_completions",
     },
-    "xiaomi": {
+    "xiaomi": { # Also supports Anthropic's Messages API via base_url = https://api.xiaomimimo.com/anthropic/v1/messages
         "env_var": "MIMO_API_KEY",
         "base_url": "https://api.xiaomimimo.com/v1",
         "provider": "Xiaomi",
         "implementation": "chat_completions",
     },
-    "synthetic": {
+    "synthetic": { # Also supports Anthropic's Messages API
         "env_var": "SYNTHETIC_API_KEY",
         "base_url": "https://api.synthetic.new/openai/v1",
         "provider": "Synthetic",
@@ -132,15 +200,15 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "provider": "Nebius Token Factory",
         "implementation": "chat_completions",
     },
-    "qiniu": {
+    "qiniu": { # Also supports Anthropic's Messages API
         "env_var": "QINIU_API_KEY",
         "base_url": "https://api.qnaigc.com/v1",
         "provider": "Qiniu",
         "implementation": "chat_completions",
     },
-    "ollama_cloud": {
+    "ollama_cloud": {  # Also supports Anthropic's Messages API and OpenAI's Responses API
         "env_var": "OLLAMA_API_KEY",
-        "base_url": "https://ollama.com/api/chat/v1",
+        "base_url": "https://ollama.com/v1",
         "provider": "Ollama Cloud",
         "implementation": "chat_completions",
     },
@@ -150,11 +218,246 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "provider": "Scaleway",
         "implementation": "chat_completions",
     },
-    "cloudflare_ai_gateway": {
+    "cloudflare_ai_gateway": {  # Also has provider native endpoints
         "env_var": "CF_AIG_TOKEN",
         "base_url": "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/compat",  # Replace account_id, and gateway_id
         "base_url_env_var": "CF_AIG_URL",
+        "provider": "Cloudflare AI Gateway",
         "implementation": "chat_completions",
+    },
+    "cloudflare_workers_ai": {
+        "env_var": "CLOUDFLARE_API_KEY",
+        "base_url": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",  # Replace account_id
+        "base_url_env_var": "CF_AIWORKER_URL",
+        "provider": "Cloudflare Workers AI",
+        "implementation": "chat_completions",
+    },
+    "upstage": {
+        "env_var": "UPSTAGE_API_KEY",
+        "base_url": "https://api.upstage.ai/v1",
+        "provider": "Upstage",
+        "implementation": "chat_completions",
+    },
+    "inception": {
+        "env_var": "INCEPTION_API_KEY",
+        "base_url": "https://api.inceptionlabs.ai/v1",
+        "provider": "Inception",
+        "implementation": "chat_completions",
+    },
+    "submodel": {
+        "env_var": "SUBMODEL_ACCESS_KEY",
+        "base_url": "https://llm.submodel.ai/v1",
+        "provider": "SubModel",
+        "implementation": "chat_completions",
+    },
+    "minimax": {  # Might be better off using Anthropic Messages API instead of chat_completions but some models are supported
+        "env_var": "MINIMAX_API_KEY",
+        "base_url": "https://api.minimaxi.com/v1",
+        "provider": "MiniMax Coding Plan (minimaxi.com)",
+        "implementation": "chat_completions",
+    },
+    "novita": {  # Also compatible with Anthropic's Messages API
+        "env_var": "NOVITA_API_KEY",
+        "base_url": "https://api.novita.ai/openai/v1",
+        "provider": "NovitaAI",
+        "implementation": "chat_completions",
+    },
+    "poe": {  # Also compatible with OpenAI's Responses API and Anthropic's Messages API
+        "env_var": "POE_API_KEY",
+        "base_url": "https://api.poe.com/v1",
+        "provider": "poe",
+        "implementation": "chat_completions",
+    },
+    "mulerouter": {
+        "env_var": "MULEROUTER_API_KEY",
+        "base_url": "https://api.mulerouter.ai/v1",
+        "provider": "MuleRouter",
+        "implementation": "chat_completions",
+    },
+    "alibaba": {  # Also compatible with OpenAI's Responses API
+        "env_var": "ALIBABA_API_KEY",
+        "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "provider": "Alibaba",
+        "implementation": "chat_completions",
+    },
+    "weights_and_biases": {
+        "env_var": "WB_API_KEY",
+        "base_url": "https://api.inference.wandb.ai/v1",
+        "provider": "Weights & Biases",
+        "implementation": "chat_completions",
+    },
+    "aihubmix": {  # Also compatible with OpenAI's Responses API
+        "env_var": "AIHUBMIX_API_KEY",
+        "base_url": "https://aihubmix.com/v1",
+        "provider": "AIHubMix",
+        "implementation": "chat_completions",
+    },
+    "kimi": {
+        "env_var": "MOONSHOT_API_KEY",
+        "base_url": "https://api.moonshot.ai/v1",
+        "provider": "Kimi",
+        "implementation": "chat_completions",
+    },
+    "abacus": {
+        "env_var": "ABACUS_API_KEY",
+        "base_url": "https://routellm.abacus.ai/v1",
+        "provider": "Abacus AI",
+        "implementation": "chat_completions",
+    },
+    "fireworks": {
+        "env_var": "FIREWORKS_API_KEY",
+        "base_url": "https://api.fireworks.ai/inference/v1",
+        "provider": "Fireworks",
+        "implementation": "chat_completions",
+    },
+    "stepfun": {
+        "env_var": "STEP_API_KEY",
+        "base_url": "https://api.stepfun.ai/v1",
+        "provider": "StepFun",
+        "implementation": "chat_completions",
+    },
+    "siliconflow": {
+        "env_var": "SILICONFLOW_API_KEY",
+        "base_url": "https://api.siliconflow.com/v1",
+        "provider": "SiliconFlow",
+        "implementation": "chat_completions",
+    },
+    "v0": {
+        "env_var": "V0_API_KEY",
+        "base_url": "https://api.v0.dev/v1",
+        "provider": "v0",
+        "implementation": "chat_completions",
+    },
+    "moark": {
+        "env_var": "MOARK_API_KEY",
+        "base_url": "https://moark.ai/v1",
+        "provider": "Moark",
+        "implementation": "chat_completions",
+    },
+    "morph": {
+        "env_var": "MORPH_API_KEY",
+        "base_url": "https://api.morphllm.com/v1",
+        "provider": "Morph",
+        "implementation": "chat_completions",
+    },
+    "berget": {
+        "env_var": "BERGET_API_KEY",
+        "base_url": "https://api.berget.ai/v1",
+        "provider": "Berget.AI",
+        "implementation": "chat_completions",
+    },
+    "lucidquery": {
+        "env_var": "LUCIDQUERY_API_KEY",
+        "base_url": "https://lucidquery.com/api/v1",
+        "provider": "LucidQuery",
+        "implementation": "chat_completions",
+    },
+    "zhipu": {
+        "env_var": "ZHIPU_API_KEY",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "provider": "Zhipu Coding Plan",
+        "implementation": "chat_completions",
+    },
+    "venice_ai": {
+        "env_var": "VENICE_API_KEY",
+        "base_url": "https://api.venice.ai/api/v1",
+        "provider": "Venice AI",
+        "implementation": "chat_completions",
+    },
+    "nova": {
+        "env_var": "NOVA_API_KEY",
+        "base_url": "https://api.nova.amazon.com/v1",
+        "provider": "Amazon Nova",
+        "implementation": "chat_completions",
+    },
+    "firmware": {
+        "env_var": "FIRMWARE_API_KEY",
+        "base_url": "https://app.firmware.ai/api/v1",
+        "provider": "Firmware AI",
+        "implementation": "chat_completions",
+    },
+    "lmstudio": {  # Also compatible with Anthropic Messages API
+        "env_var": None,
+        "base_url": "http://localhost:1234/v1",
+        "base_url_env_var": "LMSTUDIO_HOST",
+        "implementation": "chat_completions",
+        "requires_auth": False,
+        "provider": "LM Studio",
+    },
+    "github_models": {
+        "env_var": "GITHUB_MODELS_PAT",
+        "base_url": "https://models.github.ai/inference",
+        "provider": "GitHub Models",
+        "implementation": "chat_completions",
+    },
+    "302ai": {  # Model specific for OpenAI Responses API and Anthropic's Messages API
+        "env_var": "AI_302_API_KEY",
+        "base_url": "https://api.302.ai/v1",
+        "provider": "302.ai",
+        "implementation": "chat_completions",
+    },
+    "vercel_ai_gateway": {  # Also supports Anthropic's Messages API and OpenAI's Responses API
+        "env_var": "AI_GATEWAY_API_KEY",
+        "base_url": "https://ai-gateway.vercel.sh/v1",
+        "provider": "Vercel AI Gateway",
+        "implementation": "chat_completions",
+    },
+    "stackit": {
+        "env_var": "STACKIT_ACCESS_TOKEN",
+        "base_url": "https://api.openai-compat.model-serving.eu01.onstackit.cloud/v1",
+        "provider": "STACKIT",
+        "implementation": "chat_completions",
+    },
+    "cloudferro_sherlock": {
+        "env_var": "SHERLOCK_API_KEY",
+        "base_url": "https://api-sherlock.cloudferro.com/openai/v1",
+        "provider": "CloudFerro Sherlock",
+        "implementation": "chat_completions",
+    },
+    "requesty": {  # Also supports Anthropic's Messages API
+        "env_var": "REQUESTY_API_KEY",
+        "base_url": "https://router.requesty.ai/v1",
+        "provider": "Requesty",
+        "implementation": "chat_completions",
+    },
+    "kilo_gateway": {
+        "env_var": "KILO_API_KEY",
+        "base_url": "https://api.kilo.ai/api/gateway",
+        "provider": "Kilo Gateway",
+        "implementation": "chat_completions",
+    },
+    "nanogpt":  # Can support subscription or non-subscritpion URLs
+    # Subscription: https://nano-gpt.com/api/subscription/v1/chat/completions
+    # Non-Subscription (Default): https://nano-gpt.com/api/v1/chat/completions
+    # Source: https://docs.nano-gpt.com/api-reference/endpoint/chat-completion
+    # Supports OpenAI Responses API, and Anthropic Messages API as well
+    {
+        "env_var": "NANOGPT_API_KEY",
+        "base_url": "https://nano-gpt.com/api/v1/chat/completions",
+        "provider": "NanoGPT",
+        "implementation": "chat_completions",
+    },
+    "privatemode": {
+        "env_var": None,
+        "base_url": "http://localhost:8080/v1",
+        "base_url_env_var": "PRIVATEMODE_HOST",  # Override base URL from this
+        "implementation": "chat_completions",
+        "requires_auth": False,  # Private Mode uses API key when running the instance
+        "provider": "PrivateMode AI",
+    },
+    "vivgrid": {  # Some of the models also support OpenAI Responses API
+        "env_var": "VIVGRID_API_KEY",
+        "base_url": "https://api.vivgrid.com/v1",
+        "provider": "Vivgrid",
+        "implementation": "chat_completions",
+    },
+    "vllm": {  # Supports OpenAI Responses API
+        "env_var": None,
+        "base_url": "http://localhost:8000/v1",
+        "base_url_env_var": "VLLM_HOST",
+        "implementation": "chat_completions",
+        "requires_auth": False,
+        "provider": "vLLM",
     },
     # Ollama is unique: it can be used via compatibility mode (chat_completions)
     # OR via its native library (future implementation).
@@ -164,6 +467,7 @@ OPENAI_COMPATIBLE_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "base_url_env_var": "OLLAMA_HOST",  # Override base URL from this
         "implementation": "chat_completions",
         "requires_auth": False,
+        "provider": "Ollama (Compat)",
     },
 }
 
