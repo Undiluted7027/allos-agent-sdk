@@ -48,8 +48,18 @@ Runs the agent in streaming mode. The output will be printed to the console toke
 
 #### `-p, --provider <name>`
 Specifies the LLM provider to use.
-- **Choices:** `openai`, `anthropic`, `cohere`, `google`, `chat_completions`, `groq`, `together`, `mistral`, `deepseek`, `cohere_compat`, `openrouter`, `portkey`, `ollama`, `ollama_compat`.
+- **Choices:** Dynamic. The CLI uses `ProviderRegistry.list_providers()` at runtime, so available names reflect your current SDK version and Python/runtime compatibility.
 - **Default:** `openai`
+
+Check your exact current list with:
+```bash
+allos --list-providers
+```
+
+Common provider names include:
+- Native: `openai`, `anthropic`, `google`, `cohere`, `ollama`
+- Generic adapter: `chat_completions`
+- Common aliases: `groq`, `together`, `mistral`, `deepseek`, `openrouter`, `portkey`, `cohere_compat`, `ollama_compat`
 
 > [!TIP]
 > For local models via Ollama, use `ollama` (native provider with full tool support) or `ollama_compat` (OpenAI-compatible mode).
@@ -123,8 +133,8 @@ Inside the interactive session, you can type `/exit` or `/quit` to end the sessi
 
 Interactive mode allows you to have a multi-turn conversation with your AI agent.
 It's ideal for:
-- Iterative development worklows
-- Explorator tasks where requirements evolve
+- Iterative development workflows
+- Exploratory tasks where requirements evolve
 - Back-and-forth collaboration with the agent
 - Testing different approaches quickly
 
@@ -183,7 +193,7 @@ It's ideal for:
 **4. Exit Cleanly**
 - Use `/exit` or `/quit`
 - Don't just close terminal (loses session)
-- Consider using `--sesion-file` to save work
+- Consider using `--session` to save work
 
 ## Examples
 

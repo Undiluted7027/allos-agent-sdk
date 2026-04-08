@@ -2,7 +2,7 @@
 
 Welcome to the Allos Agent SDK! This guide provides a conceptual overview of the two main ways to use Allos: the **Command-Line Interface (CLI)** for quick tasks and the **Python API** for building custom applications.
 
-Allos works with **10+ LLM providers** out of the box, including OpenAI, Anthropic, Cohere, Google (Gemini/Vertex AI), Groq, Mistral, Together AI, and local models via Ollama.
+Allos works with native providers (OpenAI, Anthropic, Cohere, Google, Ollama) and a broad set of OpenAI-compatible aliases (such as Groq, Together, Mistral, DeepSeek, OpenRouter, and many others).
 
 > [!IMPORTANT]
 > **Python 3.10 or higher is required** for the Google (Gemini/Vertex AI) provider. All other providers work with Python 3.9+.

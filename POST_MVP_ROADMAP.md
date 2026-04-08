@@ -1,8 +1,10 @@
 # Allos Agent SDK - POST-MVP Roadmap
 
-> **Goal**: Transform Allos from a working MVP into the most flexible, powerful, and developer-friendly agentic SDK
-> **Timeline**: Weeks 9-36+ (28+ weeks of active development)
-> **Current Status**: MVP Launched (Nov 8, 2025), Ready for Phase 2
+**Goal**: Transform Allos from a working MVP into the most flexible, powerful, and developer-friendly agentic SDK
+
+**Timeline**: Weeks 9-36+ (28+ weeks of active development)
+
+**Current Status**: MVP Launched (Nov 8, 2025), Phase 2 in Progress
 
 ---
 
@@ -24,37 +26,13 @@ Build upon the solid MVP foundation to deliver:
 | Phase | Focus | Timeline | Status | Completion |
 |-------|-------|----------|--------|------------|
 | **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ Complete | 100% |
-| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 🎯 Current | 0% |
+| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 🎯 Current | 50% |
 | **Phase 3: Advanced Tooling** | Developer experience | Weeks 15-20 | 📋 Planned | 0% |
 | **Phase 4: Enterprise & Scale** | Production features | Weeks 21-28 | 📋 Planned | 0% |
 | **Phase 5: Ecosystem Integration** | Framework compatibility | Weeks 29-36 | 🔮 Future | 0% |
 | **Phase 6: Innovation** | Cutting-edge features | Ongoing | 🔮 Future | 0% |
 
-**Overall Post-MVP Progress**: 0% (0/6 phases complete)
-
-**Current Date**: November 19, 2025 (11 days post-launch)
-
----
-
-## 📈 MVP Launch Results (Nov 8 - Nov 19, 2025)
-
-**11 Days Post-Launch Performance**:
-- 🌟 **GitHub**: 6 stars
-- 💼 **LinkedIn**: 39 likes, 8 comments
-- 🔴 **Reddit**: 18 upvotes, 8 comments (across threads)
-- 📝 **Dev.to**: 11 likes, 3 comments, 162 views, +264 followers
-- 📰 **Hashnode**: 8 views (all-time)
-- 📖 **Medium + Towards AI**: 206 presentations, 49 views, 12 reads
-- 🎥 **YouTube**: 24 views (unlisted demo)
-- 📰 **HackerNoon**: Story in editorial
-- 📦 **PyPI**: 374 downloads
-- 🐦 **X.com**: No reach/views
-
-**Key Insights**:
-- Dev.to showing strongest engagement (+264 followers)
-- Medium showing good reach (206 presentations)
-- PyPI downloads indicate real usage (374 in 11 days)
-- Need to improve X.com strategy for Phase 2 launch
+**Overall Post-MVP Progress**: 16.67% (1/6 phases complete)
 
 ---
 
@@ -62,7 +40,7 @@ Build upon the solid MVP foundation to deliver:
 
 **Timeline**: Weeks 9-14 (6 weeks)
 
-**Status**: 🎯 Current Phase (Starting Soon)
+**Status**: 🏗️ In Progress (50%)
 
 **Focus**: Essential capabilities for production use
 
@@ -74,14 +52,16 @@ Build upon the solid MVP foundation to deliver:
 - Create configuration system
 - Establish plugin architecture foundation
 
-### Progress Breakdown
+### Progress Breakdown (50%)
 
 | Feature | Duration | Status | Completion |
 |---------|----------|--------|------------|
-| **2.0 Chat Completions Provider** | Days 57-59 | ✅ Complete | 100% |
-| **2.1 Ollama Provider** | Days 60-70 | 📋 Planned | 0% |
-| **2.2 Google Provider** | Days X - Y | 🗓️ Planned | 0% |
-| **2.2 Additional Providers** | Week 10 | 📋 Planned | 0% |
+| **2.0.1 Chat Completions Provider** | Days 57-80 | ✅ Complete | 100% |
+| **2.0.2 Native Ollama Provider** | Days 80-100 | ✅ Complete | 100% |
+| **2.0.3 Native Google Provider** | Days 90-130 | ✅ Complete | 100% |
+| **2.0.4 Native Cohere Provider** | Days 130-140 | ✅ Complete | 100% |
+| **2.1 CLI Enhancements** | Week 13 | ✅ Complete | 100% |
+| **2.2 Cloud Providers** | Week 10 | 📋 Planned | 0% |
 | **2.3 Web Tools** | Week 11 | 📋 Planned | 0% |
 | **2.4 Advanced Context** | Week 12 | 📋 Planned | 0% |
 | **2.5 Configuration System** | Week 13 | 📋 Planned | 0% |
@@ -89,9 +69,13 @@ Build upon the solid MVP foundation to deliver:
 
 ---
 
-## 2.0 Chat Completions Provider (Days 57-59)
+## 2.0 Additional Providers (3 Months)
 
-**Duration**: 3 days (Days 57-59)
+**Goal:** Expand Allos to cover more LLM providers. Take list of providers from OpenCode.
+
+### 2.0.1 Chat Completions Provider (Days 57-80)
+
+**Duration**: 23 days
 
 **Status**: ✅ Complete
 
@@ -99,16 +83,16 @@ Build upon the solid MVP foundation to deliver:
 
 **Motivation**: Enable compatibility with Together AI, Anyscale, and provide alternative for testing
 
-### Day 57: Chat Completions Architecture & Design
+#### Chat Completions Architecture & Design
 
-#### Research & Design
+##### Research & Design
 - [x] Study Chat Completions API vs Responses API differences
 - [x] Document API contract differences
 - [x] Design provider interface
 - [x] Plan backward compatibility strategy
 - [x] Create comparison matrix
 
-#### Key Differences
+##### Key Differences
 
 | Feature | Responses API | Chat Completions API |
 |---------|---------------|---------------------|
@@ -118,9 +102,9 @@ Build upon the solid MVP foundation to deliver:
 | Streaming | Response events | SSE chunks |
 | Tool Results | Structured | Function call messages |
 
-### Day 58: Chat Completions Provider Implementation
+#### Chat Completions Provider Implementation
 
-#### Implementation
+##### Implementation
 - [x] **`allos/providers/chat_completions.py`**
   - `ChatCompletionsProvider` class extending `BaseProvider`
   - OpenAI Chat Completions API integration
@@ -168,7 +152,7 @@ class ChatCompletionsProvider(BaseProvider):
         except Exception as e:
             raise ProviderError(
                 f"Failed to initialize ChatCompletions client: {e}",
-                provider="chat_completions",
+                provider_name="chat_completions",
             ) from e
 
 
@@ -301,7 +285,7 @@ class ChatCompletionsProvider(BaseProvider):
         )
 ```
 
-#### Features
+##### Features
 - [x] Support for custom base_url
 - [x] Function calling (OpenAI-style tool calling)
 - [x] Message format conversion
@@ -309,9 +293,9 @@ class ChatCompletionsProvider(BaseProvider):
 - [x] Error handling
 - [x] Token counting
 
-### Day 59: Testing & Documentation
+#### Testing & Documentation
 
-#### Testing
+##### Testing
 - [x] **`tests/unit/test_chat_completions_provider.py`**
   - Mock OpenAI client
   - Test message conversion
@@ -319,19 +303,20 @@ class ChatCompletionsProvider(BaseProvider):
   - Test with custom base_url
   - Test error handling
 
-#### Integration Tests
+##### Integration Tests
 - [x] Test with real OpenAI Chat Completions endpoint
 - [x] Test with Together AI (if API key available)
 - [x] Compare behavior with ResponsesAPI provider
+- [x] Test alias endpoints
 
-#### Documentation
+##### Documentation
 - [x] **`docs/providers/chat-completions.md`**
   - When to use Chat Completions vs Responses API
   - Configuration for different services
   - Limitations compared to Responses API
   - Migration guide
 
-### Deliverables
+#### Deliverables
 
 - ChatCompletionsProvider class
 - Support for custom base_url
@@ -341,26 +326,26 @@ class ChatCompletionsProvider(BaseProvider):
 
 ---
 
-## 2.1 Ollama Provider (Days 60-70)
+### 2.0.2 Native Ollama Provider (Days 80-100)
 
-**Duration**: 11 days (Days 60-70, adjusted from original 57-70)
+**Duration**: 20 days
 
-**Status**: 📋 Planned
+**Status**: ✅ Complete
 
 **Goal**: Enable completely local, private AI agents
 
 **Motivation**: Users want to run agents offline without API costs or privacy concerns
 
-### Day 60-61: Ollama Provider Core (adjusted from Day 57-58)
+#### Ollama Provider Core
 
-#### Research & Design
+##### Research & Design
 - [x] Study Ollama Python library API documentation
 - [x] Design provider interface to match BaseProvider
 - [x] Plan token counting strategy (model-specific)
 - [x] Design context window detection per model
 - [x] Plan streaming implementation
 
-#### Implementation
+##### Implementation
 - [x] **`allos/providers/ollama.py`**
   - `OllamaProvider` class extending `BaseProvider`
   - Connection to local Ollama server (default: localhost:11434)
@@ -371,7 +356,7 @@ class ChatCompletionsProvider(BaseProvider):
   - Options like `temperature` and `num_predict` are passed as `options` parameter in model calls. Like so:
 
 
-#### Testing
+##### Testing
 - [x] **`tests/unit/test_ollama_provider.py`**
   - Mock Ollama client (native library)
   - Test model availability checking
@@ -380,59 +365,127 @@ class ChatCompletionsProvider(BaseProvider):
   - Test error handling
   - Test context window detection
 
-### Day 62-63: Ollama Tool Calling & Streaming (adjusted from Day 59-60)
+#### Ollama Tool Calling & Streaming
 
-#### Tool Calling Support
+##### Tool Calling Support
 - [x] **Native tool calling implementation**
   - Convert Allos tool format to Ollama format (native, not OpenAI functions)
   - Handle tool call responses from Ollama's native format
   - Extract tool call IDs
   - Support multiple tool calls in one turn
 
+### ADDON: Basic Metadata & Observability System
+
+#### Metadata Schema
+- [x] **`allos/providers/metadata.py`**
+  - [x] `Metadata` Pydantic model with comprehensive schema
+  - [x] `MetadataBuilder` factory pattern
+  - [x] `Usage` tracking (input/output tokens, cache, cost)
+  - [x] `Latency` metrics (total duration, TTFT)
+  - [x] `ToolInfo` and `ToolCallDetail` for tool tracking
+  - [x] `TurnsInfo` and `TurnLog` for turn history
+  - [x] `ProviderSpecific` for provider-unique fields
+  - [x] `QualitySignals` for finish reasons
+
+#### Provider-Specific Metadata
+- [x] **OpenAI**: `system_fingerprint`
+- [x] **Ollama**: `warm_up`, `warm_up_duration_seconds`
+
+#### First Metadata Preservation
+- [x] Provider-specific traits preserved from first turn
+- [x] Backfill mechanism in `_create_aggregate_metadata()`
+- [x] Ensures warm_up, system_fingerprint retained across turns
+
+#### Agent Integration
+- [x] `agent.last_run_metadata` populated after each run
+- [x] Cumulative token/cost tracking across turns
+- [x] Turn history with per-turn metrics
+
+**Code Example**:
+```python
+result = agent.run("Create a FastAPI app")
+metadata = agent.last_run_metadata
+
+print(f"Tokens: {metadata.usage.total_tokens}")
+print(f"Cost: ${metadata.usage.estimated_cost.total_usd}")
+print(f"Turns: {metadata.turns.total_turns}")
+print(f"Tools used: {metadata.tools.total_tool_calls}")
+```
 
 
-#### Streaming Support
-- [x] **Implement streaming chat using native library**
-  - Stream tokens as they're generated
-  - Yield partial responses
-  - Handle tool calls in streaming mode
-  - Add `stream` parameter to chat method
+### ADDON: Basic Streaming Support (Moved from Phase 3.6)
 
+#### Streaming Architecture
+- [x] **`allos/providers/base.py`**
+  - [x] `ProviderChunk` dataclass for streaming chunks
+  - [x] `stream_chat()` abstract method in BaseProvider
+  - [x] Streaming protocol definition
+
+- [x] **Provider Implementations**
+  - [x] OpenAI `stream_chat()` with Responses API events
+  - [x] Anthropic `stream_chat()` with streaming messages
+  - [x] Ollama `stream_chat()` with native streaming
+  - [x] Chat Completions `stream_chat()` with SSE
+
+- [x] **Agent Streaming**
+  - [x] `Agent.stream_run()` method
+  - [x] `CumulativeState` TypedDict for tracking and metadata
+  - [x] Streaming metadata aggregation
+  - [x] Tool execution during streaming
+
+- [x] **CLI Support**
+  - [x] `--stream` flag for one-shot streaming
 
 #### Testing
+- [x] Unit tests for streaming providers
+- [x] E2E streaming workflow tests
+- [x] Integration tests with real APIs (`test_streaming_real.py`)
+- [x] Streaming with tool calls (`test_agent_stream_tool_loop_real.py`)
+
+**Code Example**:
+```bash
+# CLI streaming
+allos --stream "Write a long story about space exploration"
+
+# Python API
+for chunk in agent.stream_run("Create a web app"):
+    print(chunk.content, end='', flush=True)
+```
+
+##### Testing
 - [x] **Integration tests with real Ollama**
   - Test with llama3.2:1b (fast, small model)
   - Test tool calling with real model
   - Test streaming responses
   - Verify context window handling
 
-### Day 64-65: Context Window Detection & Model Support (adjusted from Day 61-62)
+#### Context Window Detection & Model Support
 
-#### Context Window Management
+##### Context Window Management
 - [x] **Model-specific context windows**
   - Create model family mappings (Llama, Mistral, Qwen, etc.)
-  - Detect context window from model name
+  - Detect context window from model name and actual model metadata
   - Add override via configuration
   - Implement token counting per model family
 
 
-#### Token Counting
+##### Token Counting
 - [x] **Implement token counting**
   - Use tiktoken for estimation (by model family)
   - Fall back to word-based estimation
   - Cache token counts
   - Integrate with context manager
 
-#### Popular Model Testing
+##### Popular Model Testing
 - [x] Test with popular models:
   - `llama3.2:3b` - Latest small Llama
   - `qwen2.5-coder:7b` - Code-focused
   - `mistral:7b` - General purpose
   - `deepseek-coder:6.7b` - Code specialist
 
-### Day 66-67: Documentation & Examples (adjusted from Day 63-64)
+#### Documentation & Examples
 
-#### Documentation
+##### Documentation
 - [x] **`docs/providers/ollama.md`**
   - Installation instructions (Ollama + models)
   - Configuration guide
@@ -442,7 +495,7 @@ class ChatCompletionsProvider(BaseProvider):
   - Troubleshooting section
   - Performance tips
 
-#### Examples
+##### Examples
 - [x] **`examples/ollama_usage.py`**
   - Basic local model usage
   - Model comparison (local vs API)
@@ -464,9 +517,9 @@ def basic_ollama_usage():
     print("\n=== Basic Ollama Usage ===")
 
     agent = Agent(AgentConfig(
-        provider="ollama",
+        provider_name="ollama",
         model="qwen2.5-coder:7b",
-        tools=["read_file", "write_file", "shell_exec"]
+        tool_names=["read_file", "write_file", "shell_exec"]
     ))
 
     result = agent.run("Create a simple FastAPI hello world app")
@@ -487,9 +540,9 @@ def compare_providers():
     for provider, model in providers:
         print(f"\nTesting {provider}/{model}...")
         agent = Agent(AgentConfig(
-            provider=provider,
+            provider_name=provider,
             model=model,
-            tools=[]
+            tool_names=[]
         ))
         result = agent.run(task)
         print(f"Response: {result}")
@@ -505,20 +558,20 @@ if __name__ == "__main__":
   - Performance benchmarks
   - Privacy considerations
 
-#### Update Main Documentation
+##### Update Main Documentation
 - [x] Update `README.md` provider table
 - [x] Update `docs/guides/providers.md`
 - [x] Add Ollama to quickstart guide
 
-### Day 68-69: Testing & Polish (adjusted from Day 65-66)
+#### Testing & Polish
 
-#### Comprehensive Testing
+##### Comprehensive Testing
 - [x] **Unit tests**: Mock-based, no Ollama required
 - [x] **Integration tests**: Real Ollama server required
 - [x] **E2E tests**: Full agent workflows with Ollama
 - [x] **Performance tests**: Measure response times
 
-#### Edge Cases
+##### Edge Cases
 - [x] Model not available (suggest `ollama pull`)
 - [x] Ollama server not running
 - [x] Network timeout handling
@@ -526,24 +579,24 @@ if __name__ == "__main__":
 - [x] Streaming interruption
 - [x] Tool calling errors
 
-#### Performance Optimization
+##### Performance Optimization
 - [x] Connection pooling
 - ~~[ ] Request caching~~
 - [x] Model warm-up detection
 - ~~[ ] Memory usage monitoring~~
 
-#### CLI Integration
+##### CLI Integration
 - [x] Add `--list-ollama-models` command
 - [x] Add Ollama-specific help text
 
-#### Final Polish
+##### Final Polish
 - [x] Code review and refactoring
 - [x] Documentation review
 - [x] Example testing
 - [x] Performance profiling
 - ~~[ ] Security review~~
 
-### Success Criteria
+#### Success Criteria
 
 ✅ Ollama provider fully functional
 
@@ -561,7 +614,7 @@ if __name__ == "__main__":
 
 ✅ Performance acceptable (< 2x API latency)
 
-### Deliverables
+#### Deliverables
 
 - Working Ollama provider with streaming support
 - Tool calling for local models
@@ -571,7 +624,7 @@ if __name__ == "__main__":
 - Updated CLI with Ollama support
 - Integration and E2E tests
 
-### Example Usage After This Phase
+#### Example Usage After This Phase
 
 ```bash
 # Install Ollama
@@ -596,9 +649,9 @@ from allos import Agent, AgentConfig
 
 # Local coding agent
 agent = Agent(AgentConfig(
-    provider="ollama",
+    provider_name="ollama",
     model="qwen2.5-coder:7b",
-    tools=["read_file", "write_file", "shell_exec"],
+    tool_names=["read_file", "write_file", "shell_exec"],
     temperature=0.7
 ))
 
@@ -607,18 +660,18 @@ print(result)
 
 # Streaming mode
 agent_stream = Agent(AgentConfig(
-    provider="ollama",
+    provider_name="ollama",
     model="llama3.2:3b",
-    tools=["read_file"]
+    tool_names=["read_file"]
 ))
 
-for chunk in agent_stream.run_stream("Explain this codebase"):
+for chunk in agent_stream.stream_run("Explain this codebase"):
     print(chunk, end='', flush=True)
 ```
 
 ---
 
-## 2.2 Additional Providers (Week 10)
+<!-- ## 2.2 Additional Providers (Week 10)
 
 **Duration**: 1 week (Days 71-77)
 
@@ -626,32 +679,53 @@ for chunk in agent_stream.run_stream("Explain this codebase"):
 
 **Goal**: Expand provider ecosystem to 7+ providers
 
-**Architecture Note**: Together AI will extend the `ChatCompletionsProvider` created in Days 57-59, leveraging the OpenAI-compatible Chat Completions API.
+**Architecture Note**: Together AI will extend the `ChatCompletionsProvider` created in Days 57-59, leveraging the OpenAI-compatible Chat Completions API. -->
 
-### Day 71-73: Google Gemini Provider
+### 2.0.3 Google Gemini Provider (Days 90-130)
+
+**Duration**: 40 days
+
+**Status**: ✅ Complete
+
+**Goal**: Create Google provider client to interact with Gemini (Vertex AI / Google Studio)
 
 #### Core Implementation
-- [x] **`allos/providers/google.py`**
-  - `GoogleProvider` class
-  - Google AI Studio API integration
-  - Vertex AI support (optional)
-  - Native tool calling
-  - Token counting with tiktoken
-  - Context window: 2M tokens (Gemini 1.5 Pro)
-
+- [x] **`allos/providers/google.py`** (~1078 lines)
+  - [x] `GoogleProvider` class extending `BaseProvider`
+  - [x] Google AI Studio API integration (Gemini API)
+  - [x] Vertex AI support with multiple auth methods:
+    - [x] API key (Gemini API)
+    - [x] Service account JSON file
+    - [x] Application Default Credentials (ADC)
+    - [x] Service account impersonation
+  - [x] Native tool calling
+  - [x] **Thought signatures** for Gemini 3.x (required) and 2.5.x (optional)
+  - [x] Streaming support via `stream_chat()` with genai
+  - [x] Dynamic context window detection (1M-2M tokens)
+  - [x] Python 3.10+ requirement (enforced at import)
 
 #### Features
-- [x] Support for Gemini 2.5 Pro, Gemini 3 Flash
-- [x] Gemini 2.0 support
-- [x] Native tool calling
-- ~~[ ] Multimodal support (future)~~
+- [x] Support for Gemini 2.5 Pro, 2.5 Flash, 3.0 Flash, 3.0 Pro
 - [x] Vertex AI integration
+- [x] Native tool calling
+- [x] **Thought signatures** for Gemini 3.x (required) and 2.5.x (optional)
+- [x] Streaming support via `stream_chat()`
+- [x] Dynamic context window detection
+- [x] Python 3.10+ requirement (enforced at import)
+
+#### Provider-Specific Metadata
+- [x] **Google**: `vertexai`, `project`, `location`, `used_thought_signatures`
 
 #### Testing
 - [x] Unit tests with mocked responses
-- [x] Integration tests with real API
+- [x] Integration tests with real API (`tests/integration/providers/test_google_real.py`)
 - [x] Tool calling validation
 - [x] Context window testing
+- [x] Thought signature validation (`tests/integration/providers/test_google_thought_signatures_real.py`)
+
+#### Examples
+- [x] `examples/google_gemini_usage.py`
+- [x] `examples/metadata_inspection.py`
 
 #### Documentation
 - [x] **`docs/providers/google.md`**
@@ -660,10 +734,31 @@ for chunk in agent_stream.run_stream("Explain this codebase"):
   - Tool calling examples
   - Multimodal examples (future)
 
-### Day 74: Cohere Provider
+**Delivered:**
+- ✅ Full support for Gemini models (1.5, 2.0, 2.5, 3.x)
+- ✅ Gemini API and Vertex AI integration
+- ✅ Multiple authentication methods (API key, service account, ADC, impersonation)
+- ✅ Automatic thought signature handling for Gemini 3.x
+- ✅ Model verification with helpful suggestions
+- ✅ Comprehensive metadata tracking
+- ✅ Full streaming support
+- ✅ 2,346 lines of tests (99% coverage)
+- ✅ Complete documentation
+- ✅ Python 3.10+ requirement clearly documented
+- ✅ CI/CD updated for Python version testing
+
+**Python Version:** Requires Python 3.10+ (due to google-auth dependency)
+
+### 2.0.4: Native Cohere Provider (Days 130-140)
+
+**Duration**: 10 days
+
+**Status**: ✅ Complete
+
+**Goal**: Create native Cohere provider client to interact with Cohere APIs.
 
 #### Implementation
-- [ ] **`allos/providers/cohere.py`**
+- [x] **`allos/providers/cohere.py`**
   - `CohereProvider` class
   - Command R / R+ support
   - Native tool calling
@@ -683,10 +778,10 @@ class CohereProvider(BaseProvider):
 ```
 
 #### Features
-- [ ] Command R support
-- [ ] Command R+ support
-- [ ] Native tool calling
-- [ ] Streaming support
+- [x] Command R support
+- [x] Command R+ support
+- [x] Native tool calling
+- [x] Streaming support
 
 ### Day 75: Amazon Bedrock Provider
 
@@ -716,101 +811,7 @@ class BedrockProvider(BaseProvider):
         )
 ```
 
-### Day 76: OpenAI-Compatible Providers (Chat Completions API)
-
-**Architecture Note**: These providers extend `ChatCompletionsProvider` with custom base URLs.
-
-#### Together AI Provider
-- [ ] **`allos/providers/together.py`**
-  - Extends `ChatCompletionsProvider`
-  - Pre-configured base_url: `https://api.together.xyz/v1`
-  - Support for Together AI models (Llama, Mixtral, Qwen, etc.)
-  - Auto-configured API key from environment
-
-```python
-from .chat_completions import ChatCompletionsProvider
-from .registry import provider
-
-@provider
-class TogetherAIProvider(ChatCompletionsProvider):
-    """
-    Provider for Together AI using OpenAI-compatible Chat Completions API.
-
-    Extends ChatCompletionsProvider with Together AI's endpoint.
-    """
-
-    def __init__(self, model: str, **kwargs):
-        # Pre-configure base_url for Together AI
-        super().__init__(
-            model=model,
-            api_key=os.getenv('TOGETHER_API_KEY'),
-            base_url="https://api.together.xyz/v1",
-            **kwargs
-        )
-
-        # Together AI specific context windows
-        self.context_window = self._detect_together_context_window(model)
-
-    def _detect_together_context_window(self, model: str) -> int:
-        """Detect context window for Together AI models"""
-        if 'llama-3.1' in model.lower():
-            return 128_000
-        elif 'mixtral' in model.lower():
-            return 32_768
-        elif 'qwen' in model.lower():
-            return 32_768
-        return 8_192  # Conservative default
-```
-
-**Usage Example**:
-```python
-# Together AI automatically uses Chat Completions API
-agent = Agent(AgentConfig(
-    provider="together",
-    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    tools=["read_file", "write_file"]
-))
-```
-
-#### Anyscale Provider
-- [ ] **`allos/providers/anyscale.py`**
-  - Extends `ChatCompletionsProvider`
-  - Pre-configured base_url: `https://api.endpoints.anyscale.com/v1`
-  - Support for Anyscale Endpoints models
-
-```python
-from .chat_completions import ChatCompletionsProvider
-from .registry import provider
-
-@provider
-class AnyscaleProvider(ChatCompletionsProvider):
-    """
-    Provider for Anyscale Endpoints using OpenAI-compatible Chat Completions API.
-
-    Extends ChatCompletionsProvider with Anyscale's endpoint.
-    """
-
-    def __init__(self, model: str, **kwargs):
-        # Pre-configure base_url for Anyscale
-        super().__init__(
-            model=model,
-            api_key=os.getenv('ANYSCALE_API_KEY'),
-            base_url="https://api.endpoints.anyscale.com/v1",
-            **kwargs
-        )
-```
-
-**Usage Example**:
-```python
-# Anyscale automatically uses Chat Completions API
-agent = Agent(AgentConfig(
-    provider="anyscale",
-    model="meta-llama/Meta-Llama-3.1-8B-Instruct",
-    tools=["read_file", "shell_exec"]
-))
-```
-
-#### Azure OpenAI
+### Azure OpenAI
 - [ ] **`allos/providers/azure_openai.py`**
   - Extends `OpenAIProvider` (Responses API)
   - Azure-specific endpoint configuration
@@ -852,7 +853,8 @@ class AzureOpenAIProvider(OpenAIProvider):
 ### Day 77: Testing & Documentation
 
 #### Comprehensive Testing
-- [ ] Test all 7 providers (OpenAI, Anthropic, Ollama, Google, Cohere, Bedrock, Together AI, Anyscale, Azure)
+- [ ] Test all current native providers (OpenAI, Anthropic, Chat Completions, Ollama, Google, Cohere)
+- [ ] Add smoke coverage for selected alias providers (e.g., Together, Groq, OpenRouter, Cohere Compat)
 - [ ] Provider switching tests
 - [ ] Tool calling across providers
 - [ ] Error handling
@@ -908,15 +910,70 @@ class AzureOpenAIProvider(OpenAIProvider):
   - Google (native library)
   - Cohere (native library)
   - Bedrock (boto3)
-  - Together AI (extends ChatCompletionsProvider)
-  - Anyscale (extends ChatCompletionsProvider)
-  - Azure OpenAI (extends OpenAIProvider)
+  - Azure OpenAI
 - Provider comparison guide
 - Setup documentation for each
 - Updated examples showing provider switching
 - Architecture documentation explaining API differences
 
 ---
+
+## 2.2 CLI & DX Enhancements
+
+**Duration:** 3 days
+**Status:** ✅ Complete
+**Goal:** Improve interactive mode and developer experience
+
+#### CLI Flags addition
+- [x] `--active-providers` - Show provider readiness status
+- [x] `--list-ollama-models` - List local Ollama models
+- [x] `--stream` - Enable streaming mode
+- [x] `--no-tools` - Disable all tools
+- [x] `--max-tokens` - Set max output tokens
+- [x] `--base-url` - Custom API endpoint
+- [x] `--api-key` - Override API key
+- [x] `--tool` - Specify individual tools (multiple allowed)
+
+#### Validation System Utilities
+- [x] `ValidationResult` Pydantic model
+- [x] Field validators for data consistency
+- [x] `validate_model_and_api_key()` function
+- [x] `display_provider_info()` for status table
+- [x] `display_validation_error()` with Rich panels for provider-specific error messages
+- [x] Default model selection per provider
+
+#### Interactive Mode Slash Commands
+- [x] Command system implementation (`_handle_repl_command()`)
+- [x] `/help` command with usage display
+- [x] `/stream` status check
+- [x] `/stream on` and `/stream off` toggle
+- [x] `/exit` and `/quit` exit commands
+- [x] Dynamic streaming state management
+- [x] Enhanced welcome message with command list
+- [x] Provider validation before session start
+- [x] Model validation with API key checking
+
+#### Type Safety Improvements
+- [x] Added `py.typed` marker for PEP 561
+- [x] Full type hint coverage for new code
+- [x] Pydantic validation for validation results
+
+#### Dependency Management
+- [x] Modular dependency groups (test, lint, dev, publish)
+- [x] Faster CI with targeted installations
+- [x] Better contributor experience
+
+#### Documentation
+- [x] Google provider comprehensive docstrings
+- [x] Provider utils documentation
+- [x] Enhanced `.env.example`
+
+**Deliverables:**
+- ✅ Interactive mode with slash commands
+- ✅ Dynamic streaming toggle
+- ✅ Type-safe validation system
+- ✅ Modular dependencies
+- ✅ Comprehensive tests
 
 ## 2.3 Web Tools (Week 11)
 
@@ -1194,9 +1251,9 @@ def research_topic():
     """Research a topic and write a summary"""
 
     agent = Agent(AgentConfig(
-        provider="anthropic",
+        provider_name="anthropic",
         model="claude-sonnet-4-5",
-        tools=["web_search", "web_fetch", "write_file"],
+        tool_names=["web_search", "web_fetch", "write_file"],
         auto_approve=False  # Ask permission for web access
     ))
 
@@ -1879,17 +1936,12 @@ class DatabasePlugin(BasePlugin):
 
 ### Success Criteria
 
-✅ Plugin architecture implemented
-
-✅ Plugin loader auto-discovers plugins
-
-✅ Plugin manager handles lifecycle
-
-✅ Example plugins working
-
-✅ Plugin template generator functional
-
-✅ Documentation complete
+- [ ] Plugin architecture implemented
+- [ ] Plugin loader auto-discovers plugins
+- [ ] Plugin manager handles lifecycle
+- [ ] Example plugins working
+- [ ] Plugin template generator functional
+- [ ] Documentation complete
 
 ### Deliverables
 
@@ -1906,25 +1958,24 @@ class DatabasePlugin(BasePlugin):
 
 ### Phase 2 Completion Criteria
 
-✅ **Providers**: 9+ supported (OpenAI Responses API, OpenAI Chat Completions, Anthropic, Ollama, Google, Cohere, Bedrock, Together AI, Anyscale, Azure)
+- [x] **Native providers shipped**: OpenAI (Responses), Anthropic, Chat Completions, Ollama, Google, Cohere
+- [x] **OpenAI-compatible aliases**: Registry-backed alias support via Chat Completions (broad ecosystem coverage)
+- [x] **Streaming foundation**: Provider, Agent, and CLI stream paths implemented for core providers
+- [x] **Metadata foundation**: MetadataBuilder + `agent.last_run_metadata` integration shipped
+- [x] **Examples**: 20+ examples available in `examples/`
+- [ ] **Web Tools**: Search/fetch implementation and tests
+- [ ] **Context Management**: Advanced compaction/analyzer
+- [ ] **Configuration**: YAML/JSON loader and CLI config commands
+- [ ] **Plugins**: Plugin foundation and lifecycle management
 
-✅ **Chat Completions API**: Foundation provider for OpenAI-compatible services working
+### Technical Metrics (Current + Targets)
 
-✅ **Local Models**: Ollama fully integrated with native Python library and streaming
-
-✅ **Web Tools**: Search and fetch working
-
-✅ **Context Management**: Advanced compaction and analysis
-
-✅ **Configuration**: YAML/JSON config files supported
-
-✅ **Plugins**: Foundation ready for community extensions
-
-✅ **Documentation**: Complete for all new features
-
-✅ **Tests**: Unit, integration, and E2E for all features
-
-✅ **Examples**: 10+ working examples
+- [x] **Native Provider Count (current)**: 6 (`openai`, `anthropic`, `chat_completions`, `ollama`, `google`, `cohere`)
+- [x] **Alias Coverage (current)**: 70+ OpenAI-compatible aliases in registry
+- 🎯 **Test Coverage**: Maintain high coverage as new phase-2 modules land
+- 🎯 **Context Efficiency**: Target 50%+ token reduction once compaction ships
+- 🎯 **Performance**: Keep <2x latency vs direct API calls for equivalent flows
+- 🎯 **Tool Count**: 10+ tools (5 existing + 5 new)
 
 ### Adoption Metrics (End of Phase 2)
 
@@ -1933,14 +1984,6 @@ class DatabasePlugin(BasePlugin):
 - 🎯 **Contributors**: 3+ active contributors
 - 🎯 **Community Plugins**: 2+ community-created plugins
 - 🎯 **Production Users**: 5+ teams using in production
-
-### Technical Metrics
-
-- 🎯 **Provider Count**: 9+ working providers (OpenAI Responses, Chat Completions, Anthropic, Ollama, Google, Cohere, Bedrock, Together AI, Anyscale, Azure)
-- 🎯 **Tool Count**: 10+ tools (5 existing + 5 new)
-- 🎯 **Test Coverage**: Maintain 100%
-- 🎯 **Context Efficiency**: 50%+ token reduction
-- 🎯 **Performance**: <2x latency vs direct API calls
 
 ---
 
@@ -1997,20 +2040,20 @@ agent.hooks.register('on_error', notify_team)
 ```python
 # Create specialized agents
 code_reviewer = Agent(AgentConfig(
-    provider="claude-opus-4",
-    tools=["read_file", "write_file"],
+    provider_name="claude-opus-4",
+    tool_names=["read_file", "write_file"],
     system_prompt="You are a code review expert..."
 ))
 
 security_auditor = Agent(AgentConfig(
-    provider="gpt-4",
-    tools=["read_file", "shell_exec"],
+    provider_name="gpt-4",
+    tool_names=["read_file", "shell_exec"],
     system_prompt="You are a security expert..."
 ))
 
 # Main agent delegates to subagents
 main_agent = Agent(AgentConfig(
-    provider="claude-sonnet-4-5",
+    provider_name="claude-sonnet-4-5",
     subagents={
         "code_review": code_reviewer,
         "security_audit": security_auditor
@@ -2339,39 +2382,42 @@ results = await agent.run_many([
 ## 🎯 Success Metrics by Phase
 
 ### Phase 2: Enhanced Features (Weeks 9-14)
-- ✅ **Providers**: 7+ supported
-- ✅ **Tools**: 10+ available
-- ✅ **Context Efficiency**: 50%+ improvement
-- ✅ **Downloads**: 1,000+
-- ✅ **GitHub Stars**: 50+
 
-### Phase 3: Advanced Tooling (Weeks 15-20)
-- ✅ **Community Plugins**: 20+
-- ✅ **Skills Available**: 50+
-- ✅ **Downloads**: 5,000+
-- ✅ **GitHub Stars**: 200+
-- ✅ **Contributors**: 10+
+- [x] **Native Providers**: 6 shipped
+- [x] **Alias Provider Ecosystem**: broad OpenAI-compatible coverage
+- [x] **Streaming + Metadata Foundations**: shipped
+- [ ] **Context Efficiency:** 50% improvement
+- [ ] **Config**
+- [ ] **Additional Tools**
 
-### Phase 4: Enterprise (Weeks 21-28)
-- ✅ **Production Deployments**: 10+
-- ✅ **Monthly Requests**: 1M+
-- ✅ **Uptime**: 99.9%
-- ✅ **Downloads**: 10,000+
-- ✅ **GitHub Stars**: 500+
 
-### Phase 5: Ecosystem (Weeks 29-36)
-- ✅ **Framework Integrations**: 5+
-- ✅ **Community Tools**: 100+
-- ✅ **Downloads**: 50,000+
-- ✅ **GitHub Stars**: 1,000+
-- ✅ **Contributors**: 50+
+### Phase 3: Advanced Tooling (Weeks 15-20) - Targets
+- [ ] **Community Plugins**: 20+
+- [ ] **Skills Available**: 50+
+- [ ] **Downloads**: 5,000+
+- [ ] **GitHub Stars**: 200+
+- [ ] **Contributors**: 10+
 
-### Phase 6: Innovation (Ongoing)
-- ✅ **Industry Recognition**: Conference talks
-- ✅ **Community**: 500+ contributors
-- ✅ **Downloads**: 100,000+
-- ✅ **GitHub Stars**: 10,000+
-- ✅ **Standard**: De facto framework for AI agents
+### Phase 4: Enterprise (Weeks 21-28) - Targets
+- [ ] **Production Deployments**: 10+
+- [ ] **Monthly Requests**: 1M+
+- [ ] **Uptime**: 99.9%
+- [ ] **Downloads**: 10,000+
+- [ ] **GitHub Stars**: 500+
+
+### Phase 5: Ecosystem (Weeks 29-36) - Targets
+- [ ] **Framework Integrations**: 5+
+- [ ] **Community Tools**: 100+
+- [ ] **Downloads**: 50,000+
+- [ ] **GitHub Stars**: 1,000+
+- [ ] **Contributors**: 50+
+
+### Phase 6: Innovation (Ongoing) - Long-term Targets
+- [ ] **Industry Recognition**: Conference talks
+- [ ] **Community**: 500+ contributors
+- [ ] **Downloads**: 100,000+
+- [ ] **GitHub Stars**: 10,000+
+- [ ] **Standard**: De facto framework for AI agents
 
 ---
 
@@ -2439,7 +2485,7 @@ If you get stuck during Post-MVP development:
 6. Consult relevant framework documentation
 7. Ask in GitHub Discussions
 
----
+<!-- ---
 
 ## 🎉 Celebrating Milestones
 
@@ -2447,7 +2493,7 @@ If you get stuck during Post-MVP development:
 - **Phase 3 Complete**: Advanced tooling ready! 🛠️
 - **Phase 4 Complete**: Enterprise-ready! 🏢
 - **Phase 5 Complete**: Ecosystem leader! 🌟
-- **Phase 6 Ongoing**: Innovation continues! 🚀
+- **Phase 6 Ongoing**: Innovation continues! 🚀 -->
 
 ---
 
@@ -2476,9 +2522,9 @@ This POST-MVP roadmap will be updated:
 
 ### Priority Features for Community
 
-- 🔥 **High Priority**: Ollama provider, web tools, Google provider
-- 🌟 **Good First Issues**: Documentation, examples, tool plugins
-- 🎯 **Advanced**: MCP support, subagents, async support
+- 🔥 **High Priority**: Web tools, context management, configuration loader/CLI, plugin system
+- 🌟 **Good First Issues**: Documentation alignment, examples expansion, alias-provider smoke tests
+- 🎯 **Advanced**: MCP enhancements, subagents, async support
 
 ---
 
@@ -2486,7 +2532,7 @@ This POST-MVP roadmap will be updated:
 
 **Building the future of AI agents, together** 🚀
 
-Progress: ████░░░░░░░░░░░░░░░░░░░░ 16.7% (Phase 2 of 6)
+Progress: ██████████░░░░░░░░░░░░░░░░░░░░░░ 25% (Phase 2 of 6)
 
 [Back to README](./README.md) • [MVP Roadmap](./MVP_ROADMAP.md) • [Full Roadmap](./ROADMAP.md) • [Contributing](./.github/CONTRIBUTING.md)
 
@@ -2494,8 +2540,8 @@ Progress: ████░░░░░░░░░░░░░░░░░░░�
 
 *Created: November 19, 2025*
 
-*Last Updated: November 19, 2025*
+*Last Updated: February 20, 2026*
 
-*Next Review: December 1, 2025*
+*Next Review: March 1, 2026*
 
 </div>

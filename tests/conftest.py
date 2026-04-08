@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Callable, Generator, Union, cast
 
 import pytest
-import requests
 from _pytest.logging import LogCaptureFixture
 
 # Import this for better type hinting with the mocker fixture
@@ -28,10 +27,9 @@ from allos.providers.metadata import (
     ToolInfo,
     Usage,
 )
+from allos.providers.utils import ollama_running
 from allos.tools.base import BaseTool
 from allos.utils.token_counter import count_tokens
-
-OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 # Default models for providers
 PROVIDER_MODELS = {
@@ -167,14 +165,6 @@ def _select_tests_by_flag(items, run_e2e, run_integration, run_performance):
     return selected
 
 
-def _ollama_running() -> bool:
-    try:
-        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=0.3)
-        return cast(bool, r.status_code == 200)
-    except requests.RequestException:
-        return False
-
-
 def _check_vertexai_conf() -> bool:
     if os.getenv("GOOGLE_CLOUD_PROJECT"):
         return True
@@ -204,7 +194,7 @@ def _apply_integration_key_skips(items):
         "requires_anthropic": lambda: bool(os.getenv("ANTHROPIC_API_KEY")),
         "requires_gemini": lambda: bool(os.getenv("GEMINI_API_KEY")),
         "requires_cohere": lambda: bool(os.getenv("COHERE_API_KEY")),
-        "requires_ollama": _ollama_running,
+        "requires_ollama": ollama_running,
         "requires_vertexai": _check_vertexai_conf,
     }
 

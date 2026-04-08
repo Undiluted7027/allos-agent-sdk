@@ -11,7 +11,7 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 | Phase | Focus | Timeline | Status |
 |-------|-------|----------|--------|
 | **Phase 1: MVP** | Core functionality | Weeks 1-8 | ✅ 100% Complete |
-| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-14 | 📋 Planned |
+| **Phase 2: Enhanced Features** | Essential capabilities | Weeks 9-21 | 🏗️ In Progress (50%) |
 | **Phase 3: Advanced Tooling** | Developer experience | Weeks 15-20 | 📋 Planned |
 | **Phase 4: Enterprise & Scale** | Production features | Weeks 21-28 | 🔮 Future |
 | **Phase 5: Ecosystem Integration** | Framework compatibility | Weeks 29-36 | 🔮 Future |
@@ -19,10 +19,10 @@ This document outlines Allos's development roadmap from MVP through advanced cap
 
 ---
 
-## Phase 1: MVP ✅ → 🏗️
+## Phase 1: MVP ✅
 
 **Timeline**: Weeks 1-8
-**Status**: 96.79% Complete (7/8 phases done, only demo video remaining)
+**Status**: 100% Complete
 **Goal**: Ship working provider-agnostic agentic SDK
 
 See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
@@ -45,7 +45,7 @@ See [MVP_ROADMAP.md](./MVP_ROADMAP.md) for detailed breakdown.
 
 **Completion Target**: End of Week 8
 
-**Current Status**: 96.79% complete - All technical work done, demo video published
+**Current Status**: 100% complete - All technical work done, demo video published
 
 **MVP Launch**: Launched on on Nov 8, 2025!
 
@@ -66,20 +66,22 @@ These limitations are by design and are addressed in subsequent phases of this r
 
 **Goal**: Add essential capabilities for production use
 
-### 2.1 Local Models Support (Weeks 9-10)
+### Additional Providers
+
+#### 2.1 Local Models Support
 
 **Motivation**: Enable completely local, private AI agents
 
 #### Ollama Provider
-- [ ] **`allos/providers/ollama.py`**
+- [x] **`allos/providers/ollama.py`**
   - Connect to local Ollama server
   - Support all Ollama models (Llama, Mistral, Qwen, etc.)
   - Handle model pulling/downloading
   - Streaming support
   - Context window detection per model
-- [ ] Tool calling emulation for models without native support
-- [ ] Documentation for local setup
-- [ ] Examples with popular local models
+- [ ] **Ideation in progress:** Tool calling emulation for models without native support
+- [x] Documentation for local setup
+- [x] Examples with popular local models
 
 **Impact**: Run agents completely offline, no API costs
 
@@ -94,25 +96,57 @@ ollama pull qwen2.5-coder:7b
 allos --provider ollama --model qwen2.5-coder:7b "Create a FastAPI app"
 ```
 
-### 2.2 Additional Providers (Week 10)
+### 2.2 Expand Providers
 
 #### Google Gemini Provider
-- [ ] **`allos/providers/google.py`**
+- [x] **`allos/providers/google.py`**
   - Google Gemini Pro support
   - Vertex AI integration (Gemini and other models like Kimi-K2, Llama 4 etc.)
   - Native tool calling
   - Token counting
 
 #### Provider Enhancements
-- [ ] **Cohere** (initial support)
+- [x] **Cohere** (initial support)
+- [x] **OpenAI Compatible** (via chat completions)
 - [ ] **Amazon Bedrock** (initial support)
 - [ ] **Azure OpenAI** (endpoint configuration)
-- [ ] **Together AI** (OpenAI-compatible)
-- [ ] **Anyscale** (OpenAI-compatible)
 
 **Impact**: Support for 7+ providers, maximum flexibility
 
-### 2.3 Web Tools (Week 11)
+### 2.3 CLI & Developer Experience
+
+**Motivation**: Improve interactive mode and type safety
+
+#### Interactive Mode Enhancements
+- [x] Slash command system (`/help`, `/stream`, `/exit`, `/quit`)
+- [x] Dynamic streaming toggle mid-session
+- [x] Enhanced welcome message with command reference
+- [x] State management for streaming preferences
+
+#### Validation System
+- [x] Pydantic `ValidationResult` model (type-safe)
+- [x] Rich formatted error panels
+- [x] Provider-specific error messages
+- [x] Consolidated validation helpers
+
+#### Type Safety
+- [x] PEP 561 compliance with `py.typed` marker
+- [x] Full type hints for new code
+- [x] IDE type checking support
+
+**Impact**: Better developer experience, type safety, improved CLI UX
+
+```bash
+# New interactive mode experience
+allos -i
+>>> /stream on
+✓ Streaming enabled
+>>> Create a web app
+[Streams in real-time]
+>>> /exit
+```
+
+### 2.4 Web Tools (Week 11)
 
 **Motivation**: Enable agents to search and fetch web content
 
@@ -137,15 +171,15 @@ allos --provider ollama --model qwen2.5-coder:7b "Create a FastAPI app"
 
 ```python
 agent = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-sonnet-4-5",
-    tools=["web_search", "web_fetch", "write_file"]
+    tool_names=["web_search", "web_fetch", "write_file"]
 ))
 
 agent.run("Research current AI trends and write a summary")
 ```
 
-### 2.4 Advanced Context Management (Week 12)
+### 2.5 Advanced Context Management (Week 12)
 
 > [!NOTE]
 The MVP includes basic context window checking with proactive `ContextWindowExceededError`.
@@ -170,7 +204,7 @@ This phase focuses on *advanced* optimization techniques beyond basic prevention
 
 **Impact**: Handle 10x larger conversations efficiently
 
-### 2.5 Configuration System (Week 13)
+### 2.6 Configuration System (Week 13)
 
 **Motivation**: Make Allos easily configurable for teams
 
@@ -218,7 +252,7 @@ providers:
 
 **Impact**: Teams can share configurations, consistent behavior
 
-### 2.6 Plugin System Foundation (Week 14)
+### 2.7 Plugin System Foundation (Week 14)
 
 **Motivation**: Enable community extensions
 
@@ -326,9 +360,9 @@ hooks:
 ```python
 # Main agent delegates to specialists
 agent = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-opus-4",
-    tools=["delegate", "read_file", "write_file"]
+    tool_names=["delegate", "read_file", "write_file"]
 ))
 
 agent.run("""
@@ -487,7 +521,7 @@ async def main():
     agent = AsyncAgent(AgentConfig(...))
 
     # Stream response
-    async for chunk in agent.run_stream("Create a web app"):
+    async for chunk in agent.stream_run("Create a web app"):
         print(chunk, end='', flush=True)
 
     # Or parallel execution
@@ -538,9 +572,9 @@ asyncio.run(main())
 
 ```python
 agent = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-sonnet-4-5",
-    tools=["read_file", "write_file"],
+    tool_names=["read_file", "write_file"],
     mcp_servers=[
         "github://my-org/my-repo",
         "slack://my-workspace",
@@ -584,7 +618,7 @@ agent.run("Check GitHub issues, update the roadmap in Drive, and notify team on 
 from allos.monitoring import setup_monitoring
 
 setup_monitoring(
-    provider="datadog",
+    provider_name="datadog",
     api_key=os.getenv("DD_API_KEY"),
     tags=["env:production", "team:ai"]
 )
@@ -768,9 +802,9 @@ from allos import Agent, AgentConfig
 hf_tool = load_tool("image-generator")
 
 agent = Agent(AgentConfig(
-    provider="anthropic",
+    provider_name="anthropic",
     model="claude-sonnet-4-5",
-    tools=["read_file", hf_tool]
+    tool_names=["read_file", hf_tool]
 ))
 ```
 
@@ -845,9 +879,9 @@ agent = Agent(AgentConfig(
 
 ```python
 agent = Agent(AgentConfig(
-    provider="openai",
+    provider_name="openai",
     model="gpt-4-vision",
-    tools=["read_file", "analyze_image"]
+    tool_names=["read_file", "analyze_image"]
 ))
 
 agent.run("Analyze this UI screenshot and suggest improvements",
@@ -1145,8 +1179,8 @@ Share your thoughts:
 
 ---
 
-*Last Updated: November 18, 2025*
+*Last Updated: February 20, 2026*
 
-*Next Review: November 30, 2025*
+*Next Review: March 15, 2026*
 
 </div>

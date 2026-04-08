@@ -97,7 +97,7 @@ ALIAS_CASES = [
     _alias_case(
         "together",
         env_var="TOGETHER_API_KEY",
-        default_model="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+        default_model="Qwen/Qwen2.5-7B-Instruct-Turbo",
     ),
     _alias_case(
         "groq",

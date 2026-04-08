@@ -8,6 +8,8 @@ You can configure Allos using **Environment Variables** (best for secrets) and *
 
 We follow a standard naming convention for API keys. Set these in your shell or a `.env` file.
 
+The table below is a common subset (not exhaustive):
+
 | Provider | Variable Name |
 |----------|---------------|
 | **OpenAI** | `OPENAI_API_KEY` |
@@ -23,6 +25,11 @@ We follow a standard naming convention for API keys. Set these in your shell or 
 You can check which variables are correctly detected by running:
 ```bash
 allos --active-providers
+```
+
+To inspect the full set of provider names available in your installed version:
+```bash
+allos --list-providers
 ```
 
 ## CLI Configuration Flags

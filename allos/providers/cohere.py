@@ -3,7 +3,6 @@
 """Provides the concrete implementation for interacting Cohere's V2 API."""
 
 import json
-import logging
 import time
 from typing import Any, Dict, Iterator, List, NoReturn, Optional, Tuple, cast
 
@@ -55,8 +54,6 @@ from .base import (
 )
 from .metadata import MetadataBuilder
 from .registry import provider
-
-logging.getLogger("cohere.core.pydantic_utilities").setLevel(logging.ERROR)
 
 
 @provider("cohere")

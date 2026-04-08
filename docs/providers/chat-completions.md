@@ -6,7 +6,9 @@ This provider powers the integration for services like Together AI, Groq, Mistra
 
 ## Supported Providers & Aliases
 
-Allos includes an Intelligent Registry that automatically configures the correct settings for popular providers. You can use these aliases directly without manual URL configuration.
+Allos includes an Intelligent Registry that automatically configures the correct settings for many OpenAI-compatible providers. You can use aliases directly without manual URL configuration.
+
+The table below lists common aliases (not exhaustive):
 
 | Alias | Service | Required Env Var |
 |-------|---------|------------------|
@@ -18,6 +20,12 @@ Allos includes an Intelligent Registry that automatically configures the correct
 | `openrouter` | OpenRouter | `OPENROUTER_API_KEY` |
 | `portkey` | Portkey | `PORTKEY_API_KEY` |
 | `ollama_compat` | Ollama | `No environment variable` |
+
+To see all provider names currently available in your installed SDK version:
+
+```bash
+allos --list-providers
+```
 
 ## Usage
 
@@ -84,6 +92,8 @@ This includes thousands of open-source models (Llama, Mistral, Qwen, Gemma) host
 *   [**OpenRouter:**](https://docs.openrouter.ai/models) `meta-llama/Llama-3-70b-chat-hf`, `mistralai/Mixtral-8x7B-Instruct-v0.1`, `Qwen/Qwen1.5-72B-Chat`
 *   [**Portkey:**](https://docs.portkey.ai/models) `meta-llama/Llama-3-70b-chat-hf`, `mistralai/Mixtral-8x7B-Instruct-v0.1`, `Qwen/Qwen1.5-72B-Chat` [**Uses Model Catalog**](https://portkey.ai/docs/virtual_key_old/product/model-catalog)
 *   [**Ollama:**](https://ollama.com/search) `llama3.1:latest`, `qwen2.5-coder:7b`, `mistral:latest`
+
+and much more...
 
 Please refer to your specific provider's documentation for their full list of model IDs.
 

@@ -29,7 +29,7 @@ Allos is an open-source, provider-agnostic agentic SDK that gives you the power 
 
 **The Problem**: Most agentic frameworks force you to choose between vendors, making it expensive and risky to switch models.
 
-**The Solution**: Allos provides a one interface across OpenAI, Anthropic, Ollama, Google (Gemini/Vertex AI), Cohere, Groq, Mistral, and more—so you can use the best model for each task without rewriting your code.
+**The Solution**: Allos provides a one interface across native providers (OpenAI, Anthropic, Google, Cohere, Ollama) plus a large OpenAI-compatible alias registry (70+ endpoints including Groq, Together AI, Mistral, DeepSeek, OpenRouter, Portkey, and many others), so you can use the best model for each task without rewriting your code.
 
 ## ✨ Key Features
 

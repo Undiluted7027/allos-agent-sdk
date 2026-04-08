@@ -63,7 +63,7 @@ google = [
     "google-genai>=1.47.0; python_version>='3.10'",
     "google-auth>=2.48.0; python_version>='3.10'",
 ]
-cohere = ["cohere>=5.20.5"]
+cohere = ["cohere>=5.20.7"]
 # For contributors doing linting
 test = [
     "pytest>=8.4.2",

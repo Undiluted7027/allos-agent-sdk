@@ -34,7 +34,7 @@ click==8.1.8
     #   allos-agent-sdk (pyproject.toml)
     #   black
     #   typer
-cohere==5.20.6
+cohere==5.21.1
     # via allos-agent-sdk (pyproject.toml)
 coverage==7.10.7
     # via pytest-cov

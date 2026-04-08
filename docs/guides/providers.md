@@ -40,6 +40,8 @@ The first argument is the provider's unique name (e.g., `"openai"`), and all oth
 
 ## Supported Providers
 
+The table below covers core/common providers. The full compatibility alias set is larger and evolves over time.
+
 | Provider | Name | Best For | Python Version |
 |----------|------|----------|----------------|
 | OpenAI | `openai` | GPT models, production-ready | 3.9+ |
@@ -60,9 +62,9 @@ For detailed information on each provider, see:
 
 ## Universal Compatibility (OpenAI-Compatible APIs)
 
-Allos supports **any** provider that is compatible with the OpenAI Chat Completions API (e.g., Together AI, Groq, Mistral, LocalAI).
+Allos supports native providers plus a large set of aliases for APIs compatible with OpenAI Chat Completions (for example: Together AI, Groq, Mistral, DeepSeek, OpenRouter, Portkey, and many others).
 
-We provide intelligent aliases for popular services that automatically configure the correct API endpoints.
+We provide intelligent aliases that automatically configure base URLs and auth env vars.
 
 ```python
 # Use Groq (Fast Inference)
@@ -88,6 +90,9 @@ custom_provider = ProviderRegistry.get_provider(
 ```
 
 For more details on compatible providers, see the [Chat Completions Provider](../providers/chat-completions.md) reference.
+
+> [!NOTE]
+> Alias coverage evolves over time. Use `allos --list-providers` to view the exact provider names available in your current SDK version.
 
 ## The `.chat()` Method
 

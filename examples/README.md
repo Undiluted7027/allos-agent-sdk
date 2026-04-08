@@ -11,6 +11,7 @@ This directory contains runnable examples for the Allos SDK.
 | `custom_tools.py` | Defining and using a custom tool | Yes | Yes | `@tool` registration |
 | `tool_usage.py` | Direct `ToolRegistry` usage | No | Yes | No LLM call required |
 | `provider_switching.py` | Switching providers via shared session context | Yes | Mixed | Multi-provider pipeline |
+| `provider_discovery.py` | Inspect available providers + env readiness | No | No | Native vs alias inventory |
 | `universal_chat.py` | Same prompt across multiple providers | Yes | No | Easy provider comparison |
 | `fast_inference.py` | Metadata-based speed comparison | Yes | No | Throughput-focused |
 | `local_models.py` | Native Ollama with tool calling | No (local) | Yes | Requires Ollama |
@@ -20,7 +21,9 @@ This directory contains runnable examples for the Allos SDK.
 | `omnibus.py` | Multi-provider Python omnibus workflow | Yes | Yes | Advanced demo |
 | `cli_workflow.sh` | Guided CLI walkthrough | Depends | Mixed | CLI-focused |
 | `omnibus_cli.sh` | Multi-provider CLI workflow | Yes | Yes | CLI + session chaining |
+| `alias_workflow.sh` | Env-driven alias smoke workflow (CLI) | Depends on alias | No | No-tools + stream in one script |
 | `provider_call_options.py` | `provider_call_options` and runtime kwargs | Yes | No | `run`/`stream_run` options |
+| `chat_completions_alias_smoke.py` | Smoke test any alias provider via env | Depends on alias | No | Great for quick alias checks |
 | `cohere_usage.py` | Native Cohere provider guide | Yes (`COHERE_API_KEY`) | Mixed | Chat, stream, tools, agent, metadata |
 | `cohere_compat.py` | Cohere via OpenAI-compatible endpoint | Yes (`COHERE_API_KEY`) | No | Compatibility mode (`cohere_compat`) |
 | `google_direct_provider.py` | Advanced Google direct-provider config | Yes | No | Vertex/Gemini kwargs |
@@ -36,8 +39,11 @@ This directory contains runnable examples for the Allos SDK.
    - `tool_usage.py`
    - `custom_tools.py`
 3. Providers:
+   - `provider_discovery.py`
    - `universal_chat.py`
    - `provider_switching.py`
+   - `alias_workflow.sh`
+   - `chat_completions_alias_smoke.py`
    - `cohere_usage.py`
    - `cohere_compat.py`
 4. Ollama/local:
@@ -67,3 +73,10 @@ This directory contains runnable examples for the Allos SDK.
 
 - `cohere` (native): Use `cohere_usage.py` for native Cohere chat, streaming, tool-calling, and metadata behavior.
 - `cohere_compat` (compat endpoint): Use `cohere_compat.py` when you specifically want the OpenAI-compatible endpoint path.
+
+## Alias Discovery
+
+- To see current provider names in your install: `allos --list-providers`
+- To inspect readiness from Python: run `provider_discovery.py`
+- To smoke-test one alias quickly: run `chat_completions_alias_smoke.py`
+- To smoke-test alias flows from CLI: run `alias_workflow.sh`
